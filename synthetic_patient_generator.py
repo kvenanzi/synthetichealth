@@ -6,6 +6,9 @@ import sys
 from datetime import datetime, timedelta
 import uuid
 from collections import defaultdict
+import argparse
+import os
+import yaml
 
 # Constants for data generation
 GENDERS = ["male", "female", "other"]
@@ -144,6 +147,39 @@ def assign_conditions(patient):
         if random.random() < prob:
             assigned.append(cond)
     return assigned
+
+def parse_distribution(dist_str, valid_keys, value_type="str", default_dist=None):
+    if not dist_str:
+        return default_dist
+    if isinstance(dist_str, dict):
+        # Validate keys and sum
+        total = sum(dist_str.values())
+        for k in dist_str.keys():
+            if k not in valid_keys:
+                raise ValueError(f"Invalid key '{k}' in distribution. Valid: {valid_keys}")
+        if abs(total - 1.0) > 0.01:
+            raise ValueError(f"Distribution must sum to 1.0, got {total}")
+        return dist_str
+    dist = {}
+    total = 0.0
+    for part in dist_str.split(","):
+        k, v = part.split(":")
+        k = k.strip()
+        v = float(v.strip())
+        if value_type == "int":
+            k = int(k)
+        if k not in valid_keys:
+            raise ValueError(f"Invalid key '{k}' in distribution. Valid: {valid_keys}")
+        dist[k] = v
+        total += v
+    if abs(total - 1.0) > 0.01:
+        raise ValueError(f"Distribution must sum to 1.0, got {total}")
+    return dist
+
+def sample_from_dist(dist):
+    keys = list(dist.keys())
+    weights = list(dist.values())
+    return random.choices(keys, weights=weights, k=1)[0]
 
 def generate_patient(_):
     birthdate = fake.date_of_birth(minimum_age=0, maximum_age=100)
@@ -424,16 +460,112 @@ def generate_family_history(patient, min_fam=0, max_fam=3):
             })
     return family
 
-def main():
-    try:
-        n = int(input("How many synthetic patient records do you want to generate? "))
-    except Exception:
-        print("Invalid input. Please enter an integer.")
-        sys.exit(1)
+def load_yaml_config(path):
+    with open(path, 'r') as f:
+        return yaml.safe_load(f)
 
-    print(f"Generating {n} patients and related tables in parallel...")
+def main():
+    parser = argparse.ArgumentParser(description="Synthetic Patient Data Generator")
+    parser.add_argument("--num-records", type=int, default=1000, help="Number of patient records to generate")
+    parser.add_argument("--output-dir", type=str, default=".", help="Directory to save output files")
+    parser.add_argument("--seed", type=int, default=None, help="Random seed for reproducibility")
+    parser.add_argument("--csv", action="store_true", help="Output CSV files only")
+    parser.add_argument("--parquet", action="store_true", help="Output Parquet files only")
+    parser.add_argument("--both", action="store_true", help="Output both CSV and Parquet files (default)")
+    parser.add_argument("--config", type=str, default=None, help="Path to YAML config file")
+    args, unknown = parser.parse_known_args()
+
+    config = {}
+    if args.config:
+        config = load_yaml_config(args.config)
+
+    def get_config(key, default=None):
+        # CLI flag overrides config file
+        val = getattr(args, key, None)
+        if val not in [None, False]:
+            return val
+        return config.get(key, default)
+
+    num_records = int(get_config('num_records', 1000))
+    output_dir = get_config('output_dir', '.')
+    seed = get_config('seed', None)
+    output_format = get_config('output_format', 'both')
+    age_dist = get_config('age_dist', None)
+    gender_dist = get_config('gender_dist', None)
+    race_dist = get_config('race_dist', None)
+    smoking_dist = get_config('smoking_dist', None)
+    alcohol_dist = get_config('alcohol_dist', None)
+    education_dist = get_config('education_dist', None)
+    employment_dist = get_config('employment_dist', None)
+    housing_dist = get_config('housing_dist', None)
+
+    if seed is not None:
+        random.seed(int(seed))
+        Faker.seed(int(seed))
+
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Determine output formats
+    output_csv = output_format in ["csv", "both"]
+    output_parquet = output_format in ["parquet", "both"]
+
+    # Parse distributions
+    age_bins = [(0, 18), (19, 40), (41, 65), (66, 120)]
+    age_bin_labels = [f"{a}-{b}" for a, b in age_bins]
+    age_dist = parse_distribution(age_dist, age_bin_labels, default_dist={l: 1/len(age_bin_labels) for l in age_bin_labels})
+    gender_dist = parse_distribution(gender_dist, GENDERS, default_dist={g: 1/len(GENDERS) for g in GENDERS})
+    race_dist = parse_distribution(race_dist, RACES, default_dist={r: 1/len(RACES) for r in RACES})
+    smoking_dist = parse_distribution(smoking_dist, SDOH_SMOKING, default_dist={s: 1/len(SDOH_SMOKING) for s in SDOH_SMOKING})
+    alcohol_dist = parse_distribution(alcohol_dist, SDOH_ALCOHOL, default_dist={a: 1/len(SDOH_ALCOHOL) for a in SDOH_ALCOHOL})
+    education_dist = parse_distribution(education_dist, SDOH_EDUCATION, default_dist={e: 1/len(SDOH_EDUCATION) for e in SDOH_EDUCATION})
+    employment_dist = parse_distribution(employment_dist, SDOH_EMPLOYMENT, default_dist={e: 1/len(SDOH_EMPLOYMENT) for e in SDOH_EMPLOYMENT})
+    housing_dist = parse_distribution(housing_dist, SDOH_HOUSING, default_dist={h: 1/len(SDOH_HOUSING) for h in SDOH_HOUSING})
+
+    def generate_patient_with_dist(_):
+        # Age bin
+        age_bin_label = sample_from_dist(age_dist)
+        a_min, a_max = map(int, age_bin_label.split("-"))
+        age = random.randint(a_min, a_max)
+        birthdate = datetime.now().date() - timedelta(days=age * 365)
+        patient_id = str(uuid.uuid4())
+        income = random.randint(0, 200000) if age >= 18 else 0
+        gender = sample_from_dist(gender_dist)
+        race = sample_from_dist(race_dist)
+        smoking_status = sample_from_dist(smoking_dist)
+        alcohol_use = sample_from_dist(alcohol_dist)
+        education = sample_from_dist(education_dist) if age >= 18 else "None"
+        employment_status = sample_from_dist(employment_dist) if age >= 16 else "Student"
+        housing_status = sample_from_dist(housing_dist)
+        return {
+            "patient_id": patient_id,
+            "first_name": fake.first_name(),
+            "last_name": fake.last_name(),
+            "gender": gender,
+            "birthdate": birthdate.isoformat(),
+            "age": age,
+            "race": race,
+            "ethnicity": random.choice(ETHNICITIES),
+            "address": fake.street_address(),
+            "city": fake.city(),
+            "state": fake.state_abbr(),
+            "zip": fake.zipcode(),
+            "country": "US",
+            "marital_status": random.choice(MARITAL_STATUSES),
+            "language": random.choice(LANGUAGES),
+            "insurance": random.choice(INSURANCES),
+            "ssn": fake.ssn(),
+            # SDOH fields
+            "smoking_status": smoking_status,
+            "alcohol_use": alcohol_use,
+            "education": education,
+            "employment_status": employment_status,
+            "income": income,
+            "housing_status": housing_status,
+        }
+
+    print(f"Generating {num_records} patients and related tables in parallel...")
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        patients = list(executor.map(generate_patient, range(n)))
+        patients = list(executor.map(generate_patient_with_dist, range(num_records)))
 
     all_encounters = []
     all_conditions = []
@@ -446,12 +578,9 @@ def main():
     all_family_history = []
 
     for patient in patients:
-        # Assign conditions based on demographics/SDOH
         conditions = generate_conditions(patient, [], min_cond=1, max_cond=5)
-        # Generate encounters based on conditions
         encounters = generate_encounters(patient, conditions)
         all_encounters.extend(encounters)
-        # Re-link conditions to actual encounters
         for cond in conditions:
             enc = random.choice(encounters) if encounters else None
             cond["encounter_id"] = enc["encounter_id"] if enc else None
@@ -467,30 +596,26 @@ def main():
             all_deaths.append(death)
         all_family_history.extend(generate_family_history(patient))
 
-    # Output each table as CSV and Parquet
-    pl.DataFrame(patients).write_csv("patients.csv")
-    pl.DataFrame(patients).write_parquet("patients.parquet")
-    pl.DataFrame(all_encounters).write_csv("encounters.csv")
-    pl.DataFrame(all_encounters).write_parquet("encounters.parquet")
-    pl.DataFrame(all_conditions).write_csv("conditions.csv")
-    pl.DataFrame(all_conditions).write_parquet("conditions.parquet")
-    pl.DataFrame(all_medications).write_csv("medications.csv")
-    pl.DataFrame(all_medications).write_parquet("medications.parquet")
-    pl.DataFrame(all_allergies).write_csv("allergies.csv")
-    pl.DataFrame(all_allergies).write_parquet("allergies.parquet")
-    pl.DataFrame(all_procedures).write_csv("procedures.csv")
-    pl.DataFrame(all_procedures).write_parquet("procedures.parquet")
-    pl.DataFrame(all_immunizations).write_csv("immunizations.csv")
-    pl.DataFrame(all_immunizations).write_parquet("immunizations.parquet")
-    pl.DataFrame(all_observations).write_csv("observations.csv")
-    pl.DataFrame(all_observations).write_parquet("observations.parquet")
+    def save(df, name):
+        if output_csv:
+            df.write_csv(os.path.join(output_dir, f"{name}.csv"))
+        if output_parquet:
+            df.write_parquet(os.path.join(output_dir, f"{name}.parquet"))
+
+    save(pl.DataFrame(patients), "patients")
+    save(pl.DataFrame(all_encounters), "encounters")
+    save(pl.DataFrame(all_conditions), "conditions")
+    save(pl.DataFrame(all_medications), "medications")
+    save(pl.DataFrame(all_allergies), "allergies")
+    save(pl.DataFrame(all_procedures), "procedures")
+    save(pl.DataFrame(all_immunizations), "immunizations")
+    save(pl.DataFrame(all_observations), "observations")
     if all_deaths:
-        pl.DataFrame(all_deaths).write_csv("deaths.csv")
-        pl.DataFrame(all_deaths).write_parquet("deaths.parquet")
+        save(pl.DataFrame(all_deaths), "deaths")
     if all_family_history:
-        pl.DataFrame(all_family_history).write_csv("family_history.csv")
-        pl.DataFrame(all_family_history).write_parquet("family_history.parquet")
-    print("Done! Files written: patients, encounters, conditions, medications, allergies, procedures, immunizations, observations, deaths, family_history (CSV and Parquet)")
+        save(pl.DataFrame(all_family_history), "family_history")
+
+    print(f"Done! Files written to {output_dir}: patients, encounters, conditions, medications, allergies, procedures, immunizations, observations, deaths, family_history (CSV and/or Parquet)")
 
 if __name__ == "__main__":
     main() 
