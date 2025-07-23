@@ -137,3 +137,51 @@ python synthetic_patient_generator.py --config config.yaml --report-file sample_
 ```
 
 This will print the report and save it to `sample_report.txt`. 
+
+## ELI5: How to Use the YAML Config File and Set Distributions
+
+**What is this file?**
+- You can set how many patients to make, where to save the files, and what your synthetic population should look like (age, gender, race, etc.).
+
+**How do I use it?**
+1. Make a file called `config.yaml` (or any name you like).
+2. Copy and paste this example, then change the numbers to match the population you want:
+
+```yaml
+num_records: 1000
+output_dir: my_output
+seed: 42
+output_format: csv
+age_dist:
+  0-18: 0.2
+  19-40: 0.3
+  41-65: 0.3
+  66-120: 0.2
+gender_dist:
+  male: 0.5
+  female: 0.5
+race_dist:
+  White: 0.6
+  Black: 0.15
+  Asian: 0.1
+  Hispanic: 0.1
+  Other: 0.05
+smoking_dist:
+  Never: 0.7
+  Former: 0.2
+  Current: 0.1
+# ...and so on for alcohol, education, employment, housing
+```
+
+**How do I run it?**
+```bash
+python synthetic_patient_generator.py --config config.yaml
+```
+
+**How do the distributions work?**
+- Each group (like age or gender) has options that add up to 1.0 (or 100%).
+- For example, if you want 20% kids, 30% young adults, 30% middle-aged, and 20% seniors, set the age_dist like above.
+- The generator will try to match these percentages in the data it creates.
+
+**Tip:**
+- You can leave out any group you don't care about, and the generator will use a default (even mix). 
