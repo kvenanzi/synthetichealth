@@ -464,6 +464,14 @@ def load_yaml_config(path):
     with open(path, 'r') as f:
         return yaml.safe_load(f)
 
+def print_and_save_report(report, report_file=None):
+    print("\n=== Synthetic Data Summary Report ===")
+    print(report)
+    if report_file:
+        with open(report_file, 'w') as f:
+            f.write(report)
+        print(f"\nReport saved to {report_file}")
+
 def main():
     parser = argparse.ArgumentParser(description="Synthetic Patient Data Generator")
     parser.add_argument("--num-records", type=int, default=1000, help="Number of patient records to generate")
@@ -473,6 +481,7 @@ def main():
     parser.add_argument("--parquet", action="store_true", help="Output Parquet files only")
     parser.add_argument("--both", action="store_true", help="Output both CSV and Parquet files (default)")
     parser.add_argument("--config", type=str, default=None, help="Path to YAML config file")
+    parser.add_argument("--report-file", type=str, default=None, help="Path to save summary report (optional)")
     args, unknown = parser.parse_known_args()
 
     config = {}
@@ -616,6 +625,66 @@ def main():
         save(pl.DataFrame(all_family_history), "family_history")
 
     print(f"Done! Files written to {output_dir}: patients, encounters, conditions, medications, allergies, procedures, immunizations, observations, deaths, family_history (CSV and/or Parquet)")
+
+    # Summary report
+    import collections
+    def value_counts(lst, bins=None):
+        if bins:
+            binned = collections.Counter()
+            for v in lst:
+                for label, (a, b) in bins.items():
+                    if a <= v <= b:
+                        binned[label] += 1
+                        break
+            return binned
+        return collections.Counter(lst)
+
+    age_bins_dict = {f"{a}-{b}": (a, b) for a, b in age_bins}
+    patients_df = pl.DataFrame(patients)
+    report_lines = []
+    report_lines.append(f"Patients: {len(patients)}")
+    report_lines.append(f"Encounters: {len(all_encounters)}")
+    report_lines.append(f"Conditions: {len(all_conditions)}")
+    report_lines.append(f"Medications: {len(all_medications)}")
+    report_lines.append(f"Allergies: {len(all_allergies)}")
+    report_lines.append(f"Procedures: {len(all_procedures)}")
+    report_lines.append(f"Immunizations: {len(all_immunizations)}")
+    report_lines.append(f"Observations: {len(all_observations)}")
+    report_lines.append(f"Deaths: {len(all_deaths)}")
+    report_lines.append(f"Family History: {len(all_family_history)}")
+    report_lines.append("")
+    # Age
+    ages = patients_df['age'].to_list()
+    age_counts = value_counts(ages, bins=age_bins_dict)
+    report_lines.append("Age distribution:")
+    for k, v in age_counts.items():
+        report_lines.append(f"  {k}: {v}")
+    # Gender
+    report_lines.append("Gender distribution:")
+    for k, v in value_counts(patients_df['gender'].to_list()).items():
+        report_lines.append(f"  {k}: {v}")
+    # Race
+    report_lines.append("Race distribution:")
+    for k, v in value_counts(patients_df['race'].to_list()).items():
+        report_lines.append(f"  {k}: {v}")
+    # SDOH fields
+    for field, label in [
+        ('smoking_status', 'Smoking'),
+        ('alcohol_use', 'Alcohol'),
+        ('education', 'Education'),
+        ('employment_status', 'Employment'),
+        ('housing_status', 'Housing')]:
+        report_lines.append(f"{label} distribution:")
+        for k, v in value_counts(patients_df[field].to_list()).items():
+            report_lines.append(f"  {k}: {v}")
+    # Top conditions
+    cond_names = [c['name'] for c in all_conditions]
+    cond_counts = value_counts(cond_names)
+    report_lines.append("Top 10 conditions:")
+    for k, v in cond_counts.most_common(10):
+        report_lines.append(f"  {k}: {v}")
+    report = "\n".join(report_lines)
+    print_and_save_report(report, get_config('report_file', None))
 
 if __name__ == "__main__":
     main() 

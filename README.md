@@ -123,3 +123,17 @@ Run with:
 ```bash
 python synthetic_patient_generator.py --config config.yaml
 ``` 
+
+## Sample Report
+
+After data generation, a summary report is printed to the console and can optionally be saved to a file using the `--report-file` flag or `report_file` in the YAML config. The report includes:
+- Counts for each table (patients, encounters, conditions, etc.)
+- Distributions for age, gender, race, and SDOH fields (smoking, alcohol, education, employment, housing)
+- Top 10 most common conditions
+
+**Example usage:**
+```bash
+python synthetic_patient_generator.py --config config.yaml --report-file sample_report.txt
+```
+
+This will print the report and save it to `sample_report.txt`. 
