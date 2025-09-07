@@ -551,6 +551,305 @@ class HL7v2Formatter:
         }
         return units_mapping.get(observation_type, "")
 
+class VistaFormatter:
+    """VistA MUMPS global formatter for Phase 3 - Production accurate VA migration simulation"""
+    
+    @staticmethod
+    def vista_date_format(date_str: str) -> str:
+        """Convert ISO date to VistA internal date format (days since 1841-01-01)"""
+        if not date_str:
+            return ""
+        
+        try:
+            from datetime import date
+            if isinstance(date_str, str):
+                input_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+            else:
+                input_date = date_str
+            
+            # VistA uses days since 1841-01-01 (FileMan date format)
+            vista_epoch = date(1841, 1, 1)
+            days_since_epoch = (input_date - vista_epoch).days
+            return str(days_since_epoch)
+        except:
+            return ""
+    
+    @staticmethod
+    def vista_datetime_format(date_str: str, time_str: str = None) -> str:
+        """Convert to VistA datetime format (YYYMMDD.HHMMSS where YYY is years since 1700)"""
+        if not date_str:
+            return ""
+            
+        try:
+            if isinstance(date_str, str):
+                input_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+            else:
+                input_date = date_str
+            
+            # VistA datetime: years since 1700 + MMDD.HHMMSS
+            years_since_1700 = input_date.year - 1700
+            month_day = f"{input_date.month:02d}{input_date.day:02d}"
+            
+            if time_str:
+                time_part = time_str.replace(":", "")
+            else:
+                # Default to noon for encounters
+                time_part = "120000"
+            
+            return f"{years_since_1700}{month_day}.{time_part}"
+        except:
+            return ""
+    
+    @staticmethod
+    def sanitize_mumps_string(text: str) -> str:
+        """Sanitize string for MUMPS global storage - handle special characters"""
+        if not text:
+            return ""
+        
+        # Remove or replace characters that would break MUMPS syntax
+        sanitized = str(text).replace("^", " ").replace('"', "'").replace("\r", "").replace("\n", " ")
+        # Limit length for FileMan fields
+        return sanitized[:30] if len(sanitized) > 30 else sanitized
+    
+    @staticmethod
+    def generate_vista_ien() -> str:
+        """Generate VistA Internal Entry Number (IEN)"""
+        return str(random.randint(1, 999999))
+    
+    @staticmethod
+    def create_dpt_global(patient_record: PatientRecord) -> Dict[str, str]:
+        """Create ^DPT Patient File #2 global structure"""
+        vista_ien = patient_record.vista_id or VistaFormatter.generate_vista_ien()
+        
+        # Patient name in LAST,FIRST MIDDLE format
+        full_name = f"{patient_record.last_name.upper()},{patient_record.first_name.upper()}"
+        if patient_record.middle_name:
+            full_name += f" {patient_record.middle_name.upper()}"
+        full_name = VistaFormatter.sanitize_mumps_string(full_name)
+        
+        # Convert gender to VistA format
+        vista_sex = "M" if patient_record.gender.lower() in ["male", "m"] else "F"
+        
+        # Convert date of birth to VistA format
+        vista_dob = VistaFormatter.vista_date_format(patient_record.birthdate)
+        
+        # Sanitize SSN (remove dashes)
+        vista_ssn = patient_record.ssn.replace("-", "") if patient_record.ssn else ""
+        
+        # Convert marital status to VistA codes
+        marital_mapping = {
+            "Never Married": "S",
+            "Married": "M", 
+            "Divorced": "D",
+            "Widowed": "W",
+            "Separated": "A"
+        }
+        vista_marital = marital_mapping.get(patient_record.marital_status, "U")
+        
+        # Convert race to VistA codes (simplified)
+        race_mapping = {
+            "White": "5",
+            "Black": "3",
+            "Asian": "6", 
+            "Hispanic": "7",
+            "Native American": "1",
+            "Other": "8"
+        }
+        vista_race = race_mapping.get(patient_record.race, "8")
+        
+        globals_dict = {}
+        
+        # Main patient record - ^DPT(IEN,0)
+        # Format: NAME^SEX^DOB^EMPLOYMENT^MARITAL^RACE^OCCUPATION^RELIGION^SSN
+        zero_node = f"{full_name}^{vista_sex}^{vista_dob}^^^{vista_race}^^{vista_ssn}"
+        globals_dict[f"^DPT({vista_ien},0)"] = zero_node
+        
+        # Address information - ^DPT(IEN,.11)
+        if patient_record.address:
+            address_node = f"{VistaFormatter.sanitize_mumps_string(patient_record.address)}^{VistaFormatter.sanitize_mumps_string(patient_record.city)}^{patient_record.state}^{patient_record.zip}"
+            globals_dict[f"^DPT({vista_ien},.11)"] = address_node
+        
+        # Phone number - ^DPT(IEN,.13)
+        if patient_record.phone:
+            globals_dict[f"^DPT({vista_ien},.13)"] = VistaFormatter.sanitize_mumps_string(patient_record.phone)
+        
+        # Cross-reference: "B" index for name lookup
+        globals_dict[f'^DPT("B","{full_name}",{vista_ien})'] = ""
+        
+        # Cross-reference: SSN index
+        if vista_ssn:
+            globals_dict[f'^DPT("SSN","{vista_ssn}",{vista_ien})'] = ""
+        
+        # Cross-reference: DOB index  
+        if vista_dob:
+            globals_dict[f'^DPT("DOB",{vista_dob},{vista_ien})'] = ""
+        
+        return globals_dict
+    
+    @staticmethod
+    def create_aupnvsit_global(patient_record: PatientRecord, encounter: Dict[str, Any]) -> Dict[str, str]:
+        """Create ^AUPNVSIT Visit File #9000010 global structure"""
+        visit_ien = VistaFormatter.generate_vista_ien()
+        patient_ien = patient_record.vista_id or VistaFormatter.generate_vista_ien()
+        
+        # Visit date/time in VistA format
+        visit_datetime = VistaFormatter.vista_datetime_format(encounter.get('date', ''))
+        
+        # Map encounter types to VistA stop codes (simplified)
+        stop_code_mapping = {
+            "Wellness Visit": "323",
+            "Emergency": "130", 
+            "Follow-up": "323",
+            "Specialist": "301",
+            "Lab": "175",
+            "Surgery": "162"
+        }
+        stop_code = stop_code_mapping.get(encounter.get('type', ''), "323")
+        
+        # Service category mapping
+        service_category = "A"  # Ambulatory care
+        if encounter.get('type') == "Emergency":
+            service_category = "E"  # Emergency
+        elif encounter.get('type') == "Surgery":
+            service_category = "I"  # Inpatient
+        
+        globals_dict = {}
+        
+        # Main visit record - ^AUPNVSIT(IEN,0)
+        # Format: PATIENT_IEN^VISIT_DATE^VISIT_TYPE^STOP_CODE^SERVICE_CATEGORY
+        zero_node = f"{patient_ien}^{visit_datetime}^{service_category}^{stop_code}^{encounter.get('encounter_id', '')}"
+        globals_dict[f"^AUPNVSIT({visit_ien},0)"] = zero_node
+        
+        # Visit location - ^AUPNVSIT(IEN,.06)
+        if encounter.get('location'):
+            globals_dict[f"^AUPNVSIT({visit_ien},.06)"] = VistaFormatter.sanitize_mumps_string(encounter.get('location', ''))
+        
+        # Cross-reference: "B" index by patient and date
+        globals_dict[f'^AUPNVSIT("B",{patient_ien},{visit_datetime},{visit_ien})'] = ""
+        
+        # Cross-reference: Date index
+        globals_dict[f'^AUPNVSIT("D",{visit_datetime},{visit_ien})'] = ""
+        
+        return globals_dict
+    
+    @staticmethod 
+    def create_aupnprob_global(patient_record: PatientRecord, condition: Dict[str, Any]) -> Dict[str, str]:
+        """Create ^AUPNPROB Problem List File #9000011 global structure"""
+        problem_ien = VistaFormatter.generate_vista_ien()
+        patient_ien = patient_record.vista_id or VistaFormatter.generate_vista_ien()
+        
+        # Problem onset date
+        onset_date = VistaFormatter.vista_date_format(condition.get('onset_date', ''))
+        
+        # Problem status mapping
+        status_mapping = {
+            "active": "A",
+            "resolved": "I",  # Inactive
+            "remission": "A"
+        }
+        problem_status = status_mapping.get(condition.get('status', 'active'), "A")
+        
+        # Get ICD codes from existing mappings
+        condition_name = condition.get('name', '')
+        icd_code = ""
+        if condition_name in TERMINOLOGY_MAPPINGS.get('conditions', {}):
+            icd_code = TERMINOLOGY_MAPPINGS['conditions'][condition_name].get('icd10', '')
+        
+        globals_dict = {}
+        
+        # Main problem record - ^AUPNPROB(IEN,0)
+        # Format: PATIENT_IEN^PROBLEM_TEXT^STATUS^ONSET_DATE^ICD_CODE
+        problem_text = VistaFormatter.sanitize_mumps_string(condition_name)
+        zero_node = f"{patient_ien}^{problem_text}^{problem_status}^{onset_date}^{icd_code}"
+        globals_dict[f"^AUPNPROB({problem_ien},0)"] = zero_node
+        
+        # Problem narrative - ^AUPNPROB(IEN,.05)
+        if condition_name:
+            globals_dict[f"^AUPNPROB({problem_ien},.05)"] = problem_text
+        
+        # Cross-reference: "B" index by patient
+        globals_dict[f'^AUPNPROB("B",{patient_ien},{problem_ien})'] = ""
+        
+        # Cross-reference: Status index
+        globals_dict[f'^AUPNPROB("S","{problem_status}",{patient_ien},{problem_ien})'] = ""
+        
+        # Cross-reference: ICD index
+        if icd_code:
+            globals_dict[f'^AUPNPROB("ICD","{icd_code}",{patient_ien},{problem_ien})'] = ""
+        
+        return globals_dict
+    
+    @staticmethod
+    def export_vista_globals(patients: List[PatientRecord], encounters: List[Dict], conditions: List[Dict], output_file: str):
+        """Export all VistA globals to MUMPS format file"""
+        all_globals = {}
+        
+        print(f"Generating VistA MUMPS globals for {len(patients)} patients...")
+        
+        # Process patients
+        for patient in patients:
+            patient_globals = VistaFormatter.create_dpt_global(patient)
+            all_globals.update(patient_globals)
+        
+        # Process encounters
+        encounter_map = {}
+        for encounter in encounters:
+            patient_id = encounter.get('patient_id')
+            if patient_id not in encounter_map:
+                encounter_map[patient_id] = []
+            encounter_map[patient_id].append(encounter)
+        
+        for patient in patients:
+            patient_encounters = encounter_map.get(patient.patient_id, [])
+            for encounter in patient_encounters:
+                visit_globals = VistaFormatter.create_aupnvsit_global(patient, encounter)
+                all_globals.update(visit_globals)
+        
+        # Process conditions
+        condition_map = {}
+        for condition in conditions:
+            patient_id = condition.get('patient_id')
+            if patient_id not in condition_map:
+                condition_map[patient_id] = []
+            condition_map[patient_id].append(condition)
+        
+        for patient in patients:
+            patient_conditions = condition_map.get(patient.patient_id, [])
+            for condition in patient_conditions:
+                problem_globals = VistaFormatter.create_aupnprob_global(patient, condition)
+                all_globals.update(problem_globals)
+        
+        # Write to file in proper MUMPS global syntax
+        with open(output_file, 'w') as f:
+            f.write(";; VistA MUMPS Global Export for Synthetic Patient Data\n")
+            f.write(f";; Generated on {datetime.now().isoformat()}\n")
+            f.write(f";; Total global nodes: {len(all_globals)}\n")
+            f.write(";;\n")
+            
+            # Sort globals for consistent output
+            sorted_globals = sorted(all_globals.items())
+            
+            for global_ref, value in sorted_globals:
+                if value:
+                    f.write(f'S {global_ref}="{value}"\n')
+                else:
+                    f.write(f'S {global_ref}=""\n')
+        
+        print(f"VistA MUMPS globals exported to {output_file} ({len(all_globals)} global nodes)")
+        
+        # Generate summary statistics
+        dpt_count = sum(1 for k in all_globals.keys() if k.startswith("^DPT(") and ",0)" in k)
+        visit_count = sum(1 for k in all_globals.keys() if k.startswith("^AUPNVSIT(") and ",0)" in k)
+        problem_count = sum(1 for k in all_globals.keys() if k.startswith("^AUPNPROB(") and ",0)" in k)
+        
+        return {
+            "total_globals": len(all_globals),
+            "patient_records": dpt_count,
+            "visit_records": visit_count, 
+            "problem_records": problem_count,
+            "cross_references": len(all_globals) - dpt_count - visit_count - problem_count
+        }
+
 class HL7MessageValidator:
     """Basic HL7 v2 message validation for Phase 2"""
     
@@ -1329,8 +1628,13 @@ def main():
     
     # Export HL7 v2 messages (Phase 2: ADT and ORU messages)
     save_hl7_messages(patients, all_encounters, all_observations, "hl7_messages")
+    
+    # Export VistA MUMPS globals (Phase 3: VA migration simulation)
+    vista_formatter = VistaFormatter()
+    vista_output_file = os.path.join(output_dir, "vista_globals.mumps")
+    vista_stats = vista_formatter.export_vista_globals(patients, all_encounters, all_conditions, vista_output_file)
 
-    print(f"Done! Files written to {output_dir}: patients, encounters, conditions, medications, allergies, procedures, immunizations, observations, deaths, family_history (CSV and/or Parquet), FHIR bundle, HL7 messages")
+    print(f"Done! Files written to {output_dir}: patients, encounters, conditions, medications, allergies, procedures, immunizations, observations, deaths, family_history (CSV and/or Parquet), FHIR bundle, HL7 messages, VistA MUMPS globals")
 
     # Summary report
     import collections
@@ -1389,6 +1693,16 @@ def main():
     report_lines.append("Top 10 conditions:")
     for k, v in cond_counts.most_common(10):
         report_lines.append(f"  {k}: {v}")
+    
+    # VistA MUMPS global statistics
+    report_lines.append("")
+    report_lines.append("VistA MUMPS Global Export Summary:")
+    report_lines.append(f"  Total global nodes: {vista_stats['total_globals']}")
+    report_lines.append(f"  Patient records (^DPT): {vista_stats['patient_records']}")
+    report_lines.append(f"  Visit records (^AUPNVSIT): {vista_stats['visit_records']}")
+    report_lines.append(f"  Problem records (^AUPNPROB): {vista_stats['problem_records']}")
+    report_lines.append(f"  Cross-references: {vista_stats['cross_references']}")
+    
     report = "\n".join(report_lines)
     print_and_save_report(report, get_config('report_file', None))
 
