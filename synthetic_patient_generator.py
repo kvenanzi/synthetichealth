@@ -9,6 +9,8 @@ from collections import defaultdict
 import argparse
 import os
 import yaml
+from dataclasses import dataclass, field
+from typing import List, Dict, Optional, Any
 
 # Constants for data generation
 GENDERS = ["male", "female", "other"]
@@ -40,6 +42,260 @@ DEATH_CAUSES = [
 ]
 
 FAMILY_RELATIONSHIPS = ["Mother", "Father", "Sibling"]
+
+# Basic terminology mappings for Phase 1
+TERMINOLOGY_MAPPINGS = {
+    'conditions': {
+        'Diabetes': {
+            'icd10': 'E11.9',
+            'snomed': '44054006'
+        },
+        'Hypertension': {
+            'icd10': 'I10',
+            'snomed': '38341003'
+        },
+        'Asthma': {
+            'icd10': 'J45.9',
+            'snomed': '195967001'
+        },
+        'COPD': {
+            'icd10': 'J44.1',
+            'snomed': '13645005'
+        },
+        'Heart Disease': {
+            'icd10': 'I25.9',
+            'snomed': '53741008'
+        },
+        'Depression': {
+            'icd10': 'F32.9',
+            'snomed': '35489007'
+        },
+        'Anxiety': {
+            'icd10': 'F41.9',
+            'snomed': '48694002'
+        }
+    },
+    'medications': {
+        'Metformin': {
+            'rxnorm': '6809',
+            'ndc': '00093-1087-01'
+        },
+        'Lisinopril': {
+            'rxnorm': '29046',
+            'ndc': '00093-2744-01'
+        },
+        'Atorvastatin': {
+            'rxnorm': '83367',
+            'ndc': '00071-0155-23'
+        },
+        'Albuterol': {
+            'rxnorm': '1154602',
+            'ndc': '00173-0682-26'
+        },
+        'Insulin': {
+            'rxnorm': '51428',
+            'ndc': '00088-2220-33'
+        }
+    }
+}
+
+@dataclass
+class PatientRecord:
+    """Enhanced patient record with multiple healthcare identifiers and metadata"""
+    
+    # Core identifiers
+    patient_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    vista_id: Optional[str] = None
+    mrn: Optional[str] = None
+    ssn: Optional[str] = None
+    
+    # Demographics
+    first_name: str = ""
+    last_name: str = ""
+    middle_name: str = ""
+    gender: str = ""
+    birthdate: str = ""
+    age: int = 0
+    race: str = ""
+    ethnicity: str = ""
+    
+    # Address
+    address: str = ""
+    city: str = ""
+    state: str = ""
+    zip: str = ""
+    country: str = "US"
+    
+    # Contact and administrative
+    phone: str = ""
+    email: str = ""
+    marital_status: str = ""
+    language: str = ""
+    insurance: str = ""
+    
+    # SDOH fields
+    smoking_status: str = ""
+    alcohol_use: str = ""
+    education: str = ""
+    employment_status: str = ""
+    income: int = 0
+    housing_status: str = ""
+    
+    # Clinical data containers
+    encounters: List[Dict[str, Any]] = field(default_factory=list)
+    conditions: List[Dict[str, Any]] = field(default_factory=list)
+    medications: List[Dict[str, Any]] = field(default_factory=list)
+    allergies: List[Dict[str, Any]] = field(default_factory=list)
+    procedures: List[Dict[str, Any]] = field(default_factory=list)
+    immunizations: List[Dict[str, Any]] = field(default_factory=list)
+    observations: List[Dict[str, Any]] = field(default_factory=list)
+    
+    # Metadata for migration simulation
+    metadata: Dict[str, Any] = field(default_factory=lambda: {
+        'source_system': 'synthetic',
+        'migration_status': 'pending',
+        'data_quality_score': 1.0,
+        'created_timestamp': datetime.now().isoformat()
+    })
+    
+    def generate_vista_id(self) -> str:
+        """Generate VistA-style patient identifier (simple version for Phase 1)"""
+        if not self.vista_id:
+            self.vista_id = str(random.randint(1, 9999999))
+        return self.vista_id
+    
+    def generate_mrn(self) -> str:
+        """Generate Medical Record Number"""
+        if not self.mrn:
+            self.mrn = f"MRN{random.randint(100000, 999999)}"
+        return self.mrn
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for backward compatibility"""
+        return {
+            'patient_id': self.patient_id,
+            'vista_id': self.vista_id,
+            'mrn': self.mrn,
+            'first_name': self.first_name,
+            'last_name': self.last_name,
+            'middle_name': self.middle_name,
+            'gender': self.gender,
+            'birthdate': self.birthdate,
+            'age': self.age,
+            'race': self.race,
+            'ethnicity': self.ethnicity,
+            'address': self.address,
+            'city': self.city,
+            'state': self.state,
+            'zip': self.zip,
+            'country': self.country,
+            'phone': self.phone,
+            'email': self.email,
+            'marital_status': self.marital_status,
+            'language': self.language,
+            'insurance': self.insurance,
+            'ssn': self.ssn,
+            'smoking_status': self.smoking_status,
+            'alcohol_use': self.alcohol_use,
+            'education': self.education,
+            'employment_status': self.employment_status,
+            'income': self.income,
+            'housing_status': self.housing_status,
+        }
+
+class FHIRFormatter:
+    """Basic FHIR R4 formatter for Phase 1"""
+    
+    @staticmethod
+    def create_patient_resource(patient_record: PatientRecord) -> Dict[str, Any]:
+        """Create basic FHIR R4 Patient resource"""
+        return {
+            "resourceType": "Patient",
+            "id": patient_record.patient_id,
+            "identifier": [
+                {
+                    "use": "usual",
+                    "type": {
+                        "coding": [{"system": "http://terminology.hl7.org/CodeSystem/v2-0203", "code": "MR"}]
+                    },
+                    "value": patient_record.mrn or patient_record.generate_mrn()
+                },
+                {
+                    "use": "official",
+                    "type": {
+                        "coding": [{"system": "http://terminology.hl7.org/CodeSystem/v2-0203", "code": "SS"}]
+                    },
+                    "system": "http://hl7.org/fhir/sid/us-ssn",
+                    "value": patient_record.ssn
+                }
+            ] if patient_record.ssn else [
+                {
+                    "use": "usual",
+                    "type": {
+                        "coding": [{"system": "http://terminology.hl7.org/CodeSystem/v2-0203", "code": "MR"}]
+                    },
+                    "value": patient_record.mrn or patient_record.generate_mrn()
+                }
+            ],
+            "active": True,
+            "name": [{
+                "use": "official",
+                "family": patient_record.last_name,
+                "given": [patient_record.first_name]
+            }],
+            "gender": patient_record.gender,
+            "birthDate": patient_record.birthdate,
+            "address": [{
+                "use": "home",
+                "line": [patient_record.address],
+                "city": patient_record.city,
+                "state": patient_record.state,
+                "postalCode": patient_record.zip,
+                "country": patient_record.country
+            }] if patient_record.address else []
+        }
+    
+    @staticmethod
+    def create_condition_resource(patient_id: str, condition: Dict[str, Any]) -> Dict[str, Any]:
+        """Create basic FHIR R4 Condition resource with terminology mappings"""
+        condition_name = condition.get('name', '')
+        codes = TERMINOLOGY_MAPPINGS['conditions'].get(condition_name, {})
+        
+        coding = []
+        if 'icd10' in codes:
+            coding.append({
+                "system": "http://hl7.org/fhir/sid/icd-10-cm",
+                "code": codes['icd10'],
+                "display": condition_name
+            })
+        if 'snomed' in codes:
+            coding.append({
+                "system": "http://snomed.info/sct",
+                "code": codes['snomed'],
+                "display": condition_name
+            })
+        
+        # Fallback if no coding found
+        if not coding:
+            coding.append({
+                "system": "http://terminology.hl7.org/CodeSystem/data-absent-reason",
+                "code": "unknown",
+                "display": condition_name
+            })
+        
+        return {
+            "resourceType": "Condition",
+            "id": condition.get('condition_id', str(uuid.uuid4())),
+            "subject": {"reference": f"Patient/{patient_id}"},
+            "code": {"coding": coding},
+            "clinicalStatus": {
+                "coding": [{
+                    "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+                    "code": condition.get('status', 'active')
+                }]
+            },
+            "onsetDateTime": condition.get('onset_date')
+        }
 
 fake = Faker()
 
@@ -182,36 +438,45 @@ def sample_from_dist(dist):
     return random.choices(keys, weights=weights, k=1)[0]
 
 def generate_patient(_):
+    """Generate patient using enhanced PatientRecord class"""
     birthdate = fake.date_of_birth(minimum_age=0, maximum_age=100)
     age = (datetime.now().date() - birthdate).days // 365
-    patient_id = str(uuid.uuid4())
     income = random.randint(0, 200000) if age >= 18 else 0
-    return {
-        "patient_id": patient_id,
-        "first_name": fake.first_name(),
-        "last_name": fake.last_name(),
-        "gender": random.choice(GENDERS),
-        "birthdate": birthdate.isoformat(),
-        "age": age,
-        "race": random.choice(RACES),
-        "ethnicity": random.choice(ETHNICITIES),
-        "address": fake.street_address(),
-        "city": fake.city(),
-        "state": fake.state_abbr(),
-        "zip": fake.zipcode(),
-        "country": "US",
-        "marital_status": random.choice(MARITAL_STATUSES),
-        "language": random.choice(LANGUAGES),
-        "insurance": random.choice(INSURANCES),
-        "ssn": fake.ssn(),
+    
+    patient = PatientRecord(
+        first_name=fake.first_name(),
+        last_name=fake.last_name(),
+        middle_name=fake.first_name()[:1],  # Simple middle initial
+        gender=random.choice(GENDERS),
+        birthdate=birthdate.isoformat(),
+        age=age,
+        race=random.choice(RACES),
+        ethnicity=random.choice(ETHNICITIES),
+        address=fake.street_address(),
+        city=fake.city(),
+        state=fake.state_abbr(),
+        zip=fake.zipcode(),
+        country="US",
+        phone=fake.phone_number(),
+        email=fake.email(),
+        marital_status=random.choice(MARITAL_STATUSES),
+        language=random.choice(LANGUAGES),
+        insurance=random.choice(INSURANCES),
+        ssn=fake.ssn(),
         # SDOH fields
-        "smoking_status": random.choice(SDOH_SMOKING),
-        "alcohol_use": random.choice(SDOH_ALCOHOL),
-        "education": random.choice(SDOH_EDUCATION) if age >= 18 else "None",
-        "employment_status": random.choice(SDOH_EMPLOYMENT) if age >= 16 else "Student",
-        "income": income,
-        "housing_status": random.choice(SDOH_HOUSING),
-    }
+        smoking_status=random.choice(SDOH_SMOKING),
+        alcohol_use=random.choice(SDOH_ALCOHOL),
+        education=random.choice(SDOH_EDUCATION) if age >= 18 else "None",
+        employment_status=random.choice(SDOH_EMPLOYMENT) if age >= 16 else "Student",
+        income=income,
+        housing_status=random.choice(SDOH_HOUSING),
+    )
+    
+    # Generate healthcare IDs
+    patient.generate_vista_id()
+    patient.generate_mrn()
+    
+    return patient
 
 def generate_encounters(patient, conditions=None, min_enc=1, max_enc=8):
     # More chronic conditions = more encounters
@@ -531,12 +796,12 @@ def main():
     housing_dist = parse_distribution(housing_dist, SDOH_HOUSING, default_dist={h: 1/len(SDOH_HOUSING) for h in SDOH_HOUSING})
 
     def generate_patient_with_dist(_):
+        """Generate patient with distribution constraints using PatientRecord class"""
         # Age bin
         age_bin_label = sample_from_dist(age_dist)
         a_min, a_max = map(int, age_bin_label.split("-"))
         age = random.randint(a_min, a_max)
         birthdate = datetime.now().date() - timedelta(days=age * 365)
-        patient_id = str(uuid.uuid4())
         income = random.randint(0, 200000) if age >= 18 else 0
         gender = sample_from_dist(gender_dist)
         race = sample_from_dist(race_dist)
@@ -545,32 +810,41 @@ def main():
         education = sample_from_dist(education_dist) if age >= 18 else "None"
         employment_status = sample_from_dist(employment_dist) if age >= 16 else "Student"
         housing_status = sample_from_dist(housing_dist)
-        return {
-            "patient_id": patient_id,
-            "first_name": fake.first_name(),
-            "last_name": fake.last_name(),
-            "gender": gender,
-            "birthdate": birthdate.isoformat(),
-            "age": age,
-            "race": race,
-            "ethnicity": random.choice(ETHNICITIES),
-            "address": fake.street_address(),
-            "city": fake.city(),
-            "state": fake.state_abbr(),
-            "zip": fake.zipcode(),
-            "country": "US",
-            "marital_status": random.choice(MARITAL_STATUSES),
-            "language": random.choice(LANGUAGES),
-            "insurance": random.choice(INSURANCES),
-            "ssn": fake.ssn(),
+        
+        patient = PatientRecord(
+            first_name=fake.first_name(),
+            last_name=fake.last_name(),
+            middle_name=fake.first_name()[:1],  # Simple middle initial
+            gender=gender,
+            birthdate=birthdate.isoformat(),
+            age=age,
+            race=race,
+            ethnicity=random.choice(ETHNICITIES),
+            address=fake.street_address(),
+            city=fake.city(),
+            state=fake.state_abbr(),
+            zip=fake.zipcode(),
+            country="US",
+            phone=fake.phone_number(),
+            email=fake.email(),
+            marital_status=random.choice(MARITAL_STATUSES),
+            language=random.choice(LANGUAGES),
+            insurance=random.choice(INSURANCES),
+            ssn=fake.ssn(),
             # SDOH fields
-            "smoking_status": smoking_status,
-            "alcohol_use": alcohol_use,
-            "education": education,
-            "employment_status": employment_status,
-            "income": income,
-            "housing_status": housing_status,
-        }
+            smoking_status=smoking_status,
+            alcohol_use=alcohol_use,
+            education=education,
+            employment_status=employment_status,
+            income=income,
+            housing_status=housing_status,
+        )
+        
+        # Generate healthcare IDs
+        patient.generate_vista_id()
+        patient.generate_mrn()
+        
+        return patient
 
     print(f"Generating {num_records} patients and related tables in parallel...")
     with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -587,31 +861,70 @@ def main():
     all_family_history = []
 
     for patient in patients:
-        conditions = generate_conditions(patient, [], min_cond=1, max_cond=5)
-        encounters = generate_encounters(patient, conditions)
+        # Convert PatientRecord to dict for backward compatibility with existing functions
+        patient_dict = patient.to_dict()
+        
+        conditions = generate_conditions(patient_dict, [], min_cond=1, max_cond=5)
+        encounters = generate_encounters(patient_dict, conditions)
         all_encounters.extend(encounters)
         for cond in conditions:
             enc = random.choice(encounters) if encounters else None
             cond["encounter_id"] = enc["encounter_id"] if enc else None
-            cond["onset_date"] = enc["date"] if enc else patient["birthdate"]
+            cond["onset_date"] = enc["date"] if enc else patient_dict["birthdate"]
         all_conditions.extend(conditions)
-        all_medications.extend(generate_medications(patient, encounters, conditions))
-        all_allergies.extend(generate_allergies(patient))
-        all_procedures.extend(generate_procedures(patient, encounters))
-        all_immunizations.extend(generate_immunizations(patient, encounters))
-        all_observations.extend(generate_observations(patient, encounters, conditions))
-        death = generate_death(patient, conditions)
+        all_medications.extend(generate_medications(patient_dict, encounters, conditions))
+        all_allergies.extend(generate_allergies(patient_dict))
+        all_procedures.extend(generate_procedures(patient_dict, encounters))
+        all_immunizations.extend(generate_immunizations(patient_dict, encounters))
+        all_observations.extend(generate_observations(patient_dict, encounters, conditions))
+        death = generate_death(patient_dict, conditions)
         if death:
             all_deaths.append(death)
-        all_family_history.extend(generate_family_history(patient))
+        all_family_history.extend(generate_family_history(patient_dict))
 
     def save(df, name):
         if output_csv:
             df.write_csv(os.path.join(output_dir, f"{name}.csv"))
         if output_parquet:
             df.write_parquet(os.path.join(output_dir, f"{name}.parquet"))
+    
+    def save_fhir_bundle(patients_list, conditions_list, filename="fhir_bundle.json"):
+        """Save FHIR bundle with Patient and Condition resources"""
+        import json
+        
+        fhir_formatter = FHIRFormatter()
+        bundle_entries = []
+        
+        # Add Patient resources
+        for patient in patients_list:
+            patient_resource = fhir_formatter.create_patient_resource(patient)
+            bundle_entries.append({"resource": patient_resource})
+        
+        # Add Condition resources
+        for condition in conditions_list:
+            condition_resource = fhir_formatter.create_condition_resource(
+                condition.get('patient_id'), condition
+            )
+            bundle_entries.append({"resource": condition_resource})
+        
+        # Create FHIR Bundle
+        fhir_bundle = {
+            "resourceType": "Bundle",
+            "type": "collection",
+            "timestamp": datetime.now().isoformat(),
+            "entry": bundle_entries
+        }
+        
+        # Save to file
+        with open(os.path.join(output_dir, filename), 'w') as f:
+            json.dump(fhir_bundle, f, indent=2)
+        
+        print(f"FHIR Bundle saved: {filename} ({len(bundle_entries)} resources)")
 
-    save(pl.DataFrame(patients), "patients")
+    # Convert PatientRecord objects to dictionaries for DataFrame creation
+    patients_dict = [patient.to_dict() for patient in patients]
+    
+    save(pl.DataFrame(patients_dict), "patients")
     save(pl.DataFrame(all_encounters), "encounters")
     save(pl.DataFrame(all_conditions), "conditions")
     save(pl.DataFrame(all_medications), "medications")
@@ -624,7 +937,10 @@ def main():
     if all_family_history:
         save(pl.DataFrame(all_family_history), "family_history")
 
-    print(f"Done! Files written to {output_dir}: patients, encounters, conditions, medications, allergies, procedures, immunizations, observations, deaths, family_history (CSV and/or Parquet)")
+    # Export FHIR bundle (Phase 1: basic Patient and Condition resources)
+    save_fhir_bundle(patients, all_conditions, "fhir_bundle.json")
+
+    print(f"Done! Files written to {output_dir}: patients, encounters, conditions, medications, allergies, procedures, immunizations, observations, deaths, family_history (CSV and/or Parquet), FHIR bundle")
 
     # Summary report
     import collections

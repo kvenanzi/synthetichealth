@@ -1,33 +1,3 @@
 polars>=0.20.0
 faker>=19.0.0 
-PyYAML>=6.0
-
-# Healthcare Interoperability Dependencies
-fhir-client>=4.2.0
-hl7>=0.4.5
-python-hl7>=1.3.3
-
-# Clinical Data Standards
-icd10-cm>=0.0.4
-loinc>=2.7.0
-
-# Data Validation and Testing
-jsonschema>=4.17.0
-pytest>=7.2.0
-pytest-cov>=4.0.0
-
-# VA and Military Integration
-pycountry>=22.3.0
-us>=3.0.0
-
-# Date/Time Processing
-python-dateutil>=2.8.2
-
-# Logging and Monitoring
-structlog>=23.1.0
-
-# Optional: FHIR R4 Validation (if available)
-# fhir-validator>=1.0.0
-
-# Optional: Clinical Decision Support
-# cds-hooks-client>=1.0.0 
+PyYAML>=6.0 

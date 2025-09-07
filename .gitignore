@@ -1,1 +1,18 @@
 CLAUDE.md
+
+# Generated test data files
+*.csv
+*.parquet
+*.json
+
+# Python virtual environment
+.venv/
+__pycache__/
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
