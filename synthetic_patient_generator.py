@@ -297,6 +297,312 @@ class FHIRFormatter:
             "onsetDateTime": condition.get('onset_date')
         }
 
+class HL7v2Formatter:
+    """HL7 v2.x message formatter for Phase 2"""
+    
+    @staticmethod
+    def create_adt_message(patient_record: PatientRecord, encounter: Dict[str, Any] = None, message_type: str = "A04") -> str:
+        """Create HL7 v2 ADT (Admit/Discharge/Transfer) message"""
+        from datetime import datetime
+        
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        message_control_id = f"MSG{random.randint(100000, 999999)}"
+        
+        segments = []
+        
+        # MSH - Message Header
+        msh = (f"MSH|^~\\&|VistA|VA_FACILITY|Oracle|ORACLE_FACILITY|{timestamp}||"
+               f"ADT^{message_type}|{message_control_id}|P|2.5")
+        segments.append(msh)
+        
+        # EVN - Event Type  
+        evn = f"EVN|{message_type}|{timestamp}|||"
+        segments.append(evn)
+        
+        # PID - Patient Identification
+        pid_segments = [
+            "PID",
+            "1",  # Set ID
+            "",   # External ID
+            f"{patient_record.mrn}^^^VA^MR~{patient_record.ssn}^^^USA^SS" if patient_record.ssn else f"{patient_record.mrn}^^^VA^MR",
+            "",   # Alternate Patient ID
+            f"{patient_record.last_name}^{patient_record.first_name}^{patient_record.middle_name}",
+            "",   # Mother's Maiden Name
+            patient_record.birthdate.replace('-', ''),
+            patient_record.gender.upper()[0] if patient_record.gender else "U",
+            "",   # Patient Alias
+            HL7v2Formatter._get_hl7_race_code(patient_record.race),
+            f"{patient_record.address}^^{patient_record.city}^{patient_record.state}^{patient_record.zip}",
+            "",   # County Code
+            patient_record.phone if hasattr(patient_record, 'phone') and patient_record.phone else "",
+            "",   # Business Phone
+            HL7v2Formatter._get_hl7_language_code(patient_record.language),
+            HL7v2Formatter._get_hl7_marital_code(patient_record.marital_status),
+            "",   # Religion
+            f"{patient_record.patient_id}^^^VA^AN",  # Account Number
+            patient_record.ssn if patient_record.ssn else "",
+            "",   # Driver's License
+            "",   # Mother's Identifier
+            HL7v2Formatter._get_hl7_ethnicity_code(patient_record.ethnicity),
+            "",   # Birth Place
+            "",   # Multiple Birth Indicator
+            "",   # Birth Order
+            "",   # Citizenship
+            "",   # Veterans Military Status
+            "",   # Nationality
+            "",   # Death Date
+            "",   # Death Indicator
+            "",   # Identity Unknown
+            "",   # Identity Reliability
+            "",   # Last Update Date
+            "",   # Last Update Facility
+            "",   # Species Code
+            "",   # Breed Code
+            "",   # Strain
+            "",   # Production Class Code
+            ""    # Tribal Citizenship
+        ]
+        
+        pid = "|".join(pid_segments)
+        segments.append(pid)
+        
+        # PV1 - Patient Visit (if encounter provided)
+        if encounter:
+            pv1_segments = [
+                "PV1",
+                "1",  # Set ID
+                encounter.get('type', 'O'),  # Patient Class (O=Outpatient, I=Inpatient)
+                "CLINIC1^^^VA^CLINIC",  # Assigned Patient Location
+                "",   # Admission Type
+                "",   # Preadmit Number
+                "",   # Prior Patient Location
+                "DOE^JOHN^A^^^DR",  # Attending Doctor
+                "",   # Referring Doctor
+                "",   # Consulting Doctor
+                "GIM",  # Hospital Service
+                "",   # Temporary Location
+                "",   # Preadmit Test Indicator
+                "",   # Re-admission Indicator
+                "",   # Admit Source
+                "",   # Ambulatory Status
+                "",   # VIP Indicator
+                "",   # Admitting Doctor
+                "",   # Patient Type
+                "",   # Visit Number
+                "",   # Financial Class
+                "",   # Charge Price Indicator
+                "",   # Courtesy Code
+                "",   # Credit Rating
+                "",   # Contract Code
+                "",   # Contract Effective Date
+                "",   # Contract Amount
+                "",   # Contract Period
+                "",   # Interest Code
+                "",   # Transfer to Bad Debt Code
+                "",   # Transfer to Bad Debt Date
+                "",   # Bad Debt Agency Code
+                "",   # Bad Debt Transfer Amount
+                "",   # Bad Debt Recovery Amount
+                "",   # Delete Account Indicator
+                "",   # Delete Account Date
+                "",   # Discharge Disposition
+                "",   # Discharged to Location
+                "",   # Diet Type
+                "",   # Servicing Facility
+                "",   # Bed Status
+                "",   # Account Status
+                "",   # Pending Location
+                "",   # Prior Temporary Location
+                encounter.get('date', '').replace('-', '') if encounter.get('date') else timestamp[:8],  # Admit Date/Time
+                "",   # Discharge Date/Time
+                "",   # Current Patient Balance
+                "",   # Total Charges
+                "",   # Total Adjustments
+                "",   # Total Payments
+                "",   # Alternate Visit ID
+                "",   # Visit Indicator
+                ""    # Other Healthcare Provider
+            ]
+            
+            pv1 = "|".join(pv1_segments)
+            segments.append(pv1)
+        
+        return "\r".join(segments)
+    
+    @staticmethod
+    def create_oru_message(patient_record: PatientRecord, observations: list) -> str:
+        """Create HL7 v2 ORU (Observation Result) message for lab results"""
+        from datetime import datetime
+        
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        message_control_id = f"LAB{random.randint(100000, 999999)}"
+        
+        segments = []
+        
+        # MSH - Message Header
+        msh = (f"MSH|^~\\&|VistA|VA_FACILITY|LAB|LAB_FACILITY|{timestamp}||"
+               f"ORU^R01|{message_control_id}|P|2.5")
+        segments.append(msh)
+        
+        # PID - Patient Identification (same as ADT)
+        pid = (f"PID|1||{patient_record.mrn}^^^VA^MR~{patient_record.ssn}^^^USA^SS||"
+               f"{patient_record.last_name}^{patient_record.first_name}^{patient_record.middle_name}||"
+               f"{patient_record.birthdate.replace('-', '')}|{patient_record.gender.upper()[0]}|||"
+               f"{patient_record.address}^^{patient_record.city}^{patient_record.state}^{patient_record.zip}")
+        segments.append(pid)
+        
+        # OBR - Observation Request
+        obr = (f"OBR|1|{random.randint(100000, 999999)}|{random.randint(100000, 999999)}|"
+               f"CBC^Complete Blood Count^L|||{timestamp}||||||||||DOE^JOHN^A")
+        segments.append(obr)
+        
+        # OBX - Observation/Result segments
+        for i, obs in enumerate(observations[:5], 1):  # Limit to 5 observations
+            obs_type = obs.get('type', 'Unknown')
+            obs_value = obs.get('value', '')
+            
+            # Map observation types to LOINC codes
+            loinc_code = HL7v2Formatter._get_loinc_code(obs_type)
+            data_type = HL7v2Formatter._get_hl7_data_type(obs_type)
+            units = HL7v2Formatter._get_observation_units(obs_type)
+            
+            obx = (f"OBX|{i}|{data_type}|{loinc_code}^{obs_type}^LN||{obs_value}|{units}||||F|||"
+                   f"{timestamp}")
+            segments.append(obx)
+        
+        return "\r".join(segments)
+    
+    @staticmethod
+    def _get_hl7_race_code(race: str) -> str:
+        """Map race to HL7 codes"""
+        race_mapping = {
+            "White": "2106-3^White^HL70005",
+            "Black": "2054-5^Black or African American^HL70005", 
+            "Asian": "2028-9^Asian^HL70005",
+            "Hispanic": "2131-1^Other Race^HL70005",
+            "Native American": "1002-5^American Indian or Alaska Native^HL70005",
+            "Other": "2131-1^Other Race^HL70005"
+        }
+        return race_mapping.get(race, "2131-1^Other Race^HL70005")
+    
+    @staticmethod
+    def _get_hl7_ethnicity_code(ethnicity: str) -> str:
+        """Map ethnicity to HL7 codes"""
+        return "2135-2^Hispanic or Latino^HL70189" if ethnicity == "Hispanic or Latino" else "2186-5^Not Hispanic or Latino^HL70189"
+    
+    @staticmethod
+    def _get_hl7_language_code(language: str) -> str:
+        """Map language to HL7 codes"""
+        lang_mapping = {
+            "English": "en^English^ISO639",
+            "Spanish": "es^Spanish^ISO639",
+            "Chinese": "zh^Chinese^ISO639",
+            "French": "fr^French^ISO639",
+            "German": "de^German^ISO639",
+            "Vietnamese": "vi^Vietnamese^ISO639"
+        }
+        return lang_mapping.get(language, "en^English^ISO639")
+    
+    @staticmethod
+    def _get_hl7_marital_code(marital_status: str) -> str:
+        """Map marital status to HL7 codes"""
+        marital_mapping = {
+            "Never Married": "S^Single^HL70002",
+            "Married": "M^Married^HL70002",
+            "Divorced": "D^Divorced^HL70002",
+            "Widowed": "W^Widowed^HL70002",
+            "Separated": "A^Separated^HL70002"
+        }
+        return marital_mapping.get(marital_status, "U^Unknown^HL70002")
+    
+    @staticmethod
+    def _get_loinc_code(observation_type: str) -> str:
+        """Map observation types to LOINC codes"""
+        loinc_mapping = {
+            "Height": "8302-2",
+            "Weight": "29463-7", 
+            "Blood Pressure": "85354-9",
+            "Heart Rate": "8867-4",
+            "Temperature": "8310-5",
+            "Hemoglobin A1c": "4548-4",
+            "Cholesterol": "2093-3"
+        }
+        return loinc_mapping.get(observation_type, "8310-5")  # Default to temperature
+    
+    @staticmethod
+    def _get_hl7_data_type(observation_type: str) -> str:
+        """Get HL7 data type for observation"""
+        if observation_type in ["Blood Pressure"]:
+            return "ST"  # String
+        else:
+            return "NM"  # Numeric
+    
+    @staticmethod
+    def _get_observation_units(observation_type: str) -> str:
+        """Get units for observation values"""
+        units_mapping = {
+            "Height": "cm",
+            "Weight": "kg",
+            "Blood Pressure": "mmHg",
+            "Heart Rate": "bpm",
+            "Temperature": "Cel",
+            "Hemoglobin A1c": "%",
+            "Cholesterol": "mg/dL"
+        }
+        return units_mapping.get(observation_type, "")
+
+class HL7MessageValidator:
+    """Basic HL7 v2 message validation for Phase 2"""
+    
+    @staticmethod
+    def validate_message_structure(message: str) -> Dict[str, Any]:
+        """Validate basic HL7 message structure"""
+        validation_result = {
+            "valid": True,
+            "errors": [],
+            "warnings": [],
+            "segments_found": []
+        }
+        
+        if not message:
+            validation_result["valid"] = False
+            validation_result["errors"].append("Empty message")
+            return validation_result
+        
+        segments = message.split('\r')
+        
+        # Check for required MSH segment
+        if not segments or not segments[0].startswith('MSH'):
+            validation_result["valid"] = False
+            validation_result["errors"].append("Missing or invalid MSH segment")
+            return validation_result
+        
+        # Validate each segment
+        for i, segment in enumerate(segments):
+            if not segment:
+                continue
+                
+            segment_type = segment[:3]
+            validation_result["segments_found"].append(segment_type)
+            
+            # Basic field count validation
+            fields = segment.split('|')
+            if segment_type == "MSH" and len(fields) < 10:
+                validation_result["errors"].append(f"MSH segment has insufficient fields: {len(fields)}")
+            elif segment_type == "PID" and len(fields) < 5:
+                validation_result["errors"].append(f"PID segment has insufficient fields: {len(fields)}")
+            elif segment_type in ["OBX", "OBR"] and len(fields) < 4:
+                validation_result["errors"].append(f"{segment_type} segment has insufficient fields: {len(fields)}")
+        
+        # Check message type specific requirements
+        if "PID" not in validation_result["segments_found"]:
+            validation_result["warnings"].append("No PID segment found")
+        
+        if validation_result["errors"]:
+            validation_result["valid"] = False
+        
+        return validation_result
+
 fake = Faker()
 
 def weighted_choice(choices):
@@ -920,6 +1226,87 @@ def main():
             json.dump(fhir_bundle, f, indent=2)
         
         print(f"FHIR Bundle saved: {filename} ({len(bundle_entries)} resources)")
+    
+    def save_hl7_messages(patients_list, encounters_list, observations_list, filename_prefix="hl7_messages"):
+        """Save HL7 v2 messages (ADT and ORU)"""
+        hl7_formatter = HL7v2Formatter()
+        validator = HL7MessageValidator()
+        
+        adt_messages = []
+        oru_messages = []
+        validation_results = []
+        
+        # Create ADT messages for each patient
+        for patient in patients_list:
+            # Get encounters for this patient
+            patient_encounters = [enc for enc in encounters_list if enc.get('patient_id') == patient.patient_id]
+            
+            if patient_encounters:
+                # Create ADT message with first encounter
+                encounter = patient_encounters[0]
+                adt_message = hl7_formatter.create_adt_message(patient, encounter, "A04")
+            else:
+                # Create ADT message without encounter
+                adt_message = hl7_formatter.create_adt_message(patient, None, "A04")
+            
+            adt_messages.append(adt_message)
+            
+            # Validate ADT message
+            validation = validator.validate_message_structure(adt_message)
+            validation_results.append({
+                "patient_id": patient.patient_id,
+                "message_type": "ADT",
+                "valid": validation["valid"],
+                "errors": validation["errors"],
+                "warnings": validation["warnings"]
+            })
+        
+        # Create ORU messages for patients with observations
+        patient_obs_map = {}
+        for obs in observations_list:
+            patient_id = obs.get('patient_id')
+            if patient_id not in patient_obs_map:
+                patient_obs_map[patient_id] = []
+            patient_obs_map[patient_id].append(obs)
+        
+        for patient in patients_list:
+            patient_observations = patient_obs_map.get(patient.patient_id, [])
+            if patient_observations:
+                oru_message = hl7_formatter.create_oru_message(patient, patient_observations)
+                oru_messages.append(oru_message)
+                
+                # Validate ORU message
+                validation = validator.validate_message_structure(oru_message)
+                validation_results.append({
+                    "patient_id": patient.patient_id,
+                    "message_type": "ORU",
+                    "valid": validation["valid"],
+                    "errors": validation["errors"],
+                    "warnings": validation["warnings"]
+                })
+        
+        # Save ADT messages
+        if adt_messages:
+            with open(os.path.join(output_dir, f"{filename_prefix}_adt.hl7"), 'w') as f:
+                f.write('\n'.join(adt_messages))
+            print(f"HL7 ADT messages saved: {filename_prefix}_adt.hl7 ({len(adt_messages)} messages)")
+        
+        # Save ORU messages  
+        if oru_messages:
+            with open(os.path.join(output_dir, f"{filename_prefix}_oru.hl7"), 'w') as f:
+                f.write('\n'.join(oru_messages))
+            print(f"HL7 ORU messages saved: {filename_prefix}_oru.hl7 ({len(oru_messages)} messages)")
+        
+        # Save validation results
+        if validation_results:
+            import json
+            with open(os.path.join(output_dir, f"{filename_prefix}_validation.json"), 'w') as f:
+                json.dump(validation_results, f, indent=2)
+            
+            # Print validation summary
+            valid_count = sum(1 for r in validation_results if r["valid"])
+            total_count = len(validation_results)
+            print(f"HL7 Validation: {valid_count}/{total_count} messages valid")
 
     # Convert PatientRecord objects to dictionaries for DataFrame creation
     patients_dict = [patient.to_dict() for patient in patients]
@@ -939,8 +1326,11 @@ def main():
 
     # Export FHIR bundle (Phase 1: basic Patient and Condition resources)
     save_fhir_bundle(patients, all_conditions, "fhir_bundle.json")
+    
+    # Export HL7 v2 messages (Phase 2: ADT and ORU messages)
+    save_hl7_messages(patients, all_encounters, all_observations, "hl7_messages")
 
-    print(f"Done! Files written to {output_dir}: patients, encounters, conditions, medications, allergies, procedures, immunizations, observations, deaths, family_history (CSV and/or Parquet), FHIR bundle")
+    print(f"Done! Files written to {output_dir}: patients, encounters, conditions, medications, allergies, procedures, immunizations, observations, deaths, family_history (CSV and/or Parquet), FHIR bundle, HL7 messages")
 
     # Summary report
     import collections
