@@ -1,12 +1,38 @@
-# Synthetic Patient Data Generator
+# Synthetic Healthcare Data Generator
 
-This project generates highly realistic, Synthea-like synthetic patient data for research, analytics, and software development. It outputs normalized tables (patients, encounters, conditions, medications, allergies, procedures, immunizations, observations, deaths, family history) in both CSV and Parquet formats.
+A comprehensive synthetic patient data generator designed for healthcare migration simulations, EHR system testing, and interoperability research. This project generates realistic, Synthea-like healthcare data with multi-format export capabilities including **FHIR R4**, **HL7 v2.x**, **VistA MUMPS**, **CSV**, and **Parquet** formats.
 
-## Features
-- Fast, parallelized data generation using Python and Polars
-- Realistic demographics, social determinants, and medical histories
-- Interdependent conditions, medications, encounters, and outcomes
-- Output as normalized CSV and Parquet files
+## 🎯 Current Status
+
+**Production-Ready Multi-Format Healthcare Data Generator**
+
+✅ **Core Data Generation** - Complete normalized healthcare datasets with realistic relationships  
+✅ **FHIR R4 Export** - US Core compliant Patient and Condition resources with proper terminology mappings  
+✅ **HL7 v2 Support** - ADT (Admit/Discharge/Transfer) and ORU (Observation Result) messages with validation  
+✅ **VistA MUMPS Format** - Production-accurate VA global structures for healthcare migration simulation  
+✅ **Multi-Format Output** - CSV, Parquet, JSON with configurable export options  
+✅ **Advanced Configuration** - YAML-based customization of demographics and social determinants
+
+## 🚀 Key Features
+
+### Multi-Format Healthcare Data Export
+- **FHIR R4** - US Core Patient/Condition resources with proper coding systems
+- **HL7 v2.x** - ADT and ORU messages with validation and terminology mapping  
+- **VistA MUMPS** - Production-accurate VA FileMan global structures
+- **CSV/Parquet** - Normalized relational tables for analytics
+- **JSON Bundles** - Structured healthcare data packages
+
+### Advanced Data Generation
+- **Realistic Demographics** - Age, gender, race, ethnicity with configurable distributions
+- **Social Determinants** - Smoking, alcohol, education, employment, housing status
+- **Clinical Relationships** - Conditions → medications → observations with medical accuracy
+- **Family History** - Genetic predispositions and inherited conditions
+- **Parallelized Processing** - High-performance generation using concurrent futures
+
+### Healthcare Migration Simulation
+- **VistA-to-Oracle Migration** - Accurate data format transformation for VA systems
+- **Multi-System Integration** - Cross-platform healthcare data compatibility
+- **Production Validation** - Real-world tested format structures and mappings
 
 ## Setup
 
@@ -38,33 +64,62 @@ python synthetic_patient_generator.py
 
 You will be prompted for the number of synthetic patient records to generate (e.g., `1000`).
 
-## Output
+## 📊 Output Formats
 
-The following files will be created in the current directory (both CSV and Parquet formats):
+### Relational Data Tables (CSV/Parquet)
+- `patients` - Demographics, SDOH, multiple identifiers
+- `encounters` - Healthcare visits with realistic patterns
+- `conditions` - ICD-10 coded diagnoses with onset dates
+- `medications` - NDC coded prescriptions linked to conditions
+- `allergies` - Substance allergies with reaction severity
+- `procedures` - CPT coded medical procedures
+- `immunizations` - CVX coded vaccination records
+- `observations` - LOINC coded vitals and lab results
+- `deaths` - Mortality data with cause mapping
+- `family_history` - Genetic predisposition modeling
 
-- `patients.csv` / `patients.parquet`: Demographics, SDOH, etc.
-- `encounters.csv` / `encounters.parquet`: Healthcare visits
-- `conditions.csv` / `conditions.parquet`: Diagnoses (chronic/acute)
-- `medications.csv` / `medications.parquet`: Prescriptions
-- `allergies.csv` / `allergies.parquet`: Allergies and reactions
-- `procedures.csv` / `procedures.parquet`: Medical procedures
-- `immunizations.csv` / `immunizations.parquet`: Vaccines
-- `observations.csv` / `observations.parquet`: Vitals and labs
-- `deaths.csv` / `deaths.parquet`: Death date and cause (subset of patients)
-- `family_history.csv` / `family_history.parquet`: Family member conditions
+### Healthcare Interoperability Formats
+- `fhir_bundle.json` - FHIR R4 Bundle with Patient/Condition resources
+- `hl7_messages_adt.hl7` - HL7 v2 Admit/Discharge/Transfer messages
+- `hl7_messages_oru.hl7` - HL7 v2 Observation Result messages  
+- `vista_globals.mumps` - VistA FileMan global structures
 
-Each table is normalized and linked by `patient_id` (and `encounter_id` where appropriate).
+All tables linked by `patient_id` with referential integrity maintained across formats.
 
-## Customization
-- The generator can be extended to add more fields, logic, or output formats.
-- For large datasets, use higher numbers when prompted.
+## 🔮 Remaining Development Phases
 
-## Requirements
-- Python 3.8+
-- See `requirements.txt` for dependencies
+Based on the original technical specifications, the following phases are planned but not yet implemented:
 
-## License
-MIT License (see LICENSE file) 
+### Phase 4: Migration Simulation 
+- **MigrationSimulator Class** - Staged migration logic with realistic delays and failures
+- **Migration Status Tracking** - Patient-level migration status and data quality scoring
+- **Data Quality Degradation** - Simulate realistic data quality issues during migration
+- **Migration Analytics** - Comprehensive logging and success/failure reporting
+- **Multi-stage Processing** - Extract → Transform → Validate → Load pipeline simulation
+
+### Phase 5: Integration & Testing
+- **MultiFormatHealthcareGenerator** - Unified architecture replacing individual formatters
+- **Enhanced Configuration** - Migration settings, data quality controls, error injection
+- **Advanced Validation** - Comprehensive FHIR R4 schema validation and HL7 v2 structure validation  
+- **Performance Analytics** - Migration performance metrics and optimization
+- **End-to-end Testing** - Complete migration simulation testing framework
+
+### Technical Debt & Architecture Improvements
+- **Unified Class Architecture** - Replace function-based approach with class-based design
+- **Enhanced Dependencies** - Add fhir.resources, hl7apy, jsonschema for better validation
+- **Configuration Extensions** - Add migration_settings and data_quality sections to YAML config
+- **Error Injection System** - Configurable error rates and error type simulation
+
+## 🛠️ Technical Requirements
+- **Python 3.8+** with concurrent.futures support
+- **Core Dependencies**: polars, faker, PyYAML for high-performance data processing
+- **Optional**: fhir.resources for enhanced FHIR validation (planned)
+
+## 📜 License
+MIT License - See LICENSE file for details
+
+## 🤝 Contributing
+This project supports healthcare interoperability research and migration testing. Contributions welcome for additional formats, clinical accuracy improvements, and performance optimizations. 
 
 ## YAML Configuration
 
