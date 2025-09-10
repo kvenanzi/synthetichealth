@@ -28,8 +28,12 @@ from faker import Faker
 from typing import List, Dict, Any
 
 # Import enhanced simulation components
-from enhanced_migration_simulator import EnhancedMigrationSimulator, HIPAAComplianceTracker
-from enhanced_migration_tracker import (
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from src.core.enhanced_migration_simulator import EnhancedMigrationSimulator, HIPAAComplianceTracker
+from src.core.enhanced_migration_tracker import (
     AlertSeverity,
     DataQualityDimension,
     ClinicalDataCriticality,

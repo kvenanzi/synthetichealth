@@ -22,7 +22,11 @@ import random
 from faker import Faker
 
 # Import our classes from the main generator
-from synthetic_patient_generator import (
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from src.core.synthetic_patient_generator import (
     PatientRecord, 
     MigrationSimulator, 
     MigrationConfig,
