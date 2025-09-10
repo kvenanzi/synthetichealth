@@ -1,10 +1,29 @@
 CLAUDE.md
 standards.md
 
-# Generated test data files
+# Generated synthetic healthcare data files
 *.csv
 *.parquet
 *.json
+*.hl7
+*.fhir
+*.mumps
+*.xml
+
+# VistA MUMPS globals
+vista_globals.mumps
+
+# HL7 message files
+hl7_messages_*.hl7
+
+# FHIR bundles and resources
+fhir_*.json
+
+# Migration audit logs
+migration_audit.log
+
+# Sample reports
+sample_report.txt
 
 # Python virtual environment
 .venv/
