@@ -54,22 +54,58 @@ logger = logging.getLogger(__name__)
 
 # Import existing components (with fallback handling)
 try:
-    from synthetic_patient_generator import (
+    from ..core.synthetic_patient_generator import (
         PatientRecord, TERMINOLOGY_MAPPINGS, MIGRATION_STAGES, 
         ETL_SUBSTAGES, FAILURE_TYPES
     )
-    from healthcare_interoperability_validator import (
+    from ..validation.healthcare_interoperability_validator import (
         InteroperabilityStandard, ValidationResult, ValidationSeverity
     )
-    from healthcare_migration_config import (
+    from ..config.healthcare_migration_config import (
         QualityThresholds, AlertConfiguration, ClinicalValidationRule
     )
-    from enhanced_migration_simulator import (
+    from ..core.enhanced_migration_simulator import (
         PatientMigrationStatus, HealthcareDataQualityScorer
     )
 except ImportError as e:
     logger.warning(f"Import error: {e}. Using fallback definitions.")
-    # Fallback definitions would go here
+    
+    # Fallback definitions for missing imports
+    @dataclass
+    class PatientRecord:
+        patient_id: str = ""
+        name: str = ""
+        birth_date: datetime = field(default_factory=datetime.now)
+        gender: str = ""
+        
+    TERMINOLOGY_MAPPINGS = {}
+    MIGRATION_STAGES = ["extract", "transform", "validate", "load"]
+    ETL_SUBSTAGES = {}
+    FAILURE_TYPES = []
+    
+    class InteroperabilityStandard:
+        pass
+        
+    class ValidationResult:
+        pass
+        
+    class ValidationSeverity:
+        pass
+        
+    class QualityThresholds:
+        pass
+        
+    class AlertConfiguration:
+        pass
+        
+    class ClinicalValidationRule:
+        pass
+        
+    class PatientMigrationStatus:
+        pass
+        
+    class HealthcareDataQualityScorer:
+        pass
 
 # ===============================================================================
 # CORE ENUMS AND CONSTANTS

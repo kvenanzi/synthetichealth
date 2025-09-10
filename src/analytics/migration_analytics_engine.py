@@ -39,7 +39,7 @@ import functools
 from pathlib import Path
 
 # Import enhanced tracking components
-from enhanced_migration_tracker import (
+from ..core.enhanced_migration_tracker import (
     PatientMigrationStatus,
     HealthcareDataQualityScorer,
     MigrationQualityMonitor,

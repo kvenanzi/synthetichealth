@@ -50,12 +50,12 @@ from pathlib import Path
 import copy
 
 # Import core components
-from multi_format_healthcare_generator import (
+from ..generators.multi_format_healthcare_generator import (
     MultiFormatHealthcareGenerator, HealthcareFormat, GenerationStage,
     DataQualityDimension, UnifiedConfiguration
 )
-from enhanced_configuration_manager import ConfigurationManager, TestingConfiguration
-from comprehensive_validation_framework import (
+from ..config.enhanced_configuration_manager import ConfigurationManager, TestingConfiguration
+from ..validation.comprehensive_validation_framework import (
     ValidationOrchestrator, ValidationLevel, ValidationScope,
     ComprehensiveValidationResult, ValidationIssue, ValidationSeverity
 )

@@ -43,7 +43,7 @@ import hashlib
 from contextlib import contextmanager
 
 # Import validation components
-from multi_format_healthcare_generator import (
+from ..generators.multi_format_healthcare_generator import (
     HealthcareFormat, DataQualityDimension, GenerationStage
 )
 

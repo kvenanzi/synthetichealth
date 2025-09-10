@@ -33,22 +33,38 @@ import re
 from abc import ABC
 from datetime import datetime, timedelta, date
 from typing import Dict, List, Optional, Any, Tuple, Union
-from dataclasses import asdict
+from dataclasses import asdict, dataclass, field
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
 # Import base classes and types
-from multi_format_healthcare_generator import (
+from .multi_format_healthcare_generator import (
     BaseFormatHandler, HealthcareFormat, FormatConfiguration,
     ValidationResult, ValidationSeverity, DataQualityDimension
 )
 
 # Import existing components
 try:
-    from synthetic_patient_generator import PatientRecord, TERMINOLOGY_MAPPINGS
-    from healthcare_interoperability_validator import InteroperabilityStandard, ComplianceLevel
+    from ..core.synthetic_patient_generator import PatientRecord, TERMINOLOGY_MAPPINGS
+    from ..validation.healthcare_interoperability_validator import InteroperabilityStandard, ComplianceLevel
 except ImportError as e:
     logging.warning(f"Import warning: {e}. Some features may be limited.")
+    
+    # Fallback definitions
+    @dataclass
+    class PatientRecord:
+        patient_id: str = ""
+        name: str = ""
+        birth_date: datetime = field(default_factory=datetime.now)
+        gender: str = ""
+        
+    TERMINOLOGY_MAPPINGS = {}
+    
+    class InteroperabilityStandard:
+        pass
+        
+    class ComplianceLevel:
+        pass
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -1513,7 +1529,7 @@ def main():
     """Example usage of healthcare format handlers"""
     
     # Create sample patient
-    from synthetic_patient_generator import PatientRecord
+    from ..core.synthetic_patient_generator import PatientRecord
     
     patient = PatientRecord(
         first_name="John",

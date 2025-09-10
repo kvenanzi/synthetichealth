@@ -44,14 +44,14 @@ import sqlite3
 from contextlib import contextmanager
 
 # Import analytics components
-from migration_analytics_engine import (
+from .migration_analytics_engine import (
     HealthcareAnalyticsEngine,
     BusinessKPI,
     ComplianceMetric,
     AnalyticsTimeframe,
     ReportFormat
 )
-from enhanced_migration_tracker import (
+from ..core.enhanced_migration_tracker import (
     PatientMigrationStatus,
     MigrationQualityMonitor,
     QualityAlert,

@@ -41,13 +41,13 @@ from typing import Dict, List, Optional, Any, Tuple, Callable
 import warnings
 
 # Import the migration components
-from enhanced_migration_simulator import EnhancedMigrationSimulator, EnhancedMigrationMetrics
-from enhanced_migration_tracker import (
+from ..core.enhanced_migration_simulator import EnhancedMigrationSimulator, EnhancedMigrationMetrics
+from ..core.enhanced_migration_tracker import (
     HealthcareDataQualityScorer, 
     MigrationQualityMonitor,
     AlertSeverity
 )
-from synthetic_patient_generator import PatientRecord, MigrationConfig
+from ..core.synthetic_patient_generator import PatientRecord, MigrationConfig
 
 # Suppress warnings for cleaner output
 warnings.filterwarnings("ignore", category=DeprecationWarning)

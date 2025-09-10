@@ -45,11 +45,11 @@ from pathlib import Path
 import hashlib
 
 # Import base components
-from multi_format_healthcare_generator import (
+from ..generators.multi_format_healthcare_generator import (
     HealthcareFormat, DataQualityDimension, ValidationResult, 
     ValidationSeverity, BaseValidator
 )
-from enhanced_configuration_manager import ConfigurationManager, ValidationStrictness
+from ..config.enhanced_configuration_manager import ConfigurationManager, ValidationStrictness
 
 # Configure logging
 logger = logging.getLogger(__name__)

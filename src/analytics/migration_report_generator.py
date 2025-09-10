@@ -42,7 +42,7 @@ from io import StringIO, BytesIO
 import numpy as np
 
 # Import analytics components
-from migration_analytics_engine import (
+from .migration_analytics_engine import (
     HealthcareAnalyticsEngine,
     BusinessKPI,
     ComplianceMetric,

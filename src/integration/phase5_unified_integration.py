@@ -34,23 +34,23 @@ import concurrent.futures
 import threading
 
 # Import all Phase 5 components
-from multi_format_healthcare_generator import (
+from ..generators.multi_format_healthcare_generator import (
     MultiFormatHealthcareGenerator, HealthcareFormat, UnifiedConfiguration,
     GenerationStage, DataQualityDimension
 )
-from healthcare_format_handlers import (
+from ..generators.healthcare_format_handlers import (
     FHIRR4Handler, HL7ADTHandler, HL7ORUHandler, VistAMUMPSHandler,
     CSVHandler, FormatHandlerRegistry, format_registry
 )
-from enhanced_configuration_manager import (
+from ..config.enhanced_configuration_manager import (
     ConfigurationManager, ConfigurationBuilder, Environment,
     DatabaseConfiguration, SecurityConfiguration, MonitoringConfiguration
 )
-from comprehensive_validation_framework import (
+from ..validation.comprehensive_validation_framework import (
     ValidationOrchestrator, ValidationLevel, ValidationScope,
     FHIRValidator, HL7Validator, VistAValidator
 )
-from error_injection_testing_framework import (
+from ..testing.error_injection_testing_framework import (
     TestScenarioManager, ErrorInjector, TestScenarioType,
     ErrorInjectionConfig, ErrorInjectionMode
 )

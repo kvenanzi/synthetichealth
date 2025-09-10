@@ -33,7 +33,7 @@ from typing import Dict, List, Optional, Any, Set, Tuple, Union
 import uuid
 
 # Import our enhanced tracking components
-from enhanced_migration_tracker import (
+from .enhanced_migration_tracker import (
     PatientMigrationStatus,
     HealthcareDataQualityScorer,
     ClinicalDataDegradationSimulator, 

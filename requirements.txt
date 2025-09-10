@@ -1,3 +1,0 @@
-polars>=0.20.0
-faker>=19.0.0 
-PyYAML>=6.0 
