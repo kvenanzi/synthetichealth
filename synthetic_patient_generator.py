@@ -43,6 +43,19 @@ DEATH_CAUSES = [
 
 FAMILY_RELATIONSHIPS = ["Mother", "Father", "Sibling"]
 
+# Migration simulation constants
+MIGRATION_STAGES = ["extract", "transform", "validate", "load"]
+ETL_SUBSTAGES = {
+    "extract": ["connect", "query", "export"],
+    "transform": ["parse", "map", "standardize"],
+    "validate": ["schema_check", "business_rules", "data_integrity"],
+    "load": ["staging", "production", "verification"]
+}
+FAILURE_TYPES = [
+    "network_timeout", "data_corruption", "mapping_error", "validation_failure", 
+    "resource_exhaustion", "security_violation", "system_unavailable"
+]
+
 # Basic terminology mappings for Phase 1
 TERMINOLOGY_MAPPINGS = {
     'conditions': {
@@ -202,6 +215,523 @@ class PatientRecord:
             'income': self.income,
             'housing_status': self.housing_status,
         }
+
+# Migration Simulation Classes
+
+@dataclass
+class MigrationStageResult:
+    """Result of a migration stage execution"""
+    stage: str
+    substage: Optional[str] = None
+    status: str = "pending"  # pending, running, completed, failed
+    start_time: Optional[datetime] = None
+    end_time: Optional[datetime] = None
+    duration_seconds: float = 0.0
+    error_type: Optional[str] = None
+    error_message: Optional[str] = None
+    records_processed: int = 0
+    records_successful: int = 0
+    records_failed: int = 0
+    data_quality_impact: float = 0.0
+    
+    def __post_init__(self):
+        if self.start_time and self.end_time:
+            self.duration_seconds = (self.end_time - self.start_time).total_seconds()
+
+@dataclass
+class BatchMigrationStatus:
+    """Migration status for a batch of patients"""
+    batch_id: str
+    batch_size: int
+    source_system: str = "vista"
+    target_system: str = "oracle_health"
+    migration_strategy: str = "staged"  # staged, big_bang, parallel
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    current_stage: str = "pending"
+    stage_results: List[MigrationStageResult] = field(default_factory=list)
+    patient_statuses: Dict[str, str] = field(default_factory=dict)
+    overall_success_rate: float = 0.0
+    average_quality_score: float = 1.0
+    total_errors: int = 0
+    
+    def get_stage_result(self, stage: str, substage: Optional[str] = None) -> Optional[MigrationStageResult]:
+        """Get result for a specific stage/substage"""
+        for result in self.stage_results:
+            if result.stage == stage and result.substage == substage:
+                return result
+        return None
+    
+    def calculate_metrics(self):
+        """Calculate overall migration metrics"""
+        if self.stage_results:
+            successful_stages = sum(1 for r in self.stage_results if r.status == "completed")
+            self.overall_success_rate = successful_stages / len(self.stage_results)
+            self.total_errors = sum(r.records_failed for r in self.stage_results)
+
+@dataclass
+class MigrationConfig:
+    """Configuration for migration simulation"""
+    # Stage success rates (0.0-1.0)
+    stage_success_rates: Dict[str, float] = field(default_factory=lambda: {
+        "extract": 0.98,
+        "transform": 0.95,
+        "validate": 0.92,
+        "load": 0.90
+    })
+    
+    # Substage success rates
+    substage_success_rates: Dict[str, Dict[str, float]] = field(default_factory=lambda: {
+        "extract": {"connect": 0.99, "query": 0.98, "export": 0.97},
+        "transform": {"parse": 0.98, "map": 0.95, "standardize": 0.93},
+        "validate": {"schema_check": 0.96, "business_rules": 0.92, "data_integrity": 0.89},
+        "load": {"staging": 0.95, "production": 0.88, "verification": 0.92}
+    })
+    
+    # Timing configurations (seconds)
+    stage_base_duration: Dict[str, float] = field(default_factory=lambda: {
+        "extract": 2.5,
+        "transform": 4.0,
+        "validate": 3.5,
+        "load": 5.0
+    })
+    
+    # Duration variance (multiplier)
+    duration_variance: float = 0.3
+    
+    # Data quality degradation per failure
+    quality_degradation_per_failure: float = 0.15
+    quality_degradation_per_success: float = 0.02  # Slight degradation even on success
+    
+    # Network and system simulation
+    network_failure_rate: float = 0.05
+    system_overload_rate: float = 0.03
+    data_corruption_rate: float = 0.01
+    
+    # Batch processing parameters
+    max_concurrent_patients: int = 10
+    retry_attempts: int = 3
+    retry_delay_seconds: float = 1.0
+
+class MigrationSimulator:
+    """
+    Comprehensive migration simulator for VistA-to-Oracle Health transitions.
+    
+    This class simulates realistic healthcare data migration scenarios including:
+    - Multi-stage ETL pipeline execution
+    - Realistic failure injection and error handling  
+    - Data quality degradation tracking
+    - Patient and batch-level status monitoring
+    - Migration analytics and reporting
+    """
+    
+    def __init__(self, config: Optional[MigrationConfig] = None):
+        self.config = config or MigrationConfig()
+        self.fake = Faker()
+        self.migration_history: List[BatchMigrationStatus] = []
+        self.current_batch: Optional[BatchMigrationStatus] = None
+        
+    def simulate_staged_migration(
+        self, 
+        patients: List[PatientRecord], 
+        batch_id: Optional[str] = None,
+        migration_strategy: str = "staged"
+    ) -> BatchMigrationStatus:
+        """
+        Simulate a complete staged migration for a batch of patients.
+        
+        Args:
+            patients: List of patient records to migrate
+            batch_id: Optional batch identifier
+            migration_strategy: Migration approach (staged, big_bang, parallel)
+            
+        Returns:
+            BatchMigrationStatus with complete migration results
+        """
+        batch_id = batch_id or f"batch_{uuid.uuid4().hex[:8]}"
+        
+        # Initialize batch status
+        batch_status = BatchMigrationStatus(
+            batch_id=batch_id,
+            batch_size=len(patients),
+            migration_strategy=migration_strategy,
+            started_at=datetime.now(),
+            patient_statuses={p.patient_id: "pending" for p in patients}
+        )
+        
+        self.current_batch = batch_status
+        
+        try:
+            # Execute each migration stage
+            for stage in MIGRATION_STAGES:
+                batch_status.current_stage = stage
+                stage_success = self._execute_migration_stage(patients, stage, batch_status)
+                
+                if not stage_success and migration_strategy == "fail_fast":
+                    break
+                    
+            # Calculate final metrics
+            batch_status.completed_at = datetime.now()
+            batch_status.calculate_metrics()
+            self._calculate_quality_metrics(patients, batch_status)
+            
+        except Exception as e:
+            batch_status.current_stage = "failed"
+            print(f"Migration batch {batch_id} failed with error: {str(e)}")
+            
+        self.migration_history.append(batch_status)
+        return batch_status
+    
+    def _execute_migration_stage(
+        self, 
+        patients: List[PatientRecord], 
+        stage: str, 
+        batch_status: BatchMigrationStatus
+    ) -> bool:
+        """Execute a specific migration stage for all patients"""
+        
+        # Execute substages
+        substages = ETL_SUBSTAGES.get(stage, [stage])
+        stage_successful = True
+        
+        for substage in substages:
+            substage_result = MigrationStageResult(
+                stage=stage,
+                substage=substage,
+                status="running",
+                start_time=datetime.now(),
+                records_processed=len(patients)
+            )
+            
+            # Simulate processing time
+            processing_time = self._calculate_processing_time(stage, len(patients))
+            
+            # Simulate realistic delays for healthcare environments
+            import time
+            time.sleep(min(processing_time, 0.1))  # Cap at 0.1s for demo
+            
+            # Simulate failures and process patients
+            successful_count = 0
+            failed_count = 0
+            
+            for patient in patients:
+                patient_success = self._process_patient_stage(patient, stage, substage)
+                if patient_success:
+                    successful_count += 1
+                    if batch_status.patient_statuses[patient.patient_id] != "failed":
+                        batch_status.patient_statuses[patient.patient_id] = f"{stage}_{substage}_complete"
+                else:
+                    failed_count += 1
+                    batch_status.patient_statuses[patient.patient_id] = "failed"
+                    stage_successful = False
+            
+            # Complete substage result
+            substage_result.end_time = datetime.now()
+            substage_result.records_successful = successful_count
+            substage_result.records_failed = failed_count
+            substage_result.status = "completed" if failed_count == 0 else "partial_failure"
+            
+            if failed_count > 0:
+                substage_result.error_type = random.choice(FAILURE_TYPES)
+                substage_result.error_message = self._generate_error_message(substage_result.error_type, stage, substage)
+            
+            batch_status.stage_results.append(substage_result)
+        
+        return stage_successful
+    
+    def _process_patient_stage(self, patient: PatientRecord, stage: str, substage: str) -> bool:
+        """Process a single patient through a migration stage/substage"""
+        
+        # Get success rate for this substage
+        stage_rates = self.config.substage_success_rates.get(stage, {})
+        success_rate = stage_rates.get(substage, self.config.stage_success_rates.get(stage, 0.9))
+        
+        # Apply additional failure factors
+        if random.random() < self.config.network_failure_rate:
+            success_rate *= 0.5  # Network issues reduce success rate
+            
+        if random.random() < self.config.system_overload_rate:
+            success_rate *= 0.7  # System overload reduces success rate
+        
+        # Determine if this patient succeeds in this substage
+        patient_succeeds = random.random() < success_rate
+        
+        # Update patient data quality score
+        if patient_succeeds:
+            # Even successful migrations cause slight quality degradation
+            quality_impact = self.config.quality_degradation_per_success
+            patient.metadata['data_quality_score'] = max(
+                0.0, 
+                patient.metadata['data_quality_score'] - quality_impact
+            )
+        else:
+            # Failed migrations cause more significant quality degradation
+            quality_impact = self.config.quality_degradation_per_failure
+            patient.metadata['data_quality_score'] = max(
+                0.0,
+                patient.metadata['data_quality_score'] - quality_impact
+            )
+            
+        # Update patient migration status
+        if patient_succeeds:
+            patient.metadata['migration_status'] = f"{stage}_{substage}_complete"
+        else:
+            patient.metadata['migration_status'] = f"{stage}_{substage}_failed"
+            
+        return patient_succeeds
+    
+    def _calculate_processing_time(self, stage: str, patient_count: int) -> float:
+        """Calculate realistic processing time for a stage"""
+        base_time = self.config.stage_base_duration.get(stage, 3.0)
+        
+        # Scale with patient count (logarithmic scaling for realism)
+        import math
+        scaling_factor = 1 + math.log10(max(1, patient_count / 10))
+        
+        # Add variance
+        variance = random.uniform(
+            1 - self.config.duration_variance,
+            1 + self.config.duration_variance
+        )
+        
+        return base_time * scaling_factor * variance
+    
+    def _generate_error_message(self, error_type: str, stage: str, substage: str) -> str:
+        """Generate realistic error messages for healthcare migrations"""
+        error_templates = {
+            "network_timeout": f"Network timeout during {stage}.{substage}: Connection to VistA server timed out after 30 seconds",
+            "data_corruption": f"Data corruption detected in {stage}.{substage}: Invalid character encoding in patient demographics",
+            "mapping_error": f"Mapping error in {stage}.{substage}: Unable to map VistA field ^DPT({{}},0.35) to Oracle Health schema",
+            "validation_failure": f"Validation failed in {stage}.{substage}: Patient SSN format does not match target system requirements",
+            "resource_exhaustion": f"Resource exhaustion in {stage}.{substage}: Insufficient memory to process batch, consider reducing batch size",
+            "security_violation": f"Security violation in {stage}.{substage}: Access denied to PHI data during migration",
+            "system_unavailable": f"System unavailable in {stage}.{substage}: Oracle Health target system is currently in maintenance mode"
+        }
+        return error_templates.get(error_type, f"Unknown error in {stage}.{substage}")
+    
+    def _calculate_quality_metrics(self, patients: List[PatientRecord], batch_status: BatchMigrationStatus):
+        """Calculate data quality metrics for the batch"""
+        if not patients:
+            batch_status.average_quality_score = 0.0
+            return
+            
+        total_quality = sum(p.metadata['data_quality_score'] for p in patients)
+        batch_status.average_quality_score = total_quality / len(patients)
+    
+    def get_migration_analytics(self, batch_id: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Generate comprehensive migration analytics and reporting.
+        
+        Args:
+            batch_id: Optional specific batch to analyze, None for overall analytics
+            
+        Returns:
+            Dictionary containing detailed analytics
+        """
+        if batch_id:
+            # Single batch analytics
+            batch = next((b for b in self.migration_history if b.batch_id == batch_id), None)
+            if not batch:
+                return {"error": f"Batch {batch_id} not found"}
+            batches = [batch]
+        else:
+            # Overall analytics
+            batches = self.migration_history
+            
+        if not batches:
+            return {"error": "No migration data available"}
+        
+        analytics = {
+            "summary": {
+                "total_batches": len(batches),
+                "total_patients": sum(b.batch_size for b in batches),
+                "overall_success_rate": sum(b.overall_success_rate for b in batches) / len(batches),
+                "average_quality_score": sum(b.average_quality_score for b in batches) / len(batches),
+                "total_errors": sum(b.total_errors for b in batches)
+            },
+            "stage_performance": self._analyze_stage_performance(batches),
+            "failure_analysis": self._analyze_failures(batches),
+            "quality_trends": self._analyze_quality_trends(batches),
+            "timing_analysis": self._analyze_timing(batches),
+            "recommendations": self._generate_recommendations(batches)
+        }
+        
+        return analytics
+    
+    def _analyze_stage_performance(self, batches: List[BatchMigrationStatus]) -> Dict[str, Any]:
+        """Analyze performance by migration stage"""
+        stage_stats = {}
+        
+        for stage in MIGRATION_STAGES:
+            stage_results = []
+            for batch in batches:
+                stage_results.extend([r for r in batch.stage_results if r.stage == stage])
+            
+            if stage_results:
+                successful = sum(1 for r in stage_results if r.status == "completed")
+                total_duration = sum(r.duration_seconds for r in stage_results)
+                avg_records_processed = sum(r.records_processed for r in stage_results) / len(stage_results)
+                
+                stage_stats[stage] = {
+                    "success_rate": successful / len(stage_results),
+                    "average_duration": total_duration / len(stage_results),
+                    "average_records_processed": avg_records_processed,
+                    "total_executions": len(stage_results)
+                }
+        
+        return stage_stats
+    
+    def _analyze_failures(self, batches: List[BatchMigrationStatus]) -> Dict[str, Any]:
+        """Analyze failure patterns and types"""
+        failure_types = defaultdict(int)
+        failure_stages = defaultdict(int)
+        
+        for batch in batches:
+            for result in batch.stage_results:
+                if result.status in ["failed", "partial_failure"] and result.error_type:
+                    failure_types[result.error_type] += 1
+                    failure_stages[result.stage] += 1
+        
+        return {
+            "failure_types": dict(failure_types),
+            "failure_by_stage": dict(failure_stages),
+            "most_common_failure": max(failure_types.items(), key=lambda x: x[1])[0] if failure_types else None
+        }
+    
+    def _analyze_quality_trends(self, batches: List[BatchMigrationStatus]) -> Dict[str, Any]:
+        """Analyze data quality degradation trends"""
+        quality_scores = [b.average_quality_score for b in batches]
+        
+        if len(quality_scores) > 1:
+            quality_trend = quality_scores[-1] - quality_scores[0]  # Simple trend
+            quality_variance = max(quality_scores) - min(quality_scores)
+        else:
+            quality_trend = 0.0
+            quality_variance = 0.0
+        
+        return {
+            "initial_quality": quality_scores[0] if quality_scores else 0.0,
+            "final_quality": quality_scores[-1] if quality_scores else 0.0,
+            "quality_trend": quality_trend,
+            "quality_variance": quality_variance,
+            "min_quality": min(quality_scores) if quality_scores else 0.0,
+            "max_quality": max(quality_scores) if quality_scores else 0.0
+        }
+    
+    def _analyze_timing(self, batches: List[BatchMigrationStatus]) -> Dict[str, Any]:
+        """Analyze migration timing patterns"""
+        durations = []
+        for batch in batches:
+            if batch.started_at and batch.completed_at:
+                duration = (batch.completed_at - batch.started_at).total_seconds()
+                durations.append(duration)
+        
+        if not durations:
+            return {"error": "No timing data available"}
+        
+        return {
+            "average_batch_duration": sum(durations) / len(durations),
+            "min_duration": min(durations),
+            "max_duration": max(durations),
+            "total_migration_time": sum(durations)
+        }
+    
+    def _generate_recommendations(self, batches: List[BatchMigrationStatus]) -> List[str]:
+        """Generate actionable recommendations based on migration analytics"""
+        recommendations = []
+        
+        if not batches:
+            return ["No data available for recommendations"]
+        
+        # Analyze overall success rate
+        avg_success_rate = sum(b.overall_success_rate for b in batches) / len(batches)
+        if avg_success_rate < 0.8:
+            recommendations.append("Overall success rate is below 80%. Consider reducing batch sizes and implementing additional error handling.")
+        
+        # Analyze quality degradation
+        avg_quality = sum(b.average_quality_score for b in batches) / len(batches)
+        if avg_quality < 0.85:
+            recommendations.append("Significant data quality degradation detected. Review data transformation rules and implement additional validation checkpoints.")
+        
+        # Analyze failure patterns
+        failure_analysis = self._analyze_failures(batches)
+        if failure_analysis.get("most_common_failure"):
+            most_common = failure_analysis["most_common_failure"]
+            recommendations.append(f"Most common failure type is '{most_common}'. Implement specific handling for this error type.")
+        
+        # Timing recommendations
+        timing = self._analyze_timing(batches)
+        if "average_batch_duration" in timing and timing["average_batch_duration"] > 300:  # 5 minutes
+            recommendations.append("Average batch processing time is high. Consider parallel processing or batch size optimization.")
+        
+        return recommendations
+    
+    def export_migration_report(self, output_file: str, batch_id: Optional[str] = None):
+        """Export detailed migration report to file"""
+        analytics = self.get_migration_analytics(batch_id)
+        
+        report_lines = []
+        report_lines.append("=" * 80)
+        report_lines.append("HEALTHCARE DATA MIGRATION REPORT")
+        report_lines.append("=" * 80)
+        report_lines.append(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        
+        if batch_id:
+            report_lines.append(f"Batch ID: {batch_id}")
+        else:
+            report_lines.append("Report Type: Overall Migration Analytics")
+        
+        report_lines.append("")
+        
+        # Summary section
+        if "summary" in analytics:
+            summary = analytics["summary"]
+            report_lines.append("EXECUTIVE SUMMARY")
+            report_lines.append("-" * 40)
+            report_lines.append(f"Total Batches Processed: {summary['total_batches']}")
+            report_lines.append(f"Total Patients Migrated: {summary['total_patients']}")
+            report_lines.append(f"Overall Success Rate: {summary['overall_success_rate']:.2%}")
+            report_lines.append(f"Average Data Quality Score: {summary['average_quality_score']:.3f}")
+            report_lines.append(f"Total Errors Encountered: {summary['total_errors']}")
+            report_lines.append("")
+        
+        # Stage performance
+        if "stage_performance" in analytics:
+            report_lines.append("STAGE PERFORMANCE ANALYSIS")
+            report_lines.append("-" * 40)
+            for stage, stats in analytics["stage_performance"].items():
+                report_lines.append(f"Stage: {stage.upper()}")
+                report_lines.append(f"  Success Rate: {stats['success_rate']:.2%}")
+                report_lines.append(f"  Average Duration: {stats['average_duration']:.2f} seconds")
+                report_lines.append(f"  Average Records: {stats['average_records_processed']:.0f}")
+                report_lines.append("")
+        
+        # Failure analysis
+        if "failure_analysis" in analytics:
+            failure = analytics["failure_analysis"]
+            report_lines.append("FAILURE ANALYSIS")
+            report_lines.append("-" * 40)
+            if failure.get("failure_types"):
+                report_lines.append("Failure Types:")
+                for failure_type, count in failure["failure_types"].items():
+                    report_lines.append(f"  {failure_type}: {count}")
+                report_lines.append("")
+            
+            if failure.get("most_common_failure"):
+                report_lines.append(f"Most Common Failure: {failure['most_common_failure']}")
+                report_lines.append("")
+        
+        # Recommendations
+        if "recommendations" in analytics:
+            report_lines.append("RECOMMENDATIONS")
+            report_lines.append("-" * 40)
+            for i, rec in enumerate(analytics["recommendations"], 1):
+                report_lines.append(f"{i}. {rec}")
+            report_lines.append("")
+        
+        # Write report to file
+        with open(output_file, 'w') as f:
+            f.write('\n'.join(report_lines))
 
 class FHIRFormatter:
     """Basic FHIR R4 formatter for Phase 1"""
@@ -1352,6 +1882,14 @@ def main():
     parser.add_argument("--both", action="store_true", help="Output both CSV and Parquet files (default)")
     parser.add_argument("--config", type=str, default=None, help="Path to YAML config file")
     parser.add_argument("--report-file", type=str, default=None, help="Path to save summary report (optional)")
+    
+    # Migration simulation arguments
+    parser.add_argument("--simulate-migration", action="store_true", help="Enable migration simulation")
+    parser.add_argument("--batch-size", type=int, default=100, help="Batch size for migration simulation")
+    parser.add_argument("--migration-strategy", type=str, default="staged", 
+                       choices=["staged", "big_bang", "parallel"], help="Migration strategy")
+    parser.add_argument("--migration-report", type=str, default=None, help="Output migration report file")
+    
     args, unknown = parser.parse_known_args()
 
     config = {}
@@ -1705,6 +2243,142 @@ def main():
     
     report = "\n".join(report_lines)
     print_and_save_report(report, get_config('report_file', None))
+    
+    # Phase 4: Migration Simulation
+    if get_config('simulate_migration', False):
+        print("\n" + "="*60)
+        print("PHASE 4: MIGRATION SIMULATION")
+        print("="*60)
+        
+        # Initialize migration simulator with configuration
+        migration_config = MigrationConfig()
+        
+        # Override config from YAML if available
+        if 'migration_settings' in config:
+            migration_settings = config['migration_settings']
+            if 'success_rates' in migration_settings:
+                migration_config.stage_success_rates.update(migration_settings['success_rates'])
+            if 'network_failure_rate' in migration_settings:
+                migration_config.network_failure_rate = migration_settings['network_failure_rate']
+            if 'system_overload_rate' in migration_settings:
+                migration_config.system_overload_rate = migration_settings['system_overload_rate']
+        
+        simulator = MigrationSimulator(migration_config)
+        
+        # Get migration parameters
+        batch_size = get_config('batch_size', 100)
+        migration_strategy = get_config('migration_strategy', 'staged')
+        migration_report_file = get_config('migration_report', None)
+        
+        print(f"Simulating migration for {len(patients)} patients...")
+        print(f"Batch size: {batch_size}")
+        print(f"Strategy: {migration_strategy}")
+        print("")
+        
+        # Process patients in batches
+        migration_results = []
+        total_batches = (len(patients) + batch_size - 1) // batch_size
+        
+        for batch_num in range(total_batches):
+            start_idx = batch_num * batch_size
+            end_idx = min(start_idx + batch_size, len(patients))
+            batch_patients = patients[start_idx:end_idx]
+            
+            batch_id = f"batch_{batch_num + 1:03d}"
+            print(f"Processing {batch_id}: {len(batch_patients)} patients...")
+            
+            # Simulate migration for this batch
+            batch_result = simulator.simulate_staged_migration(
+                batch_patients, 
+                batch_id=batch_id,
+                migration_strategy=migration_strategy
+            )
+            migration_results.append(batch_result)
+            
+            # Print batch summary
+            print(f"  - Overall Success Rate: {batch_result.overall_success_rate:.1%}")
+            print(f"  - Average Quality Score: {batch_result.average_quality_score:.3f}")
+            print(f"  - Failed Patients: {batch_result.total_errors}")
+            
+            # Show any failed stages
+            failed_stages = [r for r in batch_result.stage_results if r.status == "partial_failure"]
+            if failed_stages:
+                print(f"  - Failures in stages: {', '.join(set(r.stage for r in failed_stages))}")
+            print("")
+        
+        # Generate comprehensive analytics
+        print("Generating migration analytics...")
+        analytics = simulator.get_migration_analytics()
+        
+        # Print executive summary
+        print("\nMIGRATION EXECUTIVE SUMMARY")
+        print("-" * 40)
+        summary = analytics["summary"]
+        print(f"Total Batches: {summary['total_batches']}")
+        print(f"Total Patients: {summary['total_patients']}")
+        print(f"Overall Success Rate: {summary['overall_success_rate']:.1%}")
+        print(f"Average Data Quality: {summary['average_quality_score']:.3f}")
+        print(f"Total Errors: {summary['total_errors']}")
+        
+        # Stage performance summary
+        if "stage_performance" in analytics:
+            print("\nSTAGE PERFORMANCE")
+            print("-" * 40)
+            for stage, stats in analytics["stage_performance"].items():
+                print(f"{stage.upper()}: {stats['success_rate']:.1%} success, "
+                      f"{stats['average_duration']:.1f}s avg duration")
+        
+        # Failure analysis summary
+        if "failure_analysis" in analytics and analytics["failure_analysis"]["failure_types"]:
+            print("\nTOP FAILURE TYPES")
+            print("-" * 40)
+            failure_types = analytics["failure_analysis"]["failure_types"]
+            for failure_type, count in sorted(failure_types.items(), key=lambda x: x[1], reverse=True)[:3]:
+                print(f"{failure_type}: {count} occurrences")
+        
+        # Recommendations
+        if "recommendations" in analytics:
+            print("\nRECOMMENDAYIONS")
+            print("-" * 40)
+            for i, rec in enumerate(analytics["recommendations"][:3], 1):
+                print(f"{i}. {rec}")
+        
+        # Export detailed migration report if requested
+        if migration_report_file:
+            report_path = os.path.join(output_dir, migration_report_file)
+            simulator.export_migration_report(report_path)
+            print(f"\nDetailed migration report saved to: {report_path}")
+        
+        # Save migration data quality metrics to file
+        migration_quality_file = os.path.join(output_dir, "migration_quality_report.json")
+        import json
+        quality_data = {
+            "migration_summary": analytics["summary"],
+            "stage_performance": analytics["stage_performance"],
+            "quality_trends": analytics["quality_trends"],
+            "patient_quality_scores": [
+                {
+                    "patient_id": p.patient_id,
+                    "initial_quality": 1.0,
+                    "final_quality": p.metadata["data_quality_score"],
+                    "quality_degradation": 1.0 - p.metadata["data_quality_score"],
+                    "migration_status": p.metadata["migration_status"]
+                }
+                for p in patients
+            ]
+        }
+        
+        with open(migration_quality_file, 'w') as f:
+            json.dump(quality_data, f, indent=2)
+        
+        print(f"Migration quality metrics saved to: migration_quality_report.json")
+        print("\nMigration simulation completed successfully!")
+    
+    else:
+        print("\nSkipping migration simulation (use --simulate-migration to enable)")
+    
+    print(f"\nAll outputs saved to: {output_dir}")
+    print("Generation completed successfully!")
 
 if __name__ == "__main__":
     main() 
