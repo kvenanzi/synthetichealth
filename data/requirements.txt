@@ -1,3 +1,4 @@
 polars>=0.20.0
 faker>=19.0.0 
-PyYAML>=6.0 
+PyYAML>=6.0
+tqdm>=4.65.0 

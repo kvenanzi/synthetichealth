@@ -11,6 +11,7 @@ import os
 import yaml
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Any
+from tqdm import tqdm
 
 # Constants for data generation
 GENDERS = ["male", "female", "other"]
@@ -1317,7 +1318,7 @@ class VistaFormatter:
         print(f"Generating VistA MUMPS globals for {len(patients)} patients...")
         
         # Process patients
-        for patient in patients:
+        for patient in tqdm(patients, desc="Creating VistA patient globals", unit="patients"):
             patient_globals = VistaFormatter.create_dpt_global(patient)
             all_globals.update(patient_globals)
         
@@ -1329,7 +1330,7 @@ class VistaFormatter:
                 encounter_map[patient_id] = []
             encounter_map[patient_id].append(encounter)
         
-        for patient in patients:
+        for patient in tqdm(patients, desc="Creating VistA encounter globals", unit="patients"):
             patient_encounters = encounter_map.get(patient.patient_id, [])
             for encounter in patient_encounters:
                 visit_globals = VistaFormatter.create_aupnvsit_global(patient, encounter)
@@ -1343,7 +1344,7 @@ class VistaFormatter:
                 condition_map[patient_id] = []
             condition_map[patient_id].append(condition)
         
-        for patient in patients:
+        for patient in tqdm(patients, desc="Creating VistA condition globals", unit="patients"):
             patient_conditions = condition_map.get(patient.patient_id, [])
             for condition in patient_conditions:
                 problem_globals = VistaFormatter.create_aupnprob_global(patient, condition)
@@ -1991,7 +1992,12 @@ def main():
 
     print(f"Generating {num_records} patients and related tables in parallel...")
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        patients = list(executor.map(generate_patient_with_dist, range(num_records)))
+        patients = list(tqdm(
+            executor.map(generate_patient_with_dist, range(num_records)), 
+            total=num_records,
+            desc="Generating patients",
+            unit="patients"
+        ))
 
     all_encounters = []
     all_conditions = []
@@ -2003,7 +2009,8 @@ def main():
     all_deaths = []
     all_family_history = []
 
-    for patient in patients:
+    print("Generating related healthcare data...")
+    for patient in tqdm(patients, desc="Generating healthcare data", unit="patients"):
         # Convert PatientRecord to dict for backward compatibility with existing functions
         patient_dict = patient.to_dict()
         
@@ -2039,12 +2046,12 @@ def main():
         bundle_entries = []
         
         # Add Patient resources
-        for patient in patients_list:
+        for patient in tqdm(patients_list, desc="Creating FHIR Patient resources", unit="patients"):
             patient_resource = fhir_formatter.create_patient_resource(patient)
             bundle_entries.append({"resource": patient_resource})
         
         # Add Condition resources
-        for condition in conditions_list:
+        for condition in tqdm(conditions_list, desc="Creating FHIR Condition resources", unit="conditions"):
             condition_resource = fhir_formatter.create_condition_resource(
                 condition.get('patient_id'), condition
             )
@@ -2074,7 +2081,7 @@ def main():
         validation_results = []
         
         # Create ADT messages for each patient
-        for patient in patients_list:
+        for patient in tqdm(patients_list, desc="Creating HL7 ADT messages", unit="patients"):
             # Get encounters for this patient
             patient_encounters = [enc for enc in encounters_list if enc.get('patient_id') == patient.patient_id]
             
@@ -2106,7 +2113,7 @@ def main():
                 patient_obs_map[patient_id] = []
             patient_obs_map[patient_id].append(obs)
         
-        for patient in patients_list:
+        for patient in tqdm(patients_list, desc="Creating HL7 ORU messages", unit="patients"):
             patient_observations = patient_obs_map.get(patient.patient_id, [])
             if patient_observations:
                 oru_message = hl7_formatter.create_oru_message(patient, patient_observations)
@@ -2146,28 +2153,41 @@ def main():
             print(f"HL7 Validation: {valid_count}/{total_count} messages valid")
 
     # Convert PatientRecord objects to dictionaries for DataFrame creation
-    patients_dict = [patient.to_dict() for patient in patients]
+    print("Converting patient records to dictionaries...")
+    patients_dict = [patient.to_dict() for patient in tqdm(patients, desc="Converting patients", unit="patients")]
     
-    save(pl.DataFrame(patients_dict), "patients")
-    save(pl.DataFrame(all_encounters), "encounters")
-    save(pl.DataFrame(all_conditions), "conditions")
-    save(pl.DataFrame(all_medications), "medications")
-    save(pl.DataFrame(all_allergies), "allergies")
-    save(pl.DataFrame(all_procedures), "procedures")
-    save(pl.DataFrame(all_immunizations), "immunizations")
-    save(pl.DataFrame(all_observations), "observations")
+    print("Saving data files...")
+    tables_to_save = [
+        (pl.DataFrame(patients_dict), "patients"),
+        (pl.DataFrame(all_encounters), "encounters"),
+        (pl.DataFrame(all_conditions), "conditions"),
+        (pl.DataFrame(all_medications), "medications"),
+        (pl.DataFrame(all_allergies), "allergies"),
+        (pl.DataFrame(all_procedures), "procedures"),
+        (pl.DataFrame(all_immunizations), "immunizations"),
+        (pl.DataFrame(all_observations), "observations")
+    ]
+    
     if all_deaths:
-        save(pl.DataFrame(all_deaths), "deaths")
+        tables_to_save.append((pl.DataFrame(all_deaths), "deaths"))
     if all_family_history:
-        save(pl.DataFrame(all_family_history), "family_history")
+        tables_to_save.append((pl.DataFrame(all_family_history), "family_history"))
+    
+    for df, name in tqdm(tables_to_save, desc="Saving tables", unit="tables"):
+        save(df, name)
 
+    print("\nExporting specialized formats...")
+    
     # Export FHIR bundle (Phase 1: basic Patient and Condition resources)
+    print("Creating FHIR bundle...")
     save_fhir_bundle(patients, all_conditions, "fhir_bundle.json")
     
     # Export HL7 v2 messages (Phase 2: ADT and ORU messages)
+    print("Creating HL7 v2 messages...")
     save_hl7_messages(patients, all_encounters, all_observations, "hl7_messages")
     
     # Export VistA MUMPS globals (Phase 3: VA migration simulation)
+    print("Creating VistA MUMPS globals...")
     vista_formatter = VistaFormatter()
     vista_output_file = os.path.join(output_dir, "vista_globals.mumps")
     vista_stats = vista_formatter.export_vista_globals(patients, all_encounters, all_conditions, vista_output_file)

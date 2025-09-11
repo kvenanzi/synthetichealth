@@ -6,16 +6,67 @@ The Synthetic Healthcare Data Generator is a comprehensive tool for creating rea
 
 ## Table of Contents
 
-1. [Installation & Setup](#installation--setup)
-2. [Quick Start](#quick-start)
-3. [Command Line Interface](#command-line-interface)
-4. [YAML Configuration](#yaml-configuration)
-5. [Output Formats](#output-formats)
-6. [Migration Simulation](#migration-simulation)
-7. [Advanced Configuration](#advanced-configuration)
-8. [Performance & Scalability](#performance--scalability)
-9. [Examples](#examples)
-10. [Troubleshooting](#troubleshooting)
+1. [Project Architecture](#project-architecture)
+2. [Installation & Setup](#installation--setup)
+3. [Quick Start](#quick-start)
+4. [Command Line Interface](#command-line-interface)
+5. [YAML Configuration](#yaml-configuration)
+6. [Output Formats](#output-formats)
+7. [Migration Simulation](#migration-simulation)
+8. [Advanced Configuration](#advanced-configuration)
+9. [Performance & Scalability](#performance--scalability)
+10. [Examples](#examples)
+11. [Troubleshooting](#troubleshooting)
+
+---
+
+## Project Architecture
+
+The project follows a modular architecture organized into specialized directories:
+
+### Core Modules (`src/`)
+- **`src/core/`** - Core data generation and migration simulation engines
+  - `synthetic_patient_generator.py` - Main modular data generator
+  - `enhanced_migration_simulator.py` - Advanced migration simulation with failure injection
+  - `enhanced_migration_tracker.py` - Migration analytics and performance tracking
+
+- **`src/generators/`** - Specialized data generators for different healthcare domains
+  - `multi_format_healthcare_generator.py` - Multi-format healthcare data generation
+  - `healthcare_format_handlers.py` - Format-specific data handling
+
+- **`src/validation/`** - Data validation and quality assurance modules
+  - `comprehensive_validation_framework.py` - Complete validation system
+  - `healthcare_interoperability_validator.py` - Healthcare-specific validation
+
+- **`src/analytics/`** - Migration analytics and reporting tools
+  - `migration_analytics_engine.py` - Analytics processing engine
+  - `migration_report_generator.py` - Report generation utilities
+  - `real_time_dashboard.py` - Real-time monitoring dashboard
+
+- **`src/config/`** - Configuration management system
+  - `healthcare_migration_config.py` - Healthcare migration configurations
+  - `enhanced_configuration_manager.py` - Advanced configuration handling
+
+- **`src/testing/`** - Testing frameworks and utilities
+  - `performance_testing_framework.py` - Performance testing suite
+  - `error_injection_testing_framework.py` - Error injection testing
+
+- **`src/integration/`** - System integration and unified architecture
+  - `phase5_unified_integration.py` - Unified integration framework
+
+### Demo Scripts (`demos/`)
+- `migration_demo.py` - Basic migration simulation
+- `enhanced_migration_demo.py` - Advanced migration with analytics  
+- `migration_analytics_demo.py` - Migration analytics and reporting
+- `final_performance_demo.py` - Performance testing framework
+- `integration_performance_demo.py` - Integration performance testing
+
+### Test Suite (`tests/`)
+- `simple_performance_test.py` - Basic performance validation
+- `test_migration_simulator.py` - Migration simulation testing
+- `run_performance_tests.py` - Comprehensive test suite
+- `test_enhanced_migration.py` - Enhanced migration testing
+- `test_migration_analytics.py` - Migration analytics testing
 
 ---
 
@@ -41,7 +92,7 @@ The Synthetic Healthcare Data Generator is a comprehensive tool for creating rea
 
 3. **Install dependencies**
    ```bash
-   pip install -r requirements.txt
+   pip install -r data/requirements.txt
    ```
 
 ### Core Dependencies
@@ -58,12 +109,12 @@ The Synthetic Healthcare Data Generator is a comprehensive tool for creating rea
 
 Generate 1000 synthetic patient records:
 ```bash
-python synthetic_patient_generator.py --num-records 1000
+python3 -m src.core.synthetic_patient_generator --num-records 1000
 ```
 
 Generate with custom output directory:
 ```bash
-python synthetic_patient_generator.py --num-records 500 --output-dir ./healthcare_data
+python3 -m src.core.synthetic_patient_generator --num-records 500 --output-dir ./healthcare_data
 ```
 
 ### Using Configuration Files
@@ -78,7 +129,7 @@ output_format: both  # csv, parquet, or both
 
 Run with configuration:
 ```bash
-python synthetic_patient_generator.py --config config.yaml
+python3 -m src.core.synthetic_patient_generator --config config.yaml
 ```
 
 ---
@@ -116,16 +167,16 @@ python synthetic_patient_generator.py --config config.yaml
 
 ```bash
 # Basic generation
-python synthetic_patient_generator.py --num-records 500
+python3 -m src.core.synthetic_patient_generator --num-records 500
 
 # CSV output only with custom directory
-python synthetic_patient_generator.py --num-records 1000 --csv --output-dir ./csv_data
+python3 -m src.core.synthetic_patient_generator --num-records 1000 --csv --output-dir ./csv_data
 
 # With migration simulation
-python synthetic_patient_generator.py --num-records 500 --simulate-migration --batch-size 50
+python3 -m src.core.synthetic_patient_generator --num-records 500 --simulate-migration --batch-size 50
 
 # Full configuration
-python synthetic_patient_generator.py \
+python3 -m src.core.synthetic_patient_generator \
   --config config.yaml \
   --simulate-migration \
   --migration-report detailed_report.txt \
@@ -461,12 +512,12 @@ The system provides comprehensive migration analytics:
 
 ```bash
 # Basic migration simulation
-python synthetic_patient_generator.py \
+python3 -m src.core.synthetic_patient_generator \
   --num-records 500 \
   --simulate-migration
 
 # Advanced migration with custom parameters
-python synthetic_patient_generator.py \
+python3 -m src.core.synthetic_patient_generator \
   --num-records 1000 \
   --simulate-migration \
   --batch-size 50 \
@@ -474,7 +525,7 @@ python synthetic_patient_generator.py \
   --migration-report detailed_analysis.txt
 
 # High-volume migration testing
-python synthetic_patient_generator.py \
+python3 -m src.core.synthetic_patient_generator \
   --num-records 10000 \
   --simulate-migration \
   --batch-size 250 \
@@ -484,11 +535,14 @@ python synthetic_patient_generator.py \
 #### Programmatic Usage
 
 ```python
-from synthetic_patient_generator import MigrationSimulator, MigrationConfig
+from src.core.enhanced_migration_simulator import EnhancedMigrationSimulator
+from src.core.enhanced_migration_tracker import EnhancedMigrationTracker
+from src.core.synthetic_patient_generator import SyntheticPatientGenerator
+from src.config.healthcare_migration_config import HealthcareMigrationConfig
 
 # Custom configuration
-config = MigrationConfig()
-config.stage_success_rates = {
+config = HealthcareMigrationConfig()
+config.migration_settings.stage_success_rates = {
     "extract": 0.95,
     "transform": 0.90,
     "validate": 0.85,
@@ -501,16 +555,17 @@ generator = SyntheticPatientGenerator(config)
 patients = generator.generate_patients(1000)
 
 # Run migration simulation
-simulator = MigrationSimulator(config)
-result = simulator.simulate_staged_migration(patients, "test_batch_001")
+simulator = EnhancedMigrationSimulator(config)
+tracker = EnhancedMigrationTracker()
+result = simulator.simulate_staged_migration(patients, "test_batch_001", tracker)
 
 # Analyze results
-analytics = simulator.get_migration_analytics()
+analytics = tracker.get_migration_analytics()
 print(f"Overall success rate: {analytics['overall_success_rate']:.2%}")
 print(f"Average processing time: {analytics['average_processing_time']:.2f}s")
 
 # Export detailed report
-simulator.export_migration_report("migration_analysis.txt")
+tracker.export_migration_report("migration_analysis.txt")
 ```
 
 ---
@@ -594,12 +649,12 @@ error_patterns:
 
 #### Small Deployments (< 1,000 patients)
 ```bash
-python synthetic_patient_generator.py --num-records 500
+python3 -m src.core.synthetic_patient_generator --num-records 500
 ```
 
 #### Medium Deployments (1,000 - 10,000 patients)
 ```bash
-python synthetic_patient_generator.py \
+python3 -m src.core.synthetic_patient_generator \
   --num-records 5000 \
   --parquet \
   --simulate-migration \
@@ -644,7 +699,7 @@ memory_limit: 8192
 
 **Command:**
 ```bash
-python synthetic_patient_generator.py --num-records 1000 --output-dir ./hospital_data
+python3 -m src.core.synthetic_patient_generator --num-records 1000 --output-dir ./hospital_data
 ```
 
 **Output:**
@@ -676,7 +731,7 @@ migration_report: "migration_analysis.txt"
 
 **Command:**
 ```bash
-python synthetic_patient_generator.py --config migration_test.yaml
+python3 -m src.core.synthetic_patient_generator --config migration_test.yaml
 ```
 
 **Output:**
@@ -711,7 +766,7 @@ race_dist:
 
 **Command:**
 ```bash
-python synthetic_patient_generator.py --config interop_test.yaml
+python3 -m src.core.synthetic_patient_generator --config interop_test.yaml
 ```
 
 **Output:**
@@ -725,7 +780,7 @@ python synthetic_patient_generator.py --config interop_test.yaml
 
 **Large Volume Test:**
 ```bash
-python synthetic_patient_generator.py \
+python3 -m src.core.synthetic_patient_generator \
   --num-records 10000 \
   --parquet \
   --simulate-migration \
@@ -832,7 +887,7 @@ memory_limit: 16384       # 16GB memory limit
 
 Enable verbose logging for troubleshooting:
 ```bash
-python synthetic_patient_generator.py \
+python3 -m src.core.synthetic_patient_generator \
   --num-records 100 \
   --simulate-migration \
   --verbose  # Add verbose flag for detailed logging
@@ -868,8 +923,15 @@ print(f'Memory usage: {process.memory_info().rss / 1024 / 1024:.2f} MB')
 ### Getting Help
 
 - **Documentation**: Review this user guide and README.md
-- **Examples**: Check the `*_demo.py` files for usage examples
-- **Testing**: Run `test_*.py` files to validate installation
+- **Examples**: Check the `demos/` directory for comprehensive usage examples:
+  - `demos/migration_demo.py` - Basic migration simulation
+  - `demos/enhanced_migration_demo.py` - Advanced migration with analytics
+  - `demos/migration_analytics_demo.py` - Migration analytics and reporting
+  - `demos/final_performance_demo.py` - Performance testing framework
+- **Testing**: Run test files in `tests/` directory:
+  - `tests/simple_performance_test.py` - Basic performance validation
+  - `tests/test_migration_simulator.py` - Migration simulation testing
+  - `tests/run_performance_tests.py` - Comprehensive test suite
 
 ### Performance Monitoring
 
