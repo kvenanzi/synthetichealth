@@ -1,0 +1,54 @@
+================================================================================
+HEALTHCARE DATA MIGRATION REPORT
+================================================================================
+Generated: 2025-09-15 14:16:30
+Report Type: Overall Migration Analytics
+
+EXECUTIVE SUMMARY
+----------------------------------------
+Total Batches Processed: 10
+Total Patients Migrated: 2000
+Overall Success Rate: 0.00%
+Average Data Quality Score: 0.617
+Total Errors Encountered: 2204
+
+STAGE PERFORMANCE ANALYSIS
+----------------------------------------
+Stage: EXTRACT
+  Success Rate: 0.00%
+  Average Duration: 0.00 seconds
+  Average Records: 200
+
+Stage: TRANSFORM
+  Success Rate: 0.00%
+  Average Duration: 0.00 seconds
+  Average Records: 200
+
+Stage: VALIDATE
+  Success Rate: 0.00%
+  Average Duration: 0.00 seconds
+  Average Records: 200
+
+Stage: LOAD
+  Success Rate: 0.00%
+  Average Duration: 0.00 seconds
+  Average Records: 200
+
+FAILURE ANALYSIS
+----------------------------------------
+Failure Types:
+  system_unavailable: 17
+  validation_failure: 17
+  security_violation: 20
+  network_timeout: 20
+  mapping_error: 12
+  data_corruption: 18
+  resource_exhaustion: 16
+
+Most Common Failure: security_violation
+
+RECOMMENDATIONS
+----------------------------------------
+1. Overall success rate is below 80%. Consider reducing batch sizes and implementing additional error handling.
+2. Significant data quality degradation detected. Review data transformation rules and implement additional validation checkpoints.
+3. Most common failure type is 'security_violation'. Implement specific handling for this error type.
