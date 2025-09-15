@@ -14,6 +14,15 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Any
 from tqdm import tqdm
 
+from .terminology_catalogs import (
+    CONDITIONS as CONDITION_TERMS,
+    MEDICATIONS as MEDICATION_TERMS,
+    IMMUNIZATIONS as IMMUNIZATION_TERMS,
+    ALLERGENS as ALLERGEN_TERMS,
+    PROCEDURES as PROCEDURE_TERMS,
+    LAB_CODES
+)
+
 # Constants for data generation
 GENDERS = ["male", "female", "other"]
 RACES = ["White", "Black", "Asian", "Hispanic", "Native American", "Other"]
@@ -23,18 +32,21 @@ LANGUAGES = ["English", "Spanish", "Chinese", "French", "German", "Vietnamese"]
 INSURANCES = ["Medicare", "Medicaid", "Private", "Uninsured"]
 ENCOUNTER_TYPES = ["Wellness Visit", "Emergency", "Follow-up", "Specialist", "Lab", "Surgery"]
 ENCOUNTER_REASONS = ["Checkup", "Injury", "Illness", "Chronic Disease", "Vaccination", "Lab Work"]
-CONDITION_NAMES = ["Hypertension", "Diabetes", "Asthma", "COPD", "Heart Disease", "Obesity", "Depression", "Anxiety", "Arthritis", "Cancer", "Flu", "COVID-19", "Migraine", "Allergy"]
 CONDITION_STATUSES = ["active", "resolved", "remission"]
-MEDICATIONS = [
-    "Metformin", "Lisinopril", "Atorvastatin", "Albuterol", "Insulin", "Ibuprofen",
-    "Amoxicillin", "Levothyroxine", "Amlodipine", "Omeprazole", "Trastuzumab",
-    "Osimertinib", "Mepolizumab", "Pembrolizumab"
-]
-ALLERGY_SUBSTANCES = ["Penicillin", "Peanuts", "Shellfish", "Latex", "Bee venom", "Aspirin", "Eggs", "Milk"]
+
+CONDITION_CATALOG = {entry["display"]: entry for entry in CONDITION_TERMS}
+MEDICATION_CATALOG = {entry["display"]: entry for entry in MEDICATION_TERMS}
+IMMUNIZATION_CATALOG = {entry["display"]: entry for entry in IMMUNIZATION_TERMS}
+ALLERGEN_CATALOG = {entry["display"]: entry for entry in ALLERGEN_TERMS}
+PROCEDURE_CATALOG = {entry["display"]: entry for entry in PROCEDURE_TERMS}
+
+CONDITION_NAMES = list(CONDITION_CATALOG.keys())
+MEDICATIONS = list(MEDICATION_CATALOG.keys())
+ALLERGY_SUBSTANCES = list(ALLERGEN_CATALOG.keys())
 ALLERGY_REACTIONS = ["Rash", "Anaphylaxis", "Hives", "Swelling", "Nausea", "Vomiting"]
 ALLERGY_SEVERITIES = ["mild", "moderate", "severe"]
-PROCEDURES = ["Appendectomy", "Colonoscopy", "MRI Scan", "X-ray", "Blood Test", "Vaccination", "Physical Therapy", "Cataract Surgery"]
-IMMUNIZATIONS = ["Influenza", "COVID-19", "Tetanus", "Hepatitis B", "MMR", "Varicella", "HPV"]
+PROCEDURES = list(PROCEDURE_CATALOG.keys())
+IMMUNIZATIONS = list(IMMUNIZATION_CATALOG.keys())
 # PHASE 2: Comprehensive laboratory panels with clinical accuracy
 COMPREHENSIVE_LAB_PANELS = {
     "Basic_Metabolic_Panel": {
@@ -749,59 +761,28 @@ SPECIALTY_CARE_PATHWAYS = {
     }
 }
 
-# Basic terminology mappings for Phase 1
+# Terminology mapping lookup (Phase 5)
 TERMINOLOGY_MAPPINGS = {
     'conditions': {
-        'Diabetes': {
-            'icd10': 'E11.9',
-            'snomed': '44054006'
-        },
-        'Hypertension': {
-            'icd10': 'I10',
-            'snomed': '38341003'
-        },
-        'Asthma': {
-            'icd10': 'J45.9',
-            'snomed': '195967001'
-        },
-        'COPD': {
-            'icd10': 'J44.1',
-            'snomed': '13645005'
-        },
-        'Heart Disease': {
-            'icd10': 'I25.9',
-            'snomed': '53741008'
-        },
-        'Depression': {
-            'icd10': 'F32.9',
-            'snomed': '35489007'
-        },
-        'Anxiety': {
-            'icd10': 'F41.9',
-            'snomed': '48694002'
+        name: {
+            'icd10': data.get('icd10'),
+            'snomed': data.get('snomed')
         }
+        for name, data in CONDITION_CATALOG.items()
     },
     'medications': {
-        'Metformin': {
-            'rxnorm': '6809',
-            'ndc': '00093-1087-01'
-        },
-        'Lisinopril': {
-            'rxnorm': '29046',
-            'ndc': '00093-2744-01'
-        },
-        'Atorvastatin': {
-            'rxnorm': '83367',
-            'ndc': '00071-0155-23'
-        },
-        'Albuterol': {
-            'rxnorm': '1154602',
-            'ndc': '00173-0682-26'
-        },
-        'Insulin': {
-            'rxnorm': '51428',
-            'ndc': '00088-2220-33'
+        name: {
+            'rxnorm': data.get('rxnorm'),
+            'ndc': data.get('ndc')
         }
+        for name, data in MEDICATION_CATALOG.items()
+    },
+    'immunizations': {
+        name: {
+            'cvx': data.get('cvx'),
+            'snomed': data.get('snomed')
+        }
+        for name, data in IMMUNIZATION_CATALOG.items()
     }
 }
 
@@ -2762,6 +2743,7 @@ def generate_conditions(patient, encounters, min_cond=1, max_cond=5):
     for cond in assigned:
         enc = random.choice(encounters) if encounters else None
         onset_date = enc["date"] if enc else patient["birthdate"]
+        catalog_entry = CONDITION_CATALOG.get(cond, {})
         conditions.append({
             "condition_id": str(uuid.uuid4()),
             "patient_id": patient["patient_id"],
@@ -2769,12 +2751,16 @@ def generate_conditions(patient, encounters, min_cond=1, max_cond=5):
             "name": cond,
             "status": random.choice(CONDITION_STATUSES),
             "onset_date": onset_date,
+            "icd10_code": catalog_entry.get("icd10"),
+            "snomed_code": catalog_entry.get("snomed"),
+            "condition_category": catalog_entry.get("category")
         })
     # Add a few random acute conditions
     for _ in range(random.randint(0, 2)):
         cond = random.choice([c for c in CONDITION_NAMES if c not in assigned])
         enc = random.choice(encounters) if encounters else None
         onset_date = enc["date"] if enc else patient["birthdate"]
+        catalog_entry = CONDITION_CATALOG.get(cond, {})
         conditions.append({
             "condition_id": str(uuid.uuid4()),
             "patient_id": patient["patient_id"],
@@ -2782,6 +2768,9 @@ def generate_conditions(patient, encounters, min_cond=1, max_cond=5):
             "name": cond,
             "status": random.choice(CONDITION_STATUSES),
             "onset_date": onset_date,
+            "icd10_code": catalog_entry.get("icd10"),
+            "snomed_code": catalog_entry.get("snomed"),
+            "condition_category": catalog_entry.get("category")
         })
 
     # Phase 3: assign precision medicine markers for relevant conditions
@@ -2927,7 +2916,7 @@ def create_medication_record(patient, condition, encounters, medication_name, th
     """Create a standardized medication record"""
     enc = random.choice(encounters) if encounters else None
     start_date = enc["date"] if enc else patient["birthdate"]
-    
+
     if isinstance(start_date, str):
         start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date()
     else:
@@ -2943,7 +2932,9 @@ def create_medication_record(patient, condition, encounters, medication_name, th
             end_date = fake.date_between(start_date=start_date_obj, end_date="today").isoformat()
         else:
             end_date = None
-    
+
+    med_entry = MEDICATION_CATALOG.get(medication_name, {})
+
     return {
         "medication_id": str(uuid.uuid4()),
         "patient_id": patient["patient_id"],
@@ -2953,18 +2944,25 @@ def create_medication_record(patient, condition, encounters, medication_name, th
         "therapy_category": therapy_category,
         "start_date": start_date,
         "end_date": end_date,
+        "rxnorm_code": med_entry.get("rxnorm"),
+        "ndc_code": med_entry.get("ndc"),
+        "therapeutic_class": med_entry.get("therapeutic_class")
     }
 
 def generate_allergies(patient, min_all=0, max_all=2):
     n = random.randint(min_all, max_all)
     allergies = []
     for _ in range(n):
+        allergen_name = random.choice(ALLERGY_SUBSTANCES)
+        allergen_entry = ALLERGEN_CATALOG.get(allergen_name, {})
         allergies.append({
             "allergy_id": str(uuid.uuid4()),
             "patient_id": patient["patient_id"],
-            "substance": random.choice(ALLERGY_SUBSTANCES),
+            "substance": allergen_name,
             "reaction": random.choice(ALLERGY_REACTIONS),
             "severity": random.choice(ALLERGY_SEVERITIES),
+            "rxnorm_code": allergen_entry.get("rxnorm"),
+            "unii_code": allergen_entry.get("unii")
         })
     return allergies
 
@@ -3094,16 +3092,18 @@ def generate_random_procedure(patient, encounters):
     """Generate random procedure from legacy list for variety"""
     enc = random.choice(encounters) if encounters else None
     date = enc["date"] if enc else patient["birthdate"]
-    
+
     # Use legacy procedure list for backward compatibility
     procedure_name = random.choice(PROCEDURES)
-    
+    procedure_entry = PROCEDURE_CATALOG.get(procedure_name, {})
+
     return {
         "procedure_id": str(uuid.uuid4()),
         "patient_id": patient["patient_id"],
         "encounter_id": enc["encounter_id"] if enc else None,
         "name": procedure_name,
-        "cpt_code": "",  # Legacy procedures don't have CPT codes
+        "cpt_code": procedure_entry.get("cpt", ""),
+        "snomed_code": procedure_entry.get("snomed"),
         "specialty": "General",
         "category": "other",
         "complexity": "routine",
@@ -3156,11 +3156,15 @@ def generate_immunizations(patient, encounters, min_imm=0, max_imm=3):
     for _ in range(n):
         enc = random.choice(encounters) if encounters else None
         date = enc["date"] if enc else patient["birthdate"]
+        vaccine_name = random.choice(IMMUNIZATIONS)
+        vaccine_entry = IMMUNIZATION_CATALOG.get(vaccine_name, {})
         immunizations.append({
             "immunization_id": str(uuid.uuid4()),
             "patient_id": patient["patient_id"],
             "encounter_id": enc["encounter_id"] if enc else None,
-            "vaccine": random.choice(IMMUNIZATIONS),
+            "vaccine": vaccine_name,
+            "cvx_code": vaccine_entry.get("cvx"),
+            "snomed_code": vaccine_entry.get("snomed"),
             "date": date,
         })
     return immunizations
