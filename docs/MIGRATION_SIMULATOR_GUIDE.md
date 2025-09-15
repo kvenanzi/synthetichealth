@@ -252,7 +252,7 @@ analytics = {
             "total_executions": int
         }
     },
-    "failure_analysis": {
+"failure_analysis": {
         "failure_types": Dict[str, int],
         "failure_by_stage": Dict[str, int],
         "most_common_failure": str
@@ -263,9 +263,29 @@ analytics = {
         "quality_trend": float,
         "quality_variance": float
     },
+    "sdoh_equity": {
+        "average_sdoh_risk": float,
+        "average_deprivation_index": float,
+        "average_access_score": float,
+        "average_social_support": float,
+        "top_care_gaps": Dict[str, int]
+    },
+    "care_pathways": {
+        "average_care_plans_per_patient": float,
+        "average_completed": float,
+        "average_overdue": float
+    },
     "recommendations": List[str]
 }
 ```
+
+To create a dashboard-friendly summary, run:
+
+```bash
+python3 tools/generate_dashboard_summary.py output_phase4_large
+```
+
+This produces `dashboard_summary.json` capturing SDOH averages, top care gaps, and care-plan distributions for quick visualization.
 
 ### Automated Recommendations
 The simulator generates actionable recommendations based on migration results:

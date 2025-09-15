@@ -5,7 +5,7 @@ import concurrent.futures
 import sys
 from datetime import datetime, timedelta
 import uuid
-from collections import defaultdict
+from collections import defaultdict, Counter
 import argparse
 import os
 import yaml
@@ -919,6 +919,10 @@ class PatientRecord:
             'genetic_markers': json.dumps(self.metadata.get('genetic_markers', [])),
             'precision_markers': json.dumps(self.metadata.get('precision_markers', [])),
             'comorbidity_profile': json.dumps(self.metadata.get('comorbidity_profile', [])),
+            'care_plan_total': self.metadata.get('care_plan_total', 0),
+            'care_plan_completed': self.metadata.get('care_plan_completed', 0),
+            'care_plan_overdue': self.metadata.get('care_plan_overdue', 0),
+            'care_plan_scheduled': self.metadata.get('care_plan_scheduled', 0),
         }
 
 # Migration Simulation Classes
@@ -959,7 +963,9 @@ class BatchMigrationStatus:
     overall_success_rate: float = 0.0
     average_quality_score: float = 1.0
     total_errors: int = 0
-    
+    sdoh_summary: Dict[str, Any] = field(default_factory=dict)
+    care_pathway_summary: Dict[str, Any] = field(default_factory=dict)
+
     def get_stage_result(self, stage: str, substage: Optional[str] = None) -> Optional[MigrationStageResult]:
         """Get result for a specific stage/substage"""
         for result in self.stage_results:
@@ -970,8 +976,10 @@ class BatchMigrationStatus:
     def calculate_metrics(self):
         """Calculate overall migration metrics"""
         if self.stage_results:
-            successful_stages = sum(1 for r in self.stage_results if r.status == "completed")
-            self.overall_success_rate = successful_stages / len(self.stage_results)
+            successful_patients = sum(1 for status in self.patient_statuses.values() if status != "failed")
+            total_patients = len(self.patient_statuses)
+            if total_patients > 0:
+                self.overall_success_rate = successful_patients / total_patients
             self.total_errors = sum(r.records_failed for r in self.stage_results)
 
 @dataclass
@@ -1222,6 +1230,36 @@ class MigrationSimulator:
             
         total_quality = sum(p.metadata['data_quality_score'] for p in patients)
         batch_status.average_quality_score = total_quality / len(patients)
+
+        sdoh_scores = [p.metadata.get('sdoh_risk_score', 0.0) for p in patients]
+        deprivation_scores = [p.metadata.get('community_deprivation_index', 0.0) for p in patients]
+        access_scores = [p.metadata.get('access_to_care_score', 0.0) for p in patients]
+        support_scores = [p.metadata.get('social_support_score', 0.0) for p in patients]
+        care_gap_counter = Counter()
+        for p in patients:
+            for gap in p.metadata.get('sdoh_care_gaps', []):
+                care_gap_counter[gap] += 1
+
+        care_totals = [p.metadata.get('care_plan_total', 0) for p in patients]
+        care_completed = [p.metadata.get('care_plan_completed', 0) for p in patients]
+        care_overdue = [p.metadata.get('care_plan_overdue', 0) for p in patients]
+
+        def avg(values):
+            return sum(values) / len(values) if values else 0.0
+
+        batch_status.sdoh_summary = {
+            "avg_sdoh_risk": avg(sdoh_scores),
+            "avg_deprivation": avg(deprivation_scores),
+            "avg_access": avg(access_scores),
+            "avg_social_support": avg(support_scores),
+            "top_care_gaps": dict(care_gap_counter.most_common(5))
+        }
+
+        batch_status.care_pathway_summary = {
+            "avg_care_plans": avg(care_totals),
+            "avg_completed": avg(care_completed),
+            "avg_overdue": avg(care_overdue)
+        }
     
     def get_migration_analytics(self, batch_id: Optional[str] = None) -> Dict[str, Any]:
         """
@@ -1258,9 +1296,11 @@ class MigrationSimulator:
             "failure_analysis": self._analyze_failures(batches),
             "quality_trends": self._analyze_quality_trends(batches),
             "timing_analysis": self._analyze_timing(batches),
+            "sdoh_equity": self._aggregate_sdoh_metrics(batches),
+            "care_pathways": self._aggregate_care_metrics(batches),
             "recommendations": self._generate_recommendations(batches)
         }
-        
+
         return analytics
     
     def _analyze_stage_performance(self, batches: List[BatchMigrationStatus]) -> Dict[str, Any]:
@@ -1330,15 +1370,57 @@ class MigrationSimulator:
             if batch.started_at and batch.completed_at:
                 duration = (batch.completed_at - batch.started_at).total_seconds()
                 durations.append(duration)
-        
+
         if not durations:
             return {"error": "No timing data available"}
-        
+
         return {
             "average_batch_duration": sum(durations) / len(durations),
             "min_duration": min(durations),
             "max_duration": max(durations),
             "total_migration_time": sum(durations)
+        }
+
+    def _aggregate_sdoh_metrics(self, batches: List[BatchMigrationStatus]) -> Dict[str, Any]:
+        """Aggregate SDOH metrics across batches"""
+        if not batches:
+            return {}
+
+        avg_sdoh = [b.sdoh_summary.get("avg_sdoh_risk", 0.0) for b in batches]
+        avg_deprivation = [b.sdoh_summary.get("avg_deprivation", 0.0) for b in batches]
+        avg_access = [b.sdoh_summary.get("avg_access", 0.0) for b in batches]
+        avg_support = [b.sdoh_summary.get("avg_social_support", 0.0) for b in batches]
+        care_gap_counter = Counter()
+        for batch in batches:
+            care_gap_counter.update(batch.sdoh_summary.get("top_care_gaps", {}))
+
+        def avg(values):
+            return sum(values) / len(values) if values else 0.0
+
+        return {
+            "average_sdoh_risk": avg(avg_sdoh),
+            "average_deprivation_index": avg(avg_deprivation),
+            "average_access_score": avg(avg_access),
+            "average_social_support": avg(avg_support),
+            "top_care_gaps": dict(care_gap_counter.most_common(5))
+        }
+
+    def _aggregate_care_metrics(self, batches: List[BatchMigrationStatus]) -> Dict[str, Any]:
+        """Aggregate care pathway metrics across batches"""
+        if not batches:
+            return {}
+
+        avg_total = [b.care_pathway_summary.get("avg_care_plans", 0.0) for b in batches]
+        avg_completed = [b.care_pathway_summary.get("avg_completed", 0.0) for b in batches]
+        avg_overdue = [b.care_pathway_summary.get("avg_overdue", 0.0) for b in batches]
+
+        def avg(values):
+            return sum(values) / len(values) if values else 0.0
+
+        return {
+            "average_care_plans_per_patient": avg(avg_total),
+            "average_completed": avg(avg_completed),
+            "average_overdue": avg(avg_overdue)
         }
     
     def _generate_recommendations(self, batches: List[BatchMigrationStatus]) -> List[str]:
@@ -1425,7 +1507,31 @@ class MigrationSimulator:
             if failure.get("most_common_failure"):
                 report_lines.append(f"Most Common Failure: {failure['most_common_failure']}")
                 report_lines.append("")
-        
+
+        if "sdoh_equity" in analytics:
+            sdoh = analytics["sdoh_equity"]
+            report_lines.append("SDOH & EQUITY METRICS")
+            report_lines.append("-" * 40)
+            report_lines.append(f"Average SDOH Risk Score: {sdoh.get('average_sdoh_risk', 0.0):.3f}")
+            report_lines.append(f"Average Community Deprivation Index: {sdoh.get('average_deprivation_index', 0.0):.3f}")
+            report_lines.append(f"Average Access-to-Care Score: {sdoh.get('average_access_score', 0.0):.3f}")
+            report_lines.append(f"Average Social Support Score: {sdoh.get('average_social_support', 0.0):.3f}")
+            care_gaps = sdoh.get('top_care_gaps', {})
+            if care_gaps:
+                report_lines.append("Top Care Gaps:")
+                for gap, count in care_gaps.items():
+                    report_lines.append(f"  {gap}: {count}")
+            report_lines.append("")
+
+        if "care_pathways" in analytics:
+            care = analytics["care_pathways"]
+            report_lines.append("CARE PATHWAY METRICS")
+            report_lines.append("-" * 40)
+            report_lines.append(f"Average Care Plans per Patient: {care.get('average_care_plans_per_patient', 0.0):.2f}")
+            report_lines.append(f"Average Completed Milestones: {care.get('average_completed', 0.0):.2f}")
+            report_lines.append(f"Average Overdue Milestones: {care.get('average_overdue', 0.0):.2f}")
+            report_lines.append("")
+
         # Recommendations
         if "recommendations" in analytics:
             report_lines.append("RECOMMENDATIONS")
@@ -2374,6 +2480,8 @@ def generate_care_plans(patient: Dict[str, Any], conditions: List[Dict[str, Any]
     care_plans = []
     condition_names = {c.get("name") for c in conditions}
 
+    status_counter = Counter()
+
     for condition_name in condition_names:
         pathway_template = SPECIALTY_CARE_PATHWAYS.get(condition_name)
         if not pathway_template:
@@ -2399,6 +2507,14 @@ def generate_care_plans(patient: Dict[str, Any], conditions: List[Dict[str, Any]
                 "scheduled_date": milestone_date,
                 "status": random.choice(["scheduled", "completed", "overdue"])
             })
+            status_counter[care_plans[-1]["status"]] += 1
+
+    patient["care_plan_summary"] = {
+        "total": len(care_plans),
+        "completed": status_counter.get("completed", 0),
+        "scheduled": status_counter.get("scheduled", 0),
+        "overdue": status_counter.get("overdue", 0)
+    }
 
     return care_plans
 
@@ -3576,6 +3692,11 @@ def main():
         patient.metadata['genetic_markers'] = patient_dict.get('genetic_markers', [])
         patient.metadata['precision_markers'] = patient_dict.get('precision_markers', [])
         patient.metadata['comorbidity_profile'] = patient_dict.get('comorbidity_profile', [])
+        care_summary = patient_dict.get('care_plan_summary', {})
+        patient.metadata['care_plan_total'] = care_summary.get('total', 0)
+        patient.metadata['care_plan_completed'] = care_summary.get('completed', 0)
+        patient.metadata['care_plan_overdue'] = care_summary.get('overdue', 0)
+        patient.metadata['care_plan_scheduled'] = care_summary.get('scheduled', 0)
 
     def save(df, name):
         if output_csv:

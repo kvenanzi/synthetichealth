@@ -1,71 +1,71 @@
 ================================================================================
 HEALTHCARE DATA MIGRATION REPORT
 ================================================================================
-Generated: 2025-09-15 14:27:09
+Generated: 2025-09-15 14:36:06
 Report Type: Overall Migration Analytics
 
 EXECUTIVE SUMMARY
 ----------------------------------------
-Total Batches Processed: 10
-Total Patients Migrated: 2000
-Overall Success Rate: 31.90%
-Average Data Quality Score: 0.622
-Total Errors Encountered: 2123
+Total Batches Processed: 4
+Total Patients Migrated: 200
+Overall Success Rate: 37.50%
+Average Data Quality Score: 0.628
+Total Errors Encountered: 203
 
 STAGE PERFORMANCE ANALYSIS
 ----------------------------------------
 Stage: EXTRACT
   Success Rate: 0.00%
   Average Duration: 0.00 seconds
-  Average Records: 200
+  Average Records: 50
 
 Stage: TRANSFORM
   Success Rate: 0.00%
   Average Duration: 0.00 seconds
-  Average Records: 200
+  Average Records: 50
 
 Stage: VALIDATE
   Success Rate: 0.00%
   Average Duration: 0.00 seconds
-  Average Records: 200
+  Average Records: 50
 
 Stage: LOAD
   Success Rate: 0.00%
   Average Duration: 0.00 seconds
-  Average Records: 200
+  Average Records: 50
 
 FAILURE ANALYSIS
 ----------------------------------------
 Failure Types:
-  data_corruption: 16
-  network_timeout: 19
-  security_violation: 7
-  validation_failure: 15
-  mapping_error: 20
-  resource_exhaustion: 18
-  system_unavailable: 25
+  network_timeout: 12
+  resource_exhaustion: 6
+  data_corruption: 10
+  system_unavailable: 2
+  mapping_error: 6
+  security_violation: 6
+  validation_failure: 6
 
-Most Common Failure: system_unavailable
+Most Common Failure: network_timeout
 
 SDOH & EQUITY METRICS
 ----------------------------------------
-Average SDOH Risk Score: 0.418
-Average Community Deprivation Index: 0.507
-Average Access-to-Care Score: 0.004
-Average Social Support Score: -0.003
+Average SDOH Risk Score: 0.412
+Average Community Deprivation Index: 0.492
+Average Access-to-Care Score: 0.014
+Average Social Support Score: 0.007
 Top Care Gaps:
-  missed_cardiology_followup: 353
-  missed_colonoscopy: 241
-  behavioral_health_followup: 173
+  missed_cardiology_followup: 26
+  missed_colonoscopy: 21
+  behavioral_health_followup: 19
 
 CARE PATHWAY METRICS
 ----------------------------------------
 Average Care Plans per Patient: 2.77
-Average Completed Milestones: 0.93
-Average Overdue Milestones: 0.91
+Average Completed Milestones: 1.00
+Average Overdue Milestones: 0.96
 
 RECOMMENDATIONS
 ----------------------------------------
 1. Overall success rate is below 80%. Consider reducing batch sizes and implementing additional error handling.
 2. Significant data quality degradation detected. Review data transformation rules and implement additional validation checkpoints.
-3. Most common failure type is 'system_unavailable'. Implement specific handling for this error type.
+3. Most common failure type is 'network_timeout'. Implement specific handling for this error type.
