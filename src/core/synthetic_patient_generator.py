@@ -132,6 +132,46 @@ COMPREHENSIVE_LAB_PANELS = {
         ],
         "frequency": "as_needed",
         "indications": ["infection", "inflammation", "sepsis_workup"]
+    },
+
+    # Phase 4: Specialty lab panels
+    "Cardiology_Followup": {
+        "tests": [
+            {"name": "BNP", "loinc": "30934-4", "units": "pg/mL", "normal_range": (0, 100), "critical_low": None, "critical_high": 5000},
+            {"name": "NT_proBNP", "loinc": "33762-6", "units": "pg/mL", "normal_range": (0, 125), "critical_low": None, "critical_high": 35000},
+            {"name": "Troponin_T_High_Sensitivity", "loinc": "67151-1", "units": "ng/L", "normal_range": (0, 14), "critical_low": None, "critical_high": 500},
+            {"name": "Lipid_Panel_Advanced", "loinc": "13457-7", "units": "mg/dL", "normal_range": (0, 100), "critical_low": None, "critical_high": 400}
+        ],
+        "frequency": "quarterly",
+        "indications": ["heart_failure", "post_mi_monitoring", "cardiology_followup"]
+    },
+    "Oncology_Tumor_Markers": {
+        "tests": [
+            {"name": "CEA", "loinc": "2039-6", "units": "ng/mL", "normal_range": (0.0, 5.0), "critical_low": None, "critical_high": 100},
+            {"name": "CA_125", "loinc": "10334-1", "units": "U/mL", "normal_range": (0.0, 35.0), "critical_low": None, "critical_high": 200},
+            {"name": "PSA_Total", "loinc": "2857-1", "units": "ng/mL", "normal_range": (0.0, 4.0), "critical_low": None, "critical_high": 50},
+            {"name": "LDH", "loinc": "14804-9", "units": "U/L", "normal_range": (125, 220), "critical_low": None, "critical_high": 2000}
+        ],
+        "frequency": "as_needed",
+        "indications": ["oncology_followup", "tumor_burden"]
+    },
+    "Behavioral_Health_Assessments": {
+        "tests": [
+            {"name": "PHQ9_Score", "loinc": "44249-1", "units": "score", "normal_range": (0, 4), "critical_low": None, "critical_high": 27},
+            {"name": "GAD7_Score", "loinc": "70273-5", "units": "score", "normal_range": (0, 4), "critical_low": None, "critical_high": 21},
+            {"name": "AUDIT_C", "loinc": "75626-2", "units": "score", "normal_range": (0, 4), "critical_low": None, "critical_high": 12}
+        ],
+        "frequency": "annual",
+        "indications": ["behavioral_health", "substance_use_screening"]
+    },
+    "Pulmonary_Function": {
+        "tests": [
+            {"name": "FEV1", "loinc": "20150-9", "units": "L", "normal_range": (2.5, 4.0), "critical_low": 0.5, "critical_high": None},
+            {"name": "FVC", "loinc": "19870-5", "units": "L", "normal_range": (3.0, 5.0), "critical_low": 1.0, "critical_high": None},
+            {"name": "FEV1_FVC_Ratio", "loinc": "19926-5", "units": "%", "normal_range": (70, 100), "critical_low": 40, "critical_high": None}
+        ],
+        "frequency": "annual",
+        "indications": ["copd_management", "asthma_monitoring"]
     }
 }
 
@@ -289,6 +329,96 @@ CONDITION_COMPLEXITY_MODELS = {
             "Left_Ventricular_Hypertrophy": {"icd10": "I51.7", "risk": 0.3},
             "Chronic_Kidney_Disease": {"icd10": "N18.9", "risk": 0.25},
             "Retinopathy": {"icd10": "H35.039", "risk": 0.2}
+        }
+    }
+    ,
+
+    "Heart_Disease": {
+        "stages": {
+            "Chronic_Ischemic": {
+                "criteria": {"ef_range": (45, 60), "nyha_class": 1},
+                "monitoring": ["Cardiology_Followup", "Lipid_Panel"],
+                "interventions": ["statin", "ace_inhibitor"],
+                "complications": ["Arrhythmia"]
+            },
+            "Post_MI": {
+                "criteria": {"ef_range": (30, 45), "nyha_class": 2},
+                "monitoring": ["Cardiology_Followup", "Cardiac_Markers"],
+                "interventions": ["beta_blocker", "dual_antiplatelet"],
+                "complications": ["Heart_Failure", "Arrhythmia"]
+            },
+            "Advanced_Heart_Failure": {
+                "criteria": {"ef_range": (0, 30), "nyha_class": 3},
+                "monitoring": ["Cardiology_Followup", "Basic_Metabolic_Panel"],
+                "interventions": ["ace_inhibitor", "device_therapy"],
+                "complications": ["Renal_Dysfunction", "Hospitalization"]
+            }
+        },
+        "complications": {
+            "Arrhythmia": {"icd10": "I49.9", "progression_risk": 0.35},
+            "Heart_Failure": {"icd10": "I50.9", "progression_risk": 0.25},
+            "Renal_Dysfunction": {"icd10": "N18.3", "progression_risk": 0.15}
+        }
+    },
+
+    "COPD": {
+        "stages": {
+            "GOLD_I": {
+                "criteria": {"fev1_percent": (80, 100)},
+                "monitoring": ["Pulmonary_Function"],
+                "interventions": ["bronchodilator"],
+                "complications": []
+            },
+            "GOLD_II": {
+                "criteria": {"fev1_percent": (50, 80)},
+                "monitoring": ["Pulmonary_Function", "Inflammatory_Markers"],
+                "interventions": ["bronchodilator", "inhaled_steroid"],
+                "complications": ["Acute_Exacerbation"]
+            },
+            "GOLD_III": {
+                "criteria": {"fev1_percent": (30, 50)},
+                "monitoring": ["Pulmonary_Function", "Cardiology_Followup"],
+                "interventions": ["combination_inhaler", "oxygen_therapy"],
+                "complications": ["Acute_Exacerbation", "Pulmonary_Hypertension"]
+            },
+            "GOLD_IV": {
+                "criteria": {"fev1_percent": (0, 30)},
+                "monitoring": ["Pulmonary_Function", "Basic_Metabolic_Panel"],
+                "interventions": ["chronic_oxygen", "transplant_evaluation"],
+                "complications": ["Respiratory_Failure"]
+            }
+        },
+        "complications": {
+            "Acute_Exacerbation": {"icd10": "J44.1", "progression_risk": 0.3},
+            "Pulmonary_Hypertension": {"icd10": "I27.2", "progression_risk": 0.15},
+            "Respiratory_Failure": {"icd10": "J96.90", "progression_risk": 0.1}
+        }
+    },
+
+    "Major_Depressive_Disorder": {
+        "stages": {
+            "Mild": {
+                "criteria": {"phq9": (5, 9)},
+                "monitoring": ["Behavioral_Health_Assessments"],
+                "interventions": ["therapy"],
+                "complications": []
+            },
+            "Moderate": {
+                "criteria": {"phq9": (10, 19)},
+                "monitoring": ["Behavioral_Health_Assessments"],
+                "interventions": ["therapy", "ssri"],
+                "complications": ["Anxiety_Disorder"]
+            },
+            "Severe": {
+                "criteria": {"phq9": (20, 27)},
+                "monitoring": ["Behavioral_Health_Assessments"],
+                "interventions": ["snri", "psych_hospitalization"],
+                "complications": ["Suicidality"]
+            }
+        },
+        "complications": {
+            "Anxiety_Disorder": {"icd10": "F41.9", "progression_risk": 0.4},
+            "Suicidality": {"icd10": "R45.851", "progression_risk": 0.1}
         }
     }
 }
@@ -529,6 +659,21 @@ SDOH_CONDITION_MODIFIERS = {
     "Obesity": {"low_income": 0.04, "limited_education": 0.03}
 }
 
+SDOH_CONTEXT_MODIFIERS = {
+    "cardiometabolic": {
+        "deprivation_weight": 0.05,
+        "access_weight": -0.03
+    },
+    "oncology": {
+        "deprivation_weight": 0.04,
+        "care_gap_penalty": 0.05
+    },
+    "behavioral": {
+        "language_barrier_weight": 0.03,
+        "support_weight": -0.04
+    }
+}
+
 GENETIC_RISK_FACTORS = {
     "BRCA1_BRCA2": {
         "base_prevalence": 0.02,
@@ -566,6 +711,42 @@ PRECISION_MEDICINE_MARKERS = {
     "Diabetes": [
         {"name": "GAD_Antibody_Positive", "prevalence": 0.08, "care_plan": "intensive_monitoring"}
     ]
+}
+
+# Phase 4: Care pathway templates for specialty conditions
+SPECIALTY_CARE_PATHWAYS = {
+    "Heart Disease": {
+        "pathway": [
+            {"stage": "Initial_Diagnosis", "expected_interval_days": 30, "quality_metric": "beta_blocker_on_discharge"},
+            {"stage": "Cardiac_Rehab", "expected_interval_days": 90, "quality_metric": "rehab_completion"},
+            {"stage": "Six_Month_Followup", "expected_interval_days": 180, "quality_metric": "ldl_control"}
+        ],
+        "care_team": ["Cardiology", "Primary_Care", "Pharmacy"]
+    },
+    "Cancer": {
+        "pathway": [
+            {"stage": "Staging", "expected_interval_days": 14, "quality_metric": "stage_documented"},
+            {"stage": "First_Line_Therapy", "expected_interval_days": 45, "quality_metric": "chemo_initiated"},
+            {"stage": "Restaging", "expected_interval_days": 180, "quality_metric": "tumor_marker_tracked"}
+        ],
+        "care_team": ["Oncology", "Radiology", "Nutrition"]
+    },
+    "COPD": {
+        "pathway": [
+            {"stage": "Pulmonary_Assessment", "expected_interval_days": 60, "quality_metric": "spirometry_updated"},
+            {"stage": "Maintenance_Therapy", "expected_interval_days": 120, "quality_metric": "inhaler_education"},
+            {"stage": "Exacerbation_Prevention", "expected_interval_days": 180, "quality_metric": "vaccinations_up_to_date"}
+        ],
+        "care_team": ["Pulmonology", "Primary_Care", "Respiratory_Therapy"]
+    },
+    "Depression": {
+        "pathway": [
+            {"stage": "Evaluation", "expected_interval_days": 30, "quality_metric": "phq9_documented"},
+            {"stage": "Therapy_Initiation", "expected_interval_days": 60, "quality_metric": "therapy_sessions_started"},
+            {"stage": "Remission_Assessment", "expected_interval_days": 120, "quality_metric": "phq9_improved"}
+        ],
+        "care_team": ["Behavioral_Health", "Primary_Care", "Social_Work"]
+    }
 }
 
 # Basic terminology mappings for Phase 1
@@ -728,6 +909,12 @@ class PatientRecord:
             'housing_status': self.housing_status,
             'sdoh_risk_score': self.metadata.get('sdoh_risk_score', 0.0),
             'sdoh_risk_factors': json.dumps(self.metadata.get('sdoh_risk_factors', [])),
+            'community_deprivation_index': self.metadata.get('community_deprivation_index', 0.0),
+            'access_to_care_score': self.metadata.get('access_to_care_score', 0.0),
+            'transportation_access': self.metadata.get('transportation_access', ''),
+            'language_access_barrier': self.metadata.get('language_access_barrier', False),
+            'social_support_score': self.metadata.get('social_support_score', 0.0),
+            'sdoh_care_gaps': json.dumps(self.metadata.get('sdoh_care_gaps', [])),
             'genetic_risk_score': self.metadata.get('genetic_risk_score', 0.0),
             'genetic_markers': json.dumps(self.metadata.get('genetic_markers', [])),
             'precision_markers': json.dumps(self.metadata.get('precision_markers', [])),
@@ -2018,9 +2205,43 @@ def calculate_sdoh_risk(patient: Dict[str, Any]) -> List[str]:
         risk_score += 0.1
         factors.append("heavy_alcohol_use")
 
-    patient["sdoh_risk_score"] = round(min(risk_score, 1.0), 2)
+    context = generate_sdoh_context(patient)
+    patient["community_deprivation_index"] = context["deprivation_index"]
+    patient["access_to_care_score"] = context["access_score"]
+    patient["transportation_access"] = context["transportation"]
+    patient["language_access_barrier"] = context["language_barrier"]
+    patient["social_support_score"] = context["social_support"]
+    patient["sdoh_care_gaps"] = context["care_gaps"]
+
+    patient["sdoh_risk_score"] = round(min(risk_score + context["deprivation_index"] * 0.2, 1.0), 2)
     patient["sdoh_risk_factors"] = factors
     return factors
+
+def generate_sdoh_context(patient: Dict[str, Any]) -> Dict[str, Any]:
+    """Simulate geographic and social determinants context for Phase 4."""
+    deprivation_index = round(random.uniform(0.0, 1.0), 2)
+    access_score = round(random.uniform(-0.3, 0.3), 2)  # positive means better access
+    transportation = random.choice(["public_transit", "personal_vehicle", "limited"])
+    language_barrier = random.random() < 0.1 if patient.get("language") not in ["English"] else False
+    social_support = round(random.uniform(-0.2, 0.2), 2)
+
+    care_gaps = []
+    age = patient.get("age", 0)
+    if deprivation_index > 0.7 and age >= 50:
+        care_gaps.append("missed_colonoscopy")
+    if transportation == "limited" and age >= 40:
+        care_gaps.append("missed_cardiology_followup")
+    if language_barrier:
+        care_gaps.append("behavioral_health_followup")
+
+    return {
+        "deprivation_index": deprivation_index,
+        "access_score": access_score,
+        "transportation": transportation,
+        "language_barrier": language_barrier,
+        "social_support": social_support,
+        "care_gaps": care_gaps
+    }
 
 def apply_sdoh_adjustments(condition: str, base_probability: float, patient: Dict[str, Any]) -> float:
     """Adjust condition probability based on social determinants of health."""
@@ -2033,6 +2254,26 @@ def apply_sdoh_adjustments(condition: str, base_probability: float, patient: Dic
     for factor, boost in modifiers.items():
         if factor in sdoh_factors:
             adjusted += boost
+
+    deprivation_index = patient.get("community_deprivation_index", 0.0)
+    access_score = patient.get("access_to_care_score", 0.0)
+    language_barrier = patient.get("language_access_barrier", False)
+    support_score = patient.get("social_support_score", 0.0)
+
+    if condition in {"Heart Disease", "Hypertension", "Diabetes"}:
+        weights = SDOH_CONTEXT_MODIFIERS["cardiometabolic"]
+        adjusted += deprivation_index * weights["deprivation_weight"]
+        adjusted += access_score * weights["access_weight"]
+    if condition in {"Cancer"}:
+        weights = SDOH_CONTEXT_MODIFIERS["oncology"]
+        if patient.get("sdoh_care_gaps"):
+            adjusted += len(patient["sdoh_care_gaps"]) * weights["care_gap_penalty"] / 3
+        adjusted += deprivation_index * weights["deprivation_weight"]
+    if condition in {"Depression", "Anxiety", "Major_Depressive_Disorder"}:
+        weights = SDOH_CONTEXT_MODIFIERS["behavioral"]
+        if language_barrier:
+            adjusted += weights["language_barrier_weight"]
+        adjusted += support_score * weights["support_weight"]
 
     return min(adjusted, 0.95)
 
@@ -2127,6 +2368,39 @@ def assign_precision_markers(patient: Dict[str, Any], conditions: List[Dict[str,
 
     patient["precision_markers"] = markers
     return markers
+
+def generate_care_plans(patient: Dict[str, Any], conditions: List[Dict[str, Any]], encounters: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Create specialty care pathway milestones for Phase 4."""
+    care_plans = []
+    condition_names = {c.get("name") for c in conditions}
+
+    for condition_name in condition_names:
+        pathway_template = SPECIALTY_CARE_PATHWAYS.get(condition_name)
+        if not pathway_template:
+            continue
+
+        start_date = datetime.strptime(patient.get("birthdate"), "%Y-%m-%d")
+        if encounters:
+            first_encounter = min(encounters, key=lambda e: e.get("date", ""))
+            if first_encounter.get("date"):
+                start_date = datetime.strptime(first_encounter["date"], "%Y-%m-%d")
+
+        day_offset = 0
+        for milestone in pathway_template["pathway"]:
+            day_offset += milestone.get("expected_interval_days", 30)
+            milestone_date = (start_date + timedelta(days=day_offset)).date().isoformat()
+
+            care_plans.append({
+                "patient_id": patient["patient_id"],
+                "condition": condition_name,
+                "pathway_stage": milestone["stage"],
+                "care_team": ",".join(pathway_template.get("care_team", [])),
+                "target_metric": milestone.get("quality_metric", ""),
+                "scheduled_date": milestone_date,
+                "status": random.choice(["scheduled", "completed", "overdue"])
+            })
+
+    return care_plans
 
 # Map conditions to likely medications, observations, and death causes
 # PHASE 1: Evidence-based medication mappings with clinical accuracy
@@ -2821,11 +3095,17 @@ def determine_lab_panels(patient, conditions):
             elif condition_name in ["Heart Disease", "Hypertension"]:
                 panels.add("Lipid_Panel")
                 panels.add("Cardiac_Markers")
+                panels.add("Cardiology_Followup")
             elif condition_name == "Cancer":
                 panels.add("Complete_Blood_Count")
                 panels.add("Liver_Function_Panel")
+                panels.add("Oncology_Tumor_Markers")
             elif "Thyroid" in condition_name or random.random() < 0.1:  # 10% get thyroid screening
                 panels.add("Thyroid_Function")
+            if condition_name in ["COPD", "Asthma"]:
+                panels.add("Pulmonary_Function")
+            if condition_name in ["Depression", "Anxiety", "Major_Depressive_Disorder"]:
+                panels.add("Behavioral_Health_Assessments")
     
     # Random additional panels (simulate clinical judgment)
     if random.random() < 0.3:  # 30% chance of inflammatory markers
@@ -2842,7 +3122,8 @@ def generate_lab_panel(patient, encounters, panel_name, age, gender):
     for test in tests:
         test_name = test["name"]
         value = generate_lab_value(test_name, age, gender, test)
-        
+        value_numeric = value
+
         # Select appropriate encounter
         enc = random.choice(encounters) if encounters else None
         date = enc["date"] if enc else patient["birthdate"]
@@ -2857,7 +3138,8 @@ def generate_lab_panel(patient, encounters, panel_name, age, gender):
             "encounter_id": enc["encounter_id"] if enc else None,
             "type": test_name,
             "loinc_code": test.get("loinc", ""),
-            "value": value,
+            "value": str(value),
+            "value_numeric": value_numeric,
             "units": test.get("units", ""),
             "reference_range": get_reference_range_string(test, age, gender),
             "status": status,
@@ -2945,28 +3227,39 @@ def generate_routine_observations(patient, encounters, min_obs, max_obs):
         date = enc["date"] if enc else patient["birthdate"]
         obs_type = random.choice(OBSERVATION_TYPES)
         value = None
+        value_numeric = None
         
         if obs_type == "Height":
-            value = round(random.uniform(140, 200), 1)
+            value = f"{round(random.uniform(140, 200), 1)}"
+            value_numeric = float(value)
         elif obs_type == "Weight":
-            value = round(random.uniform(40, 150), 1)
+            value = f"{round(random.uniform(40, 150), 1)}"
+            value_numeric = float(value)
         elif obs_type == "Blood Pressure":
-            value = f"{random.randint(90, 180)}/{random.randint(60, 110)}"
+            systolic = random.randint(90, 180)
+            diastolic = random.randint(60, 110)
+            value = f"{systolic}/{diastolic}"
+            value_numeric = systolic
         elif obs_type == "Heart Rate":
-            value = random.randint(50, 120)
+            value_numeric = random.randint(50, 120)
+            value = str(value_numeric)
         elif obs_type == "Temperature":
-            value = round(random.uniform(36.0, 39.0), 1)
+            value = f"{round(random.uniform(36.0, 39.0), 1)}"
+            value_numeric = float(value)
         elif obs_type == "Hemoglobin A1c":
-            value = round(random.uniform(4.5, 12.0), 1)
+            value = f"{round(random.uniform(4.5, 12.0), 1)}"
+            value_numeric = float(value)
         elif obs_type == "Cholesterol":
-            value = random.randint(120, 300)
-        
+            value_numeric = random.randint(120, 300)
+            value = str(value_numeric)
+
         observations.append({
             "observation_id": str(uuid.uuid4()),
             "patient_id": patient["patient_id"],
             "encounter_id": enc["encounter_id"] if enc else None,
             "type": obs_type,
             "value": value,
+            "value_numeric": value_numeric,
             "date": date,
         })
     
@@ -3236,6 +3529,7 @@ def main():
     all_observations = []
     all_deaths = []
     all_family_history = []
+    all_care_plans = []
 
     print("Generating related healthcare data...")
     for patient in tqdm(patients, desc="Generating healthcare data", unit="patients"):
@@ -3262,6 +3556,8 @@ def main():
         all_procedures.extend(generate_procedures(patient_dict, encounters, conditions))
         all_immunizations.extend(generate_immunizations(patient_dict, encounters))
         all_observations.extend(generate_observations(patient_dict, encounters, conditions))
+        care_plans = generate_care_plans(patient_dict, conditions, encounters)
+        all_care_plans.extend(care_plans)
         death = generate_death(patient_dict, conditions)
         if death:
             all_deaths.append(death)
@@ -3270,6 +3566,12 @@ def main():
         # Persist advanced clinical metadata back onto the PatientRecord for downstream exports
         patient.metadata['sdoh_risk_score'] = patient_dict.get('sdoh_risk_score', 0.0)
         patient.metadata['sdoh_risk_factors'] = patient_dict.get('sdoh_risk_factors', [])
+        patient.metadata['community_deprivation_index'] = patient_dict.get('community_deprivation_index', 0.0)
+        patient.metadata['access_to_care_score'] = patient_dict.get('access_to_care_score', 0.0)
+        patient.metadata['transportation_access'] = patient_dict.get('transportation_access', '')
+        patient.metadata['language_access_barrier'] = patient_dict.get('language_access_barrier', False)
+        patient.metadata['social_support_score'] = patient_dict.get('social_support_score', 0.0)
+        patient.metadata['sdoh_care_gaps'] = patient_dict.get('sdoh_care_gaps', [])
         patient.metadata['genetic_risk_score'] = patient_dict.get('genetic_risk_score', 0.0)
         patient.metadata['genetic_markers'] = patient_dict.get('genetic_markers', [])
         patient.metadata['precision_markers'] = patient_dict.get('precision_markers', [])
@@ -3415,6 +3717,8 @@ def main():
         tables_to_save.append((pl.DataFrame(all_deaths), "deaths"))
     if all_family_history:
         tables_to_save.append((pl.DataFrame(all_family_history), "family_history"))
+    if all_care_plans:
+        tables_to_save.append((pl.DataFrame(all_care_plans), "care_plans"))
     
     for df, name in tqdm(tables_to_save, desc="Saving tables", unit="tables"):
         save(df, name)
