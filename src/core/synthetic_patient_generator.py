@@ -9,6 +9,7 @@ from collections import defaultdict
 import argparse
 import os
 import yaml
+import json
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Any
 from tqdm import tqdm
@@ -24,7 +25,11 @@ ENCOUNTER_TYPES = ["Wellness Visit", "Emergency", "Follow-up", "Specialist", "La
 ENCOUNTER_REASONS = ["Checkup", "Injury", "Illness", "Chronic Disease", "Vaccination", "Lab Work"]
 CONDITION_NAMES = ["Hypertension", "Diabetes", "Asthma", "COPD", "Heart Disease", "Obesity", "Depression", "Anxiety", "Arthritis", "Cancer", "Flu", "COVID-19", "Migraine", "Allergy"]
 CONDITION_STATUSES = ["active", "resolved", "remission"]
-MEDICATIONS = ["Metformin", "Lisinopril", "Atorvastatin", "Albuterol", "Insulin", "Ibuprofen", "Amoxicillin", "Levothyroxine", "Amlodipine", "Omeprazole"]
+MEDICATIONS = [
+    "Metformin", "Lisinopril", "Atorvastatin", "Albuterol", "Insulin", "Ibuprofen",
+    "Amoxicillin", "Levothyroxine", "Amlodipine", "Omeprazole", "Trastuzumab",
+    "Osimertinib", "Mepolizumab", "Pembrolizumab"
+]
 ALLERGY_SUBSTANCES = ["Penicillin", "Peanuts", "Shellfish", "Latex", "Bee venom", "Aspirin", "Eggs", "Milk"]
 ALLERGY_REACTIONS = ["Rash", "Anaphylaxis", "Hives", "Swelling", "Nausea", "Vomiting"]
 ALLERGY_SEVERITIES = ["mild", "moderate", "severe"]
@@ -502,6 +507,67 @@ FAILURE_TYPES = [
     "resource_exhaustion", "security_violation", "system_unavailable"
 ]
 
+# Phase 3 constants: clinical comorbidities, genetic risk, precision medicine, and SDOH impacts
+COMORBIDITY_RELATIONSHIPS = {
+    "Diabetes": {"Hypertension": 0.6, "Heart Disease": 0.35, "Stroke": 0.15},
+    "Hypertension": {"Heart Disease": 0.45, "Stroke": 0.2, "Diabetes": 0.25},
+    "Obesity": {"Diabetes": 0.5, "Hypertension": 0.4, "Heart Disease": 0.25},
+    "COPD": {"Heart Disease": 0.25, "Stroke": 0.1},
+    "Depression": {"Anxiety": 0.6},
+    "Anxiety": {"Depression": 0.55},
+    "Heart Disease": {"Stroke": 0.2}
+}
+
+SDOH_CONDITION_MODIFIERS = {
+    "Diabetes": {"low_income": 0.05, "housing_instability": 0.04, "limited_education": 0.03},
+    "Heart Disease": {"smoker": 0.06, "heavy_alcohol_use": 0.03, "low_income": 0.02},
+    "Hypertension": {"low_income": 0.04, "smoker": 0.03, "limited_education": 0.02},
+    "Depression": {"housing_instability": 0.06, "unemployed": 0.05},
+    "Anxiety": {"housing_instability": 0.05, "unemployed": 0.04},
+    "COPD": {"smoker": 0.15},
+    "Stroke": {"smoker": 0.04, "low_income": 0.02},
+    "Obesity": {"low_income": 0.04, "limited_education": 0.03}
+}
+
+GENETIC_RISK_FACTORS = {
+    "BRCA1_BRCA2": {
+        "base_prevalence": 0.02,
+        "applicable_genders": ["female"],
+        "associated_conditions": {"Cancer": 0.18},
+        "family_history_conditions": ["Breast Cancer", "Ovarian Cancer"],
+        "recommended_screenings": ["Mammography", "Breast_MRI"],
+        "risk_score": 1.2
+    },
+    "Lynch_Syndrome": {
+        "base_prevalence": 0.01,
+        "associated_conditions": {"Cancer": 0.12},
+        "family_history_conditions": ["Colorectal Cancer", "Endometrial Cancer"],
+        "recommended_screenings": ["Colonoscopy"],
+        "risk_score": 1.0
+    },
+    "Familial_Hypercholesterolemia": {
+        "base_prevalence": 0.03,
+        "associated_conditions": {"Heart Disease": 0.2},
+        "family_history_conditions": ["Premature Coronary Artery Disease"],
+        "recommended_screenings": ["Lipid_Panel"],
+        "risk_score": 1.1
+    }
+}
+
+PRECISION_MEDICINE_MARKERS = {
+    "Cancer": [
+        {"name": "HER2_Positive", "prevalence": 0.15, "targeted_therapy": "Trastuzumab", "applicable_genders": ["female"]},
+        {"name": "EGFR_Mutation", "prevalence": 0.1, "targeted_therapy": "Osimertinib"},
+        {"name": "PDL1_High", "prevalence": 0.12, "targeted_therapy": "Pembrolizumab"}
+    ],
+    "Asthma": [
+        {"name": "Eosinophilic_Phenotype", "prevalence": 0.12, "targeted_therapy": "Mepolizumab"}
+    ],
+    "Diabetes": [
+        {"name": "GAD_Antibody_Positive", "prevalence": 0.08, "care_plan": "intensive_monitoring"}
+    ]
+}
+
 # Basic terminology mappings for Phase 1
 TERMINOLOGY_MAPPINGS = {
     'conditions': {
@@ -660,6 +726,12 @@ class PatientRecord:
             'employment_status': self.employment_status,
             'income': self.income,
             'housing_status': self.housing_status,
+            'sdoh_risk_score': self.metadata.get('sdoh_risk_score', 0.0),
+            'sdoh_risk_factors': json.dumps(self.metadata.get('sdoh_risk_factors', [])),
+            'genetic_risk_score': self.metadata.get('genetic_risk_score', 0.0),
+            'genetic_markers': json.dumps(self.metadata.get('genetic_markers', [])),
+            'precision_markers': json.dumps(self.metadata.get('precision_markers', [])),
+            'comorbidity_profile': json.dumps(self.metadata.get('comorbidity_profile', [])),
         }
 
 # Migration Simulation Classes
@@ -1911,6 +1983,151 @@ CONDITION_PREVALENCE = {
     "Alzheimer's": [(70, 120, None, None, None, None, 0.10)],
 }
 
+def calculate_sdoh_risk(patient: Dict[str, Any]) -> List[str]:
+    """Calculate SDOH risk profile for a patient and persist to the record."""
+    risk_score = 0.0
+    factors = []
+
+    income = patient.get("income", 0)
+    if income and income < 30000:
+        risk_score += 0.2
+        factors.append("low_income")
+
+    housing = patient.get("housing_status", "")
+    if housing in {"Homeless", "Temporary"}:
+        risk_score += 0.25
+        factors.append("housing_instability")
+
+    education = patient.get("education", "")
+    if education in {"None", "Primary", "Secondary"}:
+        risk_score += 0.1
+        factors.append("limited_education")
+
+    employment = patient.get("employment_status", "")
+    if employment == "Unemployed":
+        risk_score += 0.15
+        factors.append("unemployed")
+
+    smoking = patient.get("smoking_status", "")
+    if smoking == "Current":
+        risk_score += 0.2
+        factors.append("smoker")
+
+    alcohol = patient.get("alcohol_use", "")
+    if alcohol == "Heavy":
+        risk_score += 0.1
+        factors.append("heavy_alcohol_use")
+
+    patient["sdoh_risk_score"] = round(min(risk_score, 1.0), 2)
+    patient["sdoh_risk_factors"] = factors
+    return factors
+
+def apply_sdoh_adjustments(condition: str, base_probability: float, patient: Dict[str, Any]) -> float:
+    """Adjust condition probability based on social determinants of health."""
+    modifiers = SDOH_CONDITION_MODIFIERS.get(condition, {})
+    if not modifiers:
+        return base_probability
+
+    adjusted = base_probability
+    sdoh_factors = patient.get("sdoh_risk_factors", [])
+    for factor, boost in modifiers.items():
+        if factor in sdoh_factors:
+            adjusted += boost
+
+    return min(adjusted, 0.95)
+
+def determine_genetic_risk(patient: Dict[str, Any]) -> Dict[str, float]:
+    """Assign genetic risk markers and probability adjustments."""
+    adjustments = defaultdict(float)
+    markers = []
+    risk_score = 0.0
+
+    gender = patient.get("gender")
+
+    for marker_name, config in GENETIC_RISK_FACTORS.items():
+        allowed_genders = config.get("applicable_genders")
+        if allowed_genders and gender not in allowed_genders:
+            continue
+
+        base_prevalence = config.get("base_prevalence", 0.01)
+        if random.random() < base_prevalence:
+            marker_entry = {
+                "name": marker_name,
+                "conditions": list(config.get("associated_conditions", {}).keys()),
+                "screenings": config.get("recommended_screenings", [])
+            }
+            markers.append(marker_entry)
+            risk_score += config.get("risk_score", 1.0)
+
+            for condition, boost in config.get("associated_conditions", {}).items():
+                adjustments[condition] += boost
+
+    patient["genetic_markers"] = markers
+    patient["genetic_risk_score"] = round(risk_score, 2)
+    patient["genetic_risk_adjustments"] = dict(adjustments)
+    return patient["genetic_risk_adjustments"]
+
+def apply_comorbidity_relationships(conditions: List[str], patient: Dict[str, Any]) -> List[str]:
+    """Inject clinically realistic comorbid conditions."""
+    added_relationships = []
+    assigned = list(conditions)
+    assigned_set = set(assigned)
+
+    for primary in list(assigned):
+        relationships = COMORBIDITY_RELATIONSHIPS.get(primary, {})
+        for secondary, probability in relationships.items():
+            if secondary in assigned_set:
+                continue
+            if random.random() < probability:
+                assigned.append(secondary)
+                assigned_set.add(secondary)
+                added_relationships.append({
+                    "primary": primary,
+                    "associated": secondary,
+                    "probability": probability
+                })
+
+    patient["comorbidity_profile"] = added_relationships
+    return assigned
+
+def assign_precision_markers(patient: Dict[str, Any], conditions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Assign precision medicine markers and targeted therapy options."""
+    markers = []
+    existing = set()
+    gender = patient.get("gender")
+
+    for condition in conditions:
+        condition_name = condition.get("name")
+        marker_configs = PRECISION_MEDICINE_MARKERS.get(condition_name, [])
+        condition_markers = []
+
+        for marker_config in marker_configs:
+            allowed = marker_config.get("applicable_genders")
+            if allowed and gender not in allowed:
+                continue
+
+            prevalence = marker_config.get("prevalence", 0.1)
+            if random.random() < prevalence:
+                marker_name = marker_config["name"]
+                if marker_name in existing:
+                    continue
+
+                marker_entry = {
+                    "condition": condition_name,
+                    "marker": marker_name,
+                    "targeted_therapy": marker_config.get("targeted_therapy"),
+                    "care_plan": marker_config.get("care_plan")
+                }
+                markers.append(marker_entry)
+                existing.add(marker_name)
+                condition_markers.append(marker_name)
+
+        if condition_markers:
+            condition["precision_markers"] = condition_markers
+
+    patient["precision_markers"] = markers
+    return markers
+
 # Map conditions to likely medications, observations, and death causes
 # PHASE 1: Evidence-based medication mappings with clinical accuracy
 CONDITION_MEDICATIONS = {
@@ -2027,16 +2244,29 @@ def assign_conditions(patient):
     race = patient["race"]
     smoking = patient["smoking_status"]
     alcohol = patient["alcohol_use"]
+
+    # Phase 3: enrich patient risk profile prior to assigning conditions
+    calculate_sdoh_risk(patient)
+    genetic_adjustments = determine_genetic_risk(patient)
+
     assigned = []
     for cond, rules in CONDITION_PREVALENCE.items():
-        prob = 0
+        prob = 0.0
         for rule in rules:
             amin, amax, g, r, s, a, w = rule
             if amin <= age <= amax:
                 if (g is None or g == gender) and (r is None or r == race) and (s is None or s == smoking) and (a is None or a == alcohol):
                     prob = max(prob, w)
+
+        prob = apply_sdoh_adjustments(cond, prob, patient)
+        prob += genetic_adjustments.get(cond, 0.0)
+        prob = min(prob, 0.95)
+
         if random.random() < prob:
             assigned.append(cond)
+
+    assigned = apply_comorbidity_relationships(assigned, patient)
+    patient["condition_profile"] = assigned
     return assigned
 
 def parse_distribution(dist_str, valid_keys, value_type="str", default_dist=None):
@@ -2163,6 +2393,9 @@ def generate_conditions(patient, encounters, min_cond=1, max_cond=5):
             "status": random.choice(CONDITION_STATUSES),
             "onset_date": onset_date,
         })
+
+    # Phase 3: assign precision medicine markers for relevant conditions
+    assign_precision_markers(patient, conditions)
     return conditions
 
 # PHASE 1: Evidence-based medication generation with contraindication checking
@@ -2175,7 +2408,27 @@ def generate_medications(patient, encounters, conditions=None, min_med=0, max_me
         for cond in conditions:
             condition_meds = prescribe_evidence_based_medication(patient, cond, encounters, patient_contraindications)
             medications.extend(condition_meds)
-    
+
+        precision_markers = patient.get("precision_markers", [])
+        if precision_markers:
+            markers_by_condition = defaultdict(list)
+            for marker in precision_markers:
+                markers_by_condition[marker["condition"]].append(marker)
+
+            for cond in conditions:
+                for marker in markers_by_condition.get(cond["name"], []):
+                    targeted_therapy = marker.get("targeted_therapy")
+                    if targeted_therapy:
+                        precision_med = create_medication_record(patient, cond, encounters, targeted_therapy, "precision_targeted")
+                        precision_med["precision_marker"] = marker["marker"]
+                        precision_med["targeted_therapy"] = True
+                        medications.append(precision_med)
+
+                    if marker.get("care_plan") == "intensive_monitoring":
+                        care_plan = cond.setdefault("care_plan", [])
+                        if "intensive_monitoring" not in care_plan:
+                            care_plan.append("intensive_monitoring")
+
     return medications
 
 def get_patient_contraindications(patient):
@@ -2817,6 +3070,23 @@ def generate_family_history(patient, min_fam=0, max_fam=3):
                 "relation": relation,
                 "condition": random.choice(CONDITION_NAMES),
             })
+
+    # Phase 3: incorporate genetic marker driven family history
+    genetic_markers = patient.get("genetic_markers", [])
+    for marker in genetic_markers:
+        marker_config = GENETIC_RISK_FACTORS.get(marker["name"], {})
+        family_conditions = marker_config.get("family_history_conditions", [])
+        if not family_conditions:
+            continue
+
+        typical_relations = ["Mother", "Father", "Sibling"]
+        for condition in family_conditions:
+            family.append({
+                "patient_id": patient["patient_id"],
+                "relation": random.choice(typical_relations),
+                "condition": condition,
+                "genetic_marker": marker["name"]
+            })
     return family
 
 def load_yaml_config(path):
@@ -2980,7 +3250,14 @@ def main():
             cond["encounter_id"] = enc["encounter_id"] if enc else None
             cond["onset_date"] = enc["date"] if enc else patient_dict["birthdate"]
         all_conditions.extend(conditions)
-        all_medications.extend(generate_medications(patient_dict, encounters, conditions))
+        medications = generate_medications(patient_dict, encounters, conditions)
+        all_medications.extend(medications)
+
+        for condition in conditions:
+            if condition.get("precision_markers") and isinstance(condition["precision_markers"], list):
+                condition["precision_markers"] = ",".join(condition["precision_markers"])
+            if isinstance(condition.get("care_plan"), list):
+                condition["care_plan"] = ",".join(condition["care_plan"])
         all_allergies.extend(generate_allergies(patient_dict))
         all_procedures.extend(generate_procedures(patient_dict, encounters, conditions))
         all_immunizations.extend(generate_immunizations(patient_dict, encounters))
@@ -2989,6 +3266,14 @@ def main():
         if death:
             all_deaths.append(death)
         all_family_history.extend(generate_family_history(patient_dict))
+
+        # Persist advanced clinical metadata back onto the PatientRecord for downstream exports
+        patient.metadata['sdoh_risk_score'] = patient_dict.get('sdoh_risk_score', 0.0)
+        patient.metadata['sdoh_risk_factors'] = patient_dict.get('sdoh_risk_factors', [])
+        patient.metadata['genetic_risk_score'] = patient_dict.get('genetic_risk_score', 0.0)
+        patient.metadata['genetic_markers'] = patient_dict.get('genetic_markers', [])
+        patient.metadata['precision_markers'] = patient_dict.get('precision_markers', [])
+        patient.metadata['comorbidity_profile'] = patient_dict.get('comorbidity_profile', [])
 
     def save(df, name):
         if output_csv:
