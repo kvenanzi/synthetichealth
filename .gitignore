@@ -36,3 +36,7 @@ __pycache__/
 # OS files
 .DS_Store
 Thumbs.db
+# Migration simulation outputs
+output_phase*/
+output_phase*/*.txt
+migration_report*.txt
