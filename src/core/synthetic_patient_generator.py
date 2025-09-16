@@ -11,7 +11,7 @@ import os
 import yaml
 import json
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, Tuple
 from tqdm import tqdm
 
 from .terminology_catalogs import (
@@ -946,6 +946,8 @@ class BatchMigrationStatus:
     total_errors: int = 0
     sdoh_summary: Dict[str, Any] = field(default_factory=dict)
     care_pathway_summary: Dict[str, Any] = field(default_factory=dict)
+    patient_failures: List[Dict[str, Any]] = field(default_factory=list)
+    retry_summary: Dict[str, Any] = field(default_factory=dict)
 
     def get_stage_result(self, stage: str, substage: Optional[str] = None) -> Optional[MigrationStageResult]:
         """Get result for a specific stage/substage"""
@@ -1006,6 +1008,7 @@ class MigrationConfig:
     max_concurrent_patients: int = 10
     retry_attempts: int = 3
     retry_delay_seconds: float = 1.0
+    retry_failures: bool = False
 
 class MigrationSimulator:
     """
@@ -1107,10 +1110,47 @@ class MigrationSimulator:
             # Simulate failures and process patients
             successful_count = 0
             failed_count = 0
-            
+            substage_failure_types: List[str] = []
+
             for patient in patients:
-                patient_success = self._process_patient_stage(patient, stage, substage)
-                if patient_success:
+                max_attempts = self.config.retry_attempts if self.config.retry_failures else 1
+                attempt = 1
+                patient_succeeded = False
+                failure_record: Optional[Dict[str, Any]] = None
+
+                while attempt <= max_attempts:
+                    result_success, failure_details = self._process_patient_stage(patient, stage, substage)
+                    if result_success:
+                        patient_succeeded = True
+                        if failure_record:
+                            failure_record["attempts"] = attempt
+                            failure_record["final_status"] = "resolved"
+                            batch_status.patient_failures.append(failure_record)
+                        break
+                    else:
+                        failure_type = failure_details.get("failure_type") if failure_details else "unknown"
+                        substage_failure_types.append(failure_type)
+                        if not failure_record:
+                            failure_record = {
+                                "batch_id": batch_status.batch_id,
+                                "patient_id": patient.patient_id,
+                                "patient_name": f"{patient.first_name} {patient.last_name}",
+                                "stage": stage,
+                                "substage": substage,
+                                "failure_types": [],
+                                "attempts": attempt,
+                            }
+                        failure_record["failure_types"].append(failure_type)
+
+                        if not self.config.retry_failures or attempt >= max_attempts:
+                            failure_record["final_status"] = "failed"
+                            batch_status.patient_failures.append(failure_record)
+                            break
+
+                        attempt += 1
+                        time.sleep(self.config.retry_delay_seconds * 0.01)
+
+                if patient_succeeded:
                     successful_count += 1
                     if batch_status.patient_statuses[patient.patient_id] != "failed":
                         batch_status.patient_statuses[patient.patient_id] = f"{stage}_{substage}_complete"
@@ -1126,20 +1166,21 @@ class MigrationSimulator:
             substage_result.status = "completed" if failed_count == 0 else "partial_failure"
             
             if failed_count > 0:
-                substage_result.error_type = random.choice(FAILURE_TYPES)
-                substage_result.error_message = self._generate_error_message(substage_result.error_type, stage, substage)
-            
+                common_failure = Counter(substage_failure_types).most_common(1)[0][0] if substage_failure_types else random.choice(FAILURE_TYPES)
+                substage_result.error_type = common_failure
+                substage_result.error_message = self._generate_error_message(common_failure, stage, substage)
+
             batch_status.stage_results.append(substage_result)
-        
+
         return stage_successful
     
-    def _process_patient_stage(self, patient: PatientRecord, stage: str, substage: str) -> bool:
+    def _process_patient_stage(self, patient: PatientRecord, stage: str, substage: str) -> Tuple[bool, Optional[Dict[str, Any]]]:
         """Process a single patient through a migration stage/substage"""
-        
+
         # Get success rate for this substage
         stage_rates = self.config.substage_success_rates.get(stage, {})
         success_rate = stage_rates.get(substage, self.config.stage_success_rates.get(stage, 0.9))
-        
+
         # Apply additional failure factors
         if random.random() < self.config.network_failure_rate:
             success_rate *= 0.5  # Network issues reduce success rate
@@ -1149,7 +1190,9 @@ class MigrationSimulator:
         
         # Determine if this patient succeeds in this substage
         patient_succeeds = random.random() < success_rate
-        
+
+        failure_details: Optional[Dict[str, Any]] = None
+
         # Update patient data quality score
         if patient_succeeds:
             # Even successful migrations cause slight quality degradation
@@ -1165,14 +1208,19 @@ class MigrationSimulator:
                 0.0,
                 patient.metadata['data_quality_score'] - quality_impact
             )
-            
+            failure_type = random.choice(FAILURE_TYPES)
+            failure_details = {
+                "failure_type": failure_type,
+                "message": self._generate_error_message(failure_type, stage, substage)
+            }
+
         # Update patient migration status
         if patient_succeeds:
             patient.metadata['migration_status'] = f"{stage}_{substage}_complete"
         else:
             patient.metadata['migration_status'] = f"{stage}_{substage}_failed"
-            
-        return patient_succeeds
+
+        return patient_succeeds, failure_details
     
     def _calculate_processing_time(self, stage: str, patient_count: int) -> float:
         """Calculate realistic processing time for a stage"""
@@ -1241,6 +1289,23 @@ class MigrationSimulator:
             "avg_completed": avg(care_completed),
             "avg_overdue": avg(care_overdue)
         }
+
+        failures = batch_status.patient_failures
+        if failures:
+            attempts = [f.get("attempts", 1) for f in failures]
+            resolved = sum(1 for f in failures if f.get("final_status") == "resolved")
+            unresolved = sum(1 for f in failures if f.get("final_status") != "resolved")
+        else:
+            attempts = []
+            resolved = 0
+            unresolved = 0
+
+        batch_status.retry_summary = {
+            "total_failures": len(failures),
+            "resolved": resolved,
+            "unresolved": unresolved,
+            "average_attempts": avg(attempts)
+        }
     
     def get_migration_analytics(self, batch_id: Optional[str] = None) -> Dict[str, Any]:
         """
@@ -1279,6 +1344,7 @@ class MigrationSimulator:
             "timing_analysis": self._analyze_timing(batches),
             "sdoh_equity": self._aggregate_sdoh_metrics(batches),
             "care_pathways": self._aggregate_care_metrics(batches),
+            "retry_statistics": self._aggregate_retry_metrics(batches),
             "recommendations": self._generate_recommendations(batches)
         }
 
@@ -1403,6 +1469,26 @@ class MigrationSimulator:
             "average_completed": avg(avg_completed),
             "average_overdue": avg(avg_overdue)
         }
+
+    def _aggregate_retry_metrics(self, batches: List[BatchMigrationStatus]) -> Dict[str, Any]:
+        """Aggregate retry/failure metrics across batches"""
+        if not batches:
+            return {}
+
+        total_failures = sum(len(batch.patient_failures) for batch in batches)
+        resolved = sum(1 for batch in batches for failure in batch.patient_failures if failure.get("final_status") == "resolved")
+        unresolved = sum(1 for batch in batches for failure in batch.patient_failures if failure.get("final_status") != "resolved")
+        attempts = [failure.get("attempts", 1) for batch in batches for failure in batch.patient_failures]
+
+        def avg(values):
+            return sum(values) / len(values) if values else 0.0
+
+        return {
+            "total_failures": total_failures,
+            "resolved_failures": resolved,
+            "unresolved_failures": unresolved,
+            "average_attempts": avg(attempts)
+        }
     
     def _generate_recommendations(self, batches: List[BatchMigrationStatus]) -> List[str]:
         """Generate actionable recommendations based on migration analytics"""
@@ -1511,6 +1597,16 @@ class MigrationSimulator:
             report_lines.append(f"Average Care Plans per Patient: {care.get('average_care_plans_per_patient', 0.0):.2f}")
             report_lines.append(f"Average Completed Milestones: {care.get('average_completed', 0.0):.2f}")
             report_lines.append(f"Average Overdue Milestones: {care.get('average_overdue', 0.0):.2f}")
+            report_lines.append("")
+
+        if "retry_statistics" in analytics:
+            retry_stats = analytics["retry_statistics"]
+            report_lines.append("RETRY METRICS")
+            report_lines.append("-" * 40)
+            report_lines.append(f"Total Failures Logged: {retry_stats.get('total_failures', 0)}")
+            report_lines.append(f"Resolved via Retry: {retry_stats.get('resolved_failures', 0)}")
+            report_lines.append(f"Unresolved Failures: {retry_stats.get('unresolved_failures', 0)}")
+            report_lines.append(f"Average Attempts per Failure: {retry_stats.get('average_attempts', 0.0):.2f}")
             report_lines.append("")
 
         # Recommendations
@@ -3531,6 +3627,9 @@ def main():
     parser.add_argument("--migration-strategy", type=str, default="staged", 
                        choices=["staged", "big_bang", "parallel"], help="Migration strategy")
     parser.add_argument("--migration-report", type=str, default=None, help="Output migration report file")
+    parser.add_argument("--retry-failures", action="store_true", help="Retry failed patients during migration simulation")
+    parser.add_argument("--max-retry-attempts", type=int, default=None, help="Maximum retry attempts per patient")
+    parser.add_argument("--retry-delay-seconds", type=float, default=None, help="Delay between retry attempts (simulated seconds)")
     
     args, unknown = parser.parse_known_args()
 
@@ -3954,13 +4053,22 @@ def main():
                 migration_config.network_failure_rate = migration_settings['network_failure_rate']
             if 'system_overload_rate' in migration_settings:
                 migration_config.system_overload_rate = migration_settings['system_overload_rate']
-        
+            if 'retry_attempts' in migration_settings:
+                migration_config.retry_attempts = migration_settings['retry_attempts']
+            if 'retry_delay_seconds' in migration_settings:
+                migration_config.retry_delay_seconds = migration_settings['retry_delay_seconds']
+            if 'retry_failures' in migration_settings:
+                migration_config.retry_failures = migration_settings['retry_failures']
+
         simulator = MigrationSimulator(migration_config)
-        
+
         # Get migration parameters
         batch_size = get_config('batch_size', 100)
         migration_strategy = get_config('migration_strategy', 'staged')
         migration_report_file = get_config('migration_report', None)
+        migration_config.retry_failures = bool(get_config('retry_failures', migration_config.retry_failures))
+        migration_config.retry_attempts = int(get_config('max_retry_attempts', migration_config.retry_attempts))
+        migration_config.retry_delay_seconds = float(get_config('retry_delay_seconds', migration_config.retry_delay_seconds))
         
         print(f"Simulating migration for {len(patients)} patients...")
         print(f"Batch size: {batch_size}")
@@ -4048,6 +4156,9 @@ def main():
             "migration_summary": analytics["summary"],
             "stage_performance": analytics["stage_performance"],
             "quality_trends": analytics["quality_trends"],
+            "sdoh_equity": analytics.get("sdoh_equity", {}),
+            "care_pathways": analytics.get("care_pathways", {}),
+            "retry_statistics": analytics.get("retry_statistics", {}),
             "patient_quality_scores": [
                 {
                     "patient_id": p.patient_id,
@@ -4057,6 +4168,11 @@ def main():
                     "migration_status": p.metadata["migration_status"]
                 }
                 for p in patients
+            ],
+            "patient_failures": [
+                failure
+                for batch in simulator.migration_history
+                for failure in getattr(batch, "patient_failures", [])
             ]
         }
         

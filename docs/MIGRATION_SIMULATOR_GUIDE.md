@@ -275,6 +275,12 @@ analytics = {
         "average_completed": float,
         "average_overdue": float
     },
+    "retry_statistics": {
+        "total_failures": int,
+        "resolved_failures": int,
+        "unresolved_failures": int,
+        "average_attempts": float
+    },
     "recommendations": List[str]
 }
 ```
@@ -330,6 +336,13 @@ python synthetic_patient_generator.py \
     --batch-size 50 \
     --migration-strategy staged \
     --migration-report detailed_report.txt
+
+# Enable retry logic for transient failures
+python synthetic_patient_generator.py \
+    --num-records 200 \
+    --simulate-migration \
+    --retry-failures \
+    --max-retry-attempts 2
 
 # Using configuration file
 python synthetic_patient_generator.py --config migration_config.yaml

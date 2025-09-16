@@ -1,4 +1,4 @@
-# Migration Retry & Failure Visibility Enhancement
+# Migration Retry & Failure Visibility Enhancement (Implemented)
 
 ## Concept
 Extend the migration simulator to record per-patient stage failures and support optional retry logic so that simulated outages can be triaged or reprocessed interactively.
