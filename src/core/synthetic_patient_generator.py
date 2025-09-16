@@ -22,7 +22,12 @@ from .terminology_catalogs import (
     PROCEDURES as PROCEDURE_TERMS,
     LAB_CODES
 )
-from .lifecycle import Patient as LifecyclePatient
+from .lifecycle import (
+    Patient as LifecyclePatient,
+    Condition as LifecycleCondition,
+    Observation as LifecycleObservation,
+    Encounter as LifecycleEncounter,
+)
 
 # Constants for data generation
 GENDERS = ["male", "female", "other"]
@@ -1711,45 +1716,66 @@ class FHIRFormatter:
         }
     
     @staticmethod
-    def create_condition_resource(patient_id: str, condition: Dict[str, Any]) -> Dict[str, Any]:
+    def create_condition_resource(
+        patient_id: str, condition: Union[Dict[str, Any], LifecycleCondition]
+    ) -> Dict[str, Any]:
         """Create basic FHIR R4 Condition resource with terminology mappings"""
-        condition_name = condition.get('name', '')
-        codes = TERMINOLOGY_MAPPINGS['conditions'].get(condition_name, {})
-        
+
+        if isinstance(condition, LifecycleCondition):
+            condition_name = condition.name
+            onset_date = condition.onset_date.isoformat() if condition.onset_date else None
+            status = condition.clinical_status or "active"
+            condition_id = condition.condition_id or str(uuid.uuid4())
+        else:
+            condition_name = condition.get("name", "")
+            onset_date = condition.get("onset_date")
+            status = condition.get("status", "active")
+            condition_id = condition.get("condition_id", str(uuid.uuid4()))
+
+        codes = TERMINOLOGY_MAPPINGS["conditions"].get(condition_name, {})
+
         coding = []
-        if 'icd10' in codes:
-            coding.append({
-                "system": "http://hl7.org/fhir/sid/icd-10-cm",
-                "code": codes['icd10'],
-                "display": condition_name
-            })
-        if 'snomed' in codes:
-            coding.append({
-                "system": "http://snomed.info/sct",
-                "code": codes['snomed'],
-                "display": condition_name
-            })
-        
+        if "icd10" in codes:
+            coding.append(
+                {
+                    "system": "http://hl7.org/fhir/sid/icd-10-cm",
+                    "code": codes["icd10"],
+                    "display": condition_name,
+                }
+            )
+        if "snomed" in codes:
+            coding.append(
+                {
+                    "system": "http://snomed.info/sct",
+                    "code": codes["snomed"],
+                    "display": condition_name,
+                }
+            )
+
         # Fallback if no coding found
         if not coding:
-            coding.append({
-                "system": "http://terminology.hl7.org/CodeSystem/data-absent-reason",
-                "code": "unknown",
-                "display": condition_name
-            })
-        
+            coding.append(
+                {
+                    "system": "http://terminology.hl7.org/CodeSystem/data-absent-reason",
+                    "code": "unknown",
+                    "display": condition_name,
+                }
+            )
+
         return {
             "resourceType": "Condition",
-            "id": condition.get('condition_id', str(uuid.uuid4())),
+            "id": condition_id,
             "subject": {"reference": f"Patient/{patient_id}"},
             "code": {"coding": coding},
             "clinicalStatus": {
-                "coding": [{
-                    "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
-                    "code": condition.get('status', 'active')
-                }]
+                "coding": [
+                    {
+                        "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+                        "code": status,
+                    }
+                ]
             },
-            "onsetDateTime": condition.get('onset_date')
+            "onsetDateTime": onset_date,
         }
 
 class HL7v2Formatter:
@@ -3941,25 +3967,31 @@ def main():
             json.dump(payload, handle, indent=2)
         return lifecycle_path
 
-    def save_fhir_bundle(patients_list, conditions_list, filename="fhir_bundle.json"):
+    def save_fhir_bundle(patients_list, filename="fhir_bundle.json"):
         """Save FHIR bundle with Patient and Condition resources"""
         import json
 
         fhir_formatter = FHIRFormatter()
         bundle_entries = []
-        
+
         # Add Patient resources
         for patient in tqdm(patients_list, desc="Creating FHIR Patient resources", unit="patients"):
             patient_resource = fhir_formatter.create_patient_resource(patient)
             bundle_entries.append({"resource": patient_resource})
-        
-        # Add Condition resources
-        for condition in tqdm(conditions_list, desc="Creating FHIR Condition resources", unit="conditions"):
-            condition_resource = fhir_formatter.create_condition_resource(
-                condition.get('patient_id'), condition
-            )
-            bundle_entries.append({"resource": condition_resource})
-        
+
+        # Add Condition resources grouped by patient
+        for patient in tqdm(patients_list, desc="Creating FHIR Condition resources", unit="patients"):
+            if isinstance(patient, LifecyclePatient):
+                patient_conditions = patient.conditions
+            else:
+                patient_conditions = []
+
+            for condition in patient_conditions:
+                condition_resource = fhir_formatter.create_condition_resource(
+                    patient.patient_id, condition
+                )
+                bundle_entries.append({"resource": condition_resource})
+
         # Create FHIR Bundle
         fhir_bundle = {
             "resourceType": "Bundle",
@@ -3978,59 +4010,88 @@ def main():
         """Save HL7 v2 messages (ADT and ORU)"""
         hl7_formatter = HL7v2Formatter()
         validator = HL7MessageValidator()
-        
+
         adt_messages = []
         oru_messages = []
         validation_results = []
-        
+
+        def to_encounter_dict(encounter: LifecycleEncounter) -> Dict[str, Any]:
+            return {
+                "encounter_id": encounter.encounter_id,
+                "patient_id": encounter.patient_id,
+                "date": encounter.start_date.isoformat() if encounter.start_date else None,
+                "type": encounter.encounter_type,
+                "reason": encounter.reason,
+                "provider": encounter.provider,
+                "location": encounter.location,
+            }
+
+        def to_observation_dict(observation: LifecycleObservation) -> Dict[str, Any]:
+            return {
+                "observation_id": observation.observation_id,
+                "patient_id": observation.patient_id,
+                "type": observation.name,
+                "value": observation.value,
+                "unit": observation.unit,
+                "status": observation.status,
+                "interpretation": observation.interpretation,
+                "observation_date": observation.effective_datetime.isoformat()
+                if observation.effective_datetime
+                else None,
+            }
+
         # Create ADT messages for each patient
         for patient in tqdm(patients_list, desc="Creating HL7 ADT messages", unit="patients"):
-            # Get encounters for this patient
-            patient_encounters = [enc for enc in encounters_list if enc.get('patient_id') == patient.patient_id]
-            
+            if isinstance(patient, LifecyclePatient):
+                patient_encounters = [to_encounter_dict(enc) for enc in patient.encounters]
+            else:
+                patient_encounters = [
+                    enc for enc in encounters_list if enc.get('patient_id') == patient.patient_id
+                ]
+
             if patient_encounters:
-                # Create ADT message with first encounter
                 encounter = patient_encounters[0]
                 adt_message = hl7_formatter.create_adt_message(patient, encounter, "A04")
             else:
-                # Create ADT message without encounter
                 adt_message = hl7_formatter.create_adt_message(patient, None, "A04")
-            
+
             adt_messages.append(adt_message)
-            
-            # Validate ADT message
+
             validation = validator.validate_message_structure(adt_message)
             validation_results.append({
                 "patient_id": patient.patient_id,
                 "message_type": "ADT",
                 "valid": validation["valid"],
                 "errors": validation["errors"],
-                "warnings": validation["warnings"]
+                "warnings": validation["warnings"],
             })
-        
-        # Create ORU messages for patients with observations
-        patient_obs_map = {}
+
+        # Build fallback observation mapping for legacy payloads
+        fallback_obs_map: Dict[str, List[Dict[str, Any]]] = {}
         for obs in observations_list:
             patient_id = obs.get('patient_id')
-            if patient_id not in patient_obs_map:
-                patient_obs_map[patient_id] = []
-            patient_obs_map[patient_id].append(obs)
-        
+            fallback_obs_map.setdefault(patient_id, []).append(obs)
+
         for patient in tqdm(patients_list, desc="Creating HL7 ORU messages", unit="patients"):
-            patient_observations = patient_obs_map.get(patient.patient_id, [])
-            if patient_observations:
-                oru_message = hl7_formatter.create_oru_message(patient, patient_observations)
-                oru_messages.append(oru_message)
-                
-                # Validate ORU message
-                validation = validator.validate_message_structure(oru_message)
-                validation_results.append({
-                    "patient_id": patient.patient_id,
-                    "message_type": "ORU",
-                    "valid": validation["valid"],
-                    "errors": validation["errors"],
-                    "warnings": validation["warnings"]
-                })
+            if isinstance(patient, LifecyclePatient):
+                patient_observations = [to_observation_dict(obs) for obs in patient.observations]
+            else:
+                patient_observations = fallback_obs_map.get(patient.patient_id, [])
+
+            if not patient_observations:
+                continue
+
+            oru_message = hl7_formatter.create_oru_message(patient, patient_observations)
+            oru_messages.append(oru_message)
+
+            validation = validator.validate_message_structure(oru_message)
+            validation_results.append({
+                "patient_id": patient.patient_id,
+                "message_type": "ORU",
+                "valid": validation["valid"],
+                "errors": validation["errors"],
+                "warnings": validation["warnings"],
+            })
         
         # Save ADT messages
         if adt_messages:
@@ -4088,7 +4149,7 @@ def main():
     
     # Export FHIR bundle (Phase 1: basic Patient and Condition resources)
     print("Creating FHIR bundle...")
-    save_fhir_bundle(lifecycle_patients, all_conditions, "fhir_bundle.json")
+    save_fhir_bundle(lifecycle_patients, "fhir_bundle.json")
     
     # Export HL7 v2 messages (Phase 2: ADT and ORU messages)
     print("Creating HL7 v2 messages...")
