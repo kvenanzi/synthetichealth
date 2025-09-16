@@ -41,3 +41,8 @@ output_phase*/
 output_phase*/*.txt
 migration_report*.txt
 AGENTS.md
+
+# Analytics dashboards and generated templates
+generated_reports/
+report_templates/
+dashboard_state.db

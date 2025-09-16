@@ -35,9 +35,15 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Any
 import uuid
+import sys
+
+# Ensure project root is on the Python path when running as a script
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 # Import our analytics components
-from migration_analytics_engine import (
+from src.analytics.migration_analytics_engine import (
     HealthcareAnalyticsEngine,
     BusinessKPI,
     AnalyticsTimeframe,
@@ -46,18 +52,18 @@ from migration_analytics_engine import (
     InteroperabilityStandard
 )
 
-from migration_report_generator import HealthcareReportGenerator
+from src.analytics.migration_report_generator import HealthcareReportGenerator
 
-from real_time_dashboard import RealTimeDashboard, DashboardHTMLGenerator
+from src.analytics.real_time_dashboard import RealTimeDashboard, DashboardHTMLGenerator
 
-from healthcare_interoperability_validator import (
+from src.validation.healthcare_interoperability_validator import (
     HealthcareInteroperabilityValidator,
     create_sample_fhir_patient,
     create_sample_hl7_message,
     InteroperabilityStandard as ValidatorStandard
 )
 
-from enhanced_migration_tracker import (
+from src.core.enhanced_migration_tracker import (
     PatientMigrationStatus,
     HealthcareDataQualityScorer,
     MigrationQualityMonitor,

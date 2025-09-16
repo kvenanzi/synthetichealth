@@ -34,9 +34,18 @@ from typing import Dict, List, Optional, Any, Union
 import base64
 from dataclasses import asdict
 from jinja2 import Environment, FileSystemLoader, Template
-import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
-import seaborn as sns
+
+try:
+    import matplotlib.pyplot as plt
+    import matplotlib.dates as mdates
+    import seaborn as sns
+    _PLOTTING_AVAILABLE = True
+except ModuleNotFoundError as exc:  # pragma: no cover - optional dependency guard
+    plt = None
+    mdates = None
+    sns = None
+    _PLOTTING_AVAILABLE = False
+    _PLOTTING_IMPORT_ERROR = exc
 import pandas as pd
 from io import StringIO, BytesIO
 import numpy as np
@@ -76,9 +85,15 @@ class HealthcareReportGenerator:
             autoescape=True
         )
         
-        # Set up plotting style for healthcare reports
-        plt.style.use('seaborn-v0_8')
-        sns.set_palette("husl")
+        # Set up plotting style for healthcare reports when plotting stack is available
+        if _PLOTTING_AVAILABLE:
+            plt.style.use('seaborn-v0_8')
+            sns.set_palette("husl")
+        else:
+            logger.warning(
+                "matplotlib/seaborn unavailable; charts will be skipped. Install optional analytics dependencies",
+            )
+            logger.debug("Plotting import failure: %s", _PLOTTING_IMPORT_ERROR)
         
         # Initialize report templates
         self._create_report_templates()
@@ -660,8 +675,12 @@ class HealthcareReportGenerator:
         return summary
     
     def _generate_executive_charts(self, kpis: Dict[str, BusinessKPI], 
-                                  compliance_metrics: Dict[str, ComplianceMetric]) -> Dict[str, str]:
+                                 compliance_metrics: Dict[str, ComplianceMetric]) -> Dict[str, str]:
         """Generate charts for executive dashboard"""
+        if not _PLOTTING_AVAILABLE:
+            logger.debug("Skipping executive charts because plotting stack is unavailable")
+            return {}
+
         charts = {}
         
         # KPI Performance Chart
@@ -709,6 +728,10 @@ class HealthcareReportGenerator:
     
     def _generate_technical_charts(self, technical_metrics: Dict[str, Any]) -> Dict[str, str]:
         """Generate charts for technical performance report"""
+        if not _PLOTTING_AVAILABLE:
+            logger.debug("Skipping technical charts because plotting stack is unavailable")
+            return {}
+
         charts = {}
         
         # Stage Performance Chart
@@ -758,6 +781,10 @@ class HealthcareReportGenerator:
     
     def _generate_clinical_charts(self, clinical_metrics: Dict[str, Any]) -> Dict[str, str]:
         """Generate charts for clinical integrity report"""
+        if not _PLOTTING_AVAILABLE:
+            logger.debug("Skipping clinical charts because plotting stack is unavailable")
+            return {}
+
         charts = {}
         
         # Clinical Quality by Dimension
@@ -806,6 +833,10 @@ class HealthcareReportGenerator:
     def _generate_compliance_charts(self, compliance_metrics: Dict[str, ComplianceMetric], 
                                    interop_metrics: Dict[str, InteroperabilityMetric]) -> Dict[str, str]:
         """Generate charts for compliance report"""
+        if not _PLOTTING_AVAILABLE:
+            logger.debug("Skipping compliance charts because plotting stack is unavailable")
+            return {}
+
         charts = {}
         
         # Compliance Scores Chart
@@ -870,10 +901,25 @@ class HealthcareReportGenerator:
                 if throughput < 10:
                     bottlenecks.append(f"{stage} stage low throughput: {throughput:.1f} patients/hour")
         
-        if "error_analysis" in technical_metrics:
-            for stage, error_count in technical_metrics["error_analysis"].items():
-                if error_count > 10:
-                    bottlenecks.append(f"High error rate in {stage} stage: {error_count} errors")
+        error_analysis = technical_metrics.get("error_analysis")
+        if isinstance(error_analysis, dict):
+            stage_errors = error_analysis.get("total_errors_by_stage")
+            if isinstance(stage_errors, dict):
+                for stage, error_count in stage_errors.items():
+                    if isinstance(error_count, (int, float)) and error_count > 10:
+                        bottlenecks.append(f"High error rate in {stage} stage: {error_count} errors")
+            else:
+                for stage, error_count in error_analysis.items():
+                    if isinstance(error_count, (int, float)) and error_count > 10:
+                        bottlenecks.append(f"High error rate in {stage} stage: {error_count} errors")
+
+            critical_errors = error_analysis.get("critical_errors_by_stage")
+            if isinstance(critical_errors, dict):
+                for stage, error_count in critical_errors.items():
+                    if isinstance(error_count, (int, float)) and error_count > 0:
+                        bottlenecks.append(
+                            f"Critical errors detected in {stage} stage: {error_count} high-severity incidents"
+                        )
         
         return bottlenecks
     
@@ -1256,6 +1302,10 @@ class HealthcareReportGenerator:
     
     def _generate_analysis_charts(self, analysis: Dict[str, Any], kpis: Dict[str, BusinessKPI]) -> Dict[str, str]:
         """Generate charts for post-migration analysis"""
+        if not _PLOTTING_AVAILABLE:
+            logger.debug("Skipping analysis charts because plotting stack is unavailable")
+            return {}
+
         charts = {}
         
         # Migration Timeline Chart

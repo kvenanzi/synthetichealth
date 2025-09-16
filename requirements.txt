@@ -1,0 +1,9 @@
+pandas>=2.0
+polars>=1.0
+Faker>=18.0
+PyYAML>=6.0
+tqdm>=4.60
+jinja2>=3.0
+websockets>=10.0
+matplotlib>=3.5
+seaborn>=0.12
