@@ -9,8 +9,8 @@ This checklist captures the outstanding tasks to complete the simulator-first re
 
 ## Phase 1 – Lifecycle Engine Enhancements
 - Refactor remaining generator helpers (`generate_*`) into lifecycle-focused components under `src/core/lifecycle/`.
-- Add unit coverage for `LifecyclePatient.from_legacy`, exporter adapters, and `run_migration_phase`.
-- Introduce scenario configuration loaders and expose CLI commands to list/run scenarios.
+- Add broader unit coverage for lifecycle pipelines as helper functions are extracted.
+- ✅ Introduce scenario configuration loaders, CLI selection, and lifecycle orchestrator wiring.
 
 ## Phase 2 – Terminology Platform
 - Replace bespoke catalogs with normalized datasets under `data/terminology/`.
