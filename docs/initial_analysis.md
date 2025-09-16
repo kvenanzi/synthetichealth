@@ -1,63 +1,83 @@
-# Implementation Plan for Refocusing Synthetic Data Simulator
+# Initial Analysis: Refocusing the Synthetic Data Simulator
 
-## Current Focus & Gaps
-* The public-facing documentation, demos, and tests emphasize migration tooling (VistA → Oracle Health) instead of a pure synthetic data simulator, including the README, configuration defaults, demos, docs, and analytics/tests.
+## Purpose
+This document captures the first-pass analysis for pivoting the codebase toward a clinically rich synthetic data generator. It clarifies why change is needed, the scope of the redesign, and the major workstreams that will guide subsequent implementation phases.
 
-* Core modules such as `synthetic_patient_generator` and `multi_format_healthcare_generator` embed migration simulators, success-rate tuning, and migration metrics rather than focusing solely on patient lifecycle generation and standards-compliant exports.
+## Background Snapshot
+- Recent releases, demos, and analytics materials highlight migration validation scenarios rather than longitudinal patient synthesis.
+- Core modules (`synthetic_patient_generator`, `multi_format_healthcare_generator`) mix migration telemetry with generation logic, limiting reuse for pure simulation work.
+- Terminology catalogs include small, hand-curated code samples, which conflicts with the objective of modeling large-scale clinical vocabularies.
+- Supporting scripts and dashboards report on migration quality, reinforcing a migration-first narrative across the repository.
 
-* Terminology catalogs for conditions, medications, and related concepts are manually curated and relatively small, conflicting with the goal of large, comprehensive code sets across ICD-10, SNOMED, LOINC, RxNorm, etc.
+## Strategic Goals
+- Reposition `main` as the home for a standards-focused synthetic health record generator.
+- Preserve the migration toolkit without blocking reference access for anyone who still relies on it today.
+- Expand clinical fidelity by layering comprehensive terminologies, temporal care pathways, and configurable population scenarios.
+- Establish validation, testing, and documentation foundations that reflect the renewed simulator mission.
 
-* Supporting tooling (e.g., dashboard summary scripts) also centers on migration quality reports, reinforcing the current migration-first posture.
+## High-Level Gaps
+### Product Framing
+- Public documentation, README content, and demos emphasize VistA to Oracle Health migration readiness.
+- CLI defaults, analytics summaries, and dashboards surface migration KPIs instead of synthetic cohort properties.
 
-## Implementation Plan
+### Platform Architecture
+- Patient lifecycle generation is tightly coupled to migration stage tracking and quality scoring metrics.
+- Scenario modeling is limited to a handful of examples and lacks specialty-specific templates.
 
-1. **Branch Strategy & Repository Realignment**
-   * Create a long-lived `migration` branch to preserve current migration engines, demos, analytics, and documentation for reference or future use. Move migration-specific packages (`src/core/enhanced_migration_simulator.py`, `src/analytics`, migration demos/tests/docs, tooling) into that branch and delete them from `main` once the branch exists.
-   * Update CI/configuration on `main` to drop migration tests and replace them with generation-focused checks after the branch split.
+### Reference Data
+- ICD-10, SNOMED, LOINC, RxNorm, and related catalogs are narrow in scope and stored as bespoke Python structures.
+- No loader utilities exist for working with official code set distributions or for filtering by demographic, severity, or specialty dimensions.
 
-2. **Core Domain Redesign (Patient Lifecycle-Centric)**
-   * Refactor `src/core/synthetic_patient_generator.py` into a modular clinical lifecycle engine with distinct submodules for intake, longitudinal encounters, diagnostics, therapies, and follow-up, decoupled from migration metadata.
-   * Introduce new domain models (e.g., `Patient`, `Encounter`, `ClinicalEvent`, `CarePlan`) using dataclasses or Pydantic models aligned with FHIR resource structures, capturing intake → history → assessments → interventions → outcomes.
-   * Implement scenario templates (primary care, oncology, chronic disease management, behavioral health, pediatric, maternity, etc.) to orchestrate condition progression, comorbidities, and interventions over time.
+### Quality & Tooling
+- Validation modules focus on migration success rates rather than clinical consistency (schema validation, coding integrity, temporal plausibility).
+- Tooling such as `generate_dashboard_summary.py` reports migration outcomes instead of synthetic data coverage metrics.
 
-3. **Terminology & Reference Data Expansion**
-   * Replace the hand-written catalogs with large curated datasets for conditions, meds, labs, immunizations, allergies, and procedures. Use authoritative sources (ICD-10-CM, SNOMED CT reference sets, RxNorm, LOINC, CVX, CPT) stored under `data/terminology/` in normalized CSV/Parquet form, supporting thousands of entries.
-   * Build loaders and sampling utilities that can filter by specialty, demographic prevalence, severity, or guideline-based cohorts.
-   * Add optional integration hooks for official FHIR terminology packages or publicly distributable subsets, and expose caching so large code sets don’t need to load on every run.
+## Phased Implementation Roadmap
+### Phase 0 – Repository Realignment
+- **Deliverables**: `migration` branch created with frozen migration assets, updated `CONTRIBUTING.md` instructions, CI configuration that skips migration test suites.
+- **Key Actions**: Snapshot the current migration artifacts, script a repo reorganization that moves migration-only modules and docs, publish a transition note that points legacy users to the branch.
+- **Sequencing Notes**: Execute prior to any generator refactors to avoid merge churn; lock releases during the split; budget time to update any local automation that still depends on the migration path.
+- **Ownership**: Solo effort with ad-hoc checklists to track the split and clean-up tasks.
 
-4. **Standards-Aligned Generation Pipeline**
-   * Architect a pipeline that produces FHIR R4, R5, and provisional R6/Draft resources while maintaining backward compatibility with DSTU2/STU3 mappings where possible, encapsulated in a new `src/standards/fhir` package.
-   * Implement SNOMED, LOINC, RxNorm, ICD-10 coding helpers that map generated clinical events to appropriate codings based on scenario and event type.
-   * Maintain CSV/Parquet exports via dedicated exporters that flatten FHIR bundles into analytics-friendly tables, reusing schema definitions but divorced from migration code paths.
-   * Provide optional HL7 v2 message generation for completeness but treat it as a format export step rather than migration simulation.
+### Phase 1 – Core Domain Redesign
+- **Deliverables**: Modular lifecycle package in `src/core/lifecycle/`, baseline domain model definitions, scenario template registry, updated CLI entrypoints reflecting the new module boundaries.
+- **Key Actions**: Decompose existing generator functions into intake/encounter/therapy modules; define dataclasses or Pydantic schemas aligned with FHIR; create scenario configuration format and loaders; refactor CLI flags to reference scenarios rather than migration knobs.
+- **Sequencing Notes**: Prototype the domain model with unit tests before wiring into the CLI; keep the migration branch synced until the refactor stabilizes; plan for iterative rollout by enabling feature flags for new scenarios.
+- **Ownership**: Self-managed iteration with frequent checkpoints captured in the implementation log to document design decisions.
 
-5. **Clinical Process Modeling Enhancements**
-   * Model clinical workflows (e.g., referral chains, lab ordering/result cycles, medication titration, care-plan adherence) with probabilistic state machines or rule-based engines fed by the expanded terminology sets.
-   * Incorporate temporal realism: appointment scheduling, follow-up intervals, test result turnaround times, care plan adjustments, and condition progression/regression.
-   * Implement SDOH influences on utilization and outcomes (e.g., missed appointments, medication adherence) using the existing demographic distributions as inputs but expanding coverage beyond current small set.
+### Phase 2 – Terminology & Standards Platform
+- Replace bespoke catalogs with large curated datasets across ICD-10-CM, SNOMED CT, RxNorm, LOINC, CVX, CPT, and related sets under `data/terminology/`.
+- Build loaders and sampling utilities that filter by specialty, demographic prevalence, or severity, and cache large code sets.
+- Deliver a standards-aligned export layer (`src/standards/fhir`) that emits FHIR R4/R5 resources, legacy DSTU2/STU3 mappings, CSV, Parquet, and optional HL7 v2 messages.
+- Implement coding helpers that map generated events to appropriate SNOMED, LOINC, RxNorm, and ICD-10 codes.
 
-6. **Configuration & Scenario Management**
-   * Replace the migration-centric configuration fields with scenario-focused YAML/JSON definitions describing patient cohorts, prevalence, chronic disease panels, and output targets.
-   * Support layered configuration (global defaults, scenario overrides, CLI flags) and load validation to ensure completeness.
-   * Provide CLI commands to list available scenarios, preview distributions, and run targeted generation batches.
+### Phase 3 – Clinical Realism & Validation
+- Model workflows such as referrals, lab ordering/results, medication titration, and care plan adherence using probabilistic state machines or rule engines.
+- Capture temporal realism (scheduling, follow-up intervals, turnaround times, condition progression) and social determinants of health drivers for adherence.
+- Rebuild validation pipelines to enforce schema correctness, terminology consistency, and clinical plausibility; introduce data quality metrics relevant to synthetic cohorts.
+- Expand automated tests with lifecycle, exporter, terminology sampling, performance, and snapshot coverage.
 
-7. **Validation & Quality Assurance**
-   * Rework `src/validation` to focus on clinical and standards compliance: schema validation using `fhir.resources` or `hl7-fhir` packages, terminology validation against the new catalogs, and clinical consistency checks (e.g., lab value ranges, contraindications).
-   * Introduce data quality metrics relevant to synthetic generation (coverage of code systems, event counts, demographic distribution adherence) replacing migration success metrics.
-   * Develop regression fixtures to ensure reproducibility with fixed seeds.
+### Phase 4 – Experience, Documentation, and Release Readiness
+- Refresh README, docs, demos, and tooling to describe the simulator-first focus while referencing the legacy migration branch.
+- Replace migration dashboards with clinical/SDOH metrics summaries and update utility scripts accordingly.
+- Update dependency management, linting, and CI workflows to align with the new architecture and release cadence.
+- Publish versioned release notes explaining the functional split and the roadmap for continued simulator enhancements.
 
-8. **Testing Overhaul**
-   * Write unit/integration tests covering the new lifecycle pipeline, exporter outputs, and terminology samplers; remove migration simulator tests from `main`.
-   * Add snapshot tests for representative FHIR bundles and CSV/Parquet outputs to guard format stability.
-   * Include performance tests for large-scale generation to ensure scalability without migration logic.
+## Immediate Next Steps
+- Validate the branch split plan locally and document the sequence of git operations required to carve out the migration history.
+- Sketch the modular lifecycle engine components and capture open questions directly in the repository journal for quick iteration.
+- Inventory publicly distributable terminology sources and note any licensing blockers before ingestion.
+- Finalize the success metrics (coverage, quality, performance, adoption) that will drive ongoing implementation checkpoints.
 
-9. **Documentation, Demos, and Tooling**
-   * Rewrite the README and docs to describe the state-of-the-art synthetic simulator focus, scenario usage, supported standards, and large terminology coverage, while referencing the `migration` branch for legacy workflows.
-   * Create new demos illustrating patient journey generation, standards exports, analytics-ready datasets, and configuration-driven scenarios.
-   * Retool utilities (e.g., replace `generate_dashboard_summary.py`) to summarize clinical/SDOH metrics rather than migration reports.
-   * Update requirements to include any new dependencies (e.g., `fhir.resources`, `pydantic`, `networkx` for workflow graphs) and set up linting/formatting for the reorganized codebase.
+## Risks & Mitigations
+- **Scope Creep**: The migration-to-simulator pivot touches nearly every module. Mitigation: time-box discovery for each phase, and enforce change control via architecture reviews before expanding scope.
+- **Terminology Licensing**: Some vocabularies have redistribution limits. Mitigation: validate licensing upfront, prefer publicly distributable subsets, and provide integration hooks for proprietary datasets that remain external.
+- **Operational Disruption**: Existing migration automation may face downtime. Mitigation: publish the transition plan, support automation updates during Phase 0, and maintain read-only snapshots for audit needs.
+- **Validation Gaps**: Replacing migration quality checks with clinical validation introduces risk of undetected data issues. Mitigation: define acceptance criteria up front and create regression fixtures with known outputs.
 
-10. **Deployment & Release Readiness**
-    * Provide versioned release notes clarifying the migration of legacy functionality to the dedicated branch and the new simulator capabilities.
-    * Set up CI workflows focused on generator validation, export schema checks, and style/linting appropriate for the new architecture.
+## Success Metrics
+- **Coverage**: Number of supported clinical scenarios, breadth of terminology entries per code system, and percentage of events with standards-aligned codings.
+- **Quality**: Validation pass rates across schema, terminology, and clinical consistency checks; defect rates reported by internal consumers post-transition.
+- **Performance**: Generation throughput (records per minute) for target cohort sizes, with benchmarks recorded before and after refactors.
+- **Adoption**: Usage metrics of new CLI scenarios and documentation engagement (e.g., page views, tutorial completions) indicating successful repositioning.
 

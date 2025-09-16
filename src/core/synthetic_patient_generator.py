@@ -22,6 +22,7 @@ from .terminology_catalogs import (
     PROCEDURES as PROCEDURE_TERMS,
     LAB_CODES
 )
+from .lifecycle import Patient as LifecyclePatient
 
 # Constants for data generation
 GENDERS = ["male", "female", "other"]
@@ -3749,6 +3750,7 @@ def main():
     all_deaths = []
     all_family_history = []
     all_care_plans = []
+    lifecycle_patients: List[LifecyclePatient] = []
 
     print("Generating related healthcare data...")
     for patient in tqdm(patients, desc="Generating healthcare data", unit="patients"):
@@ -3771,16 +3773,21 @@ def main():
                 condition["precision_markers"] = ",".join(condition["precision_markers"])
             if isinstance(condition.get("care_plan"), list):
                 condition["care_plan"] = ",".join(condition["care_plan"])
-        all_allergies.extend(generate_allergies(patient_dict))
-        all_procedures.extend(generate_procedures(patient_dict, encounters, conditions))
-        all_immunizations.extend(generate_immunizations(patient_dict, encounters))
-        all_observations.extend(generate_observations(patient_dict, encounters, conditions))
+        allergies = generate_allergies(patient_dict)
+        all_allergies.extend(allergies)
+        procedures = generate_procedures(patient_dict, encounters, conditions)
+        all_procedures.extend(procedures)
+        immunizations = generate_immunizations(patient_dict, encounters)
+        all_immunizations.extend(immunizations)
+        observations = generate_observations(patient_dict, encounters, conditions)
+        all_observations.extend(observations)
         care_plans = generate_care_plans(patient_dict, conditions, encounters)
         all_care_plans.extend(care_plans)
         death = generate_death(patient_dict, conditions)
         if death:
             all_deaths.append(death)
-        all_family_history.extend(generate_family_history(patient_dict))
+        family_history = generate_family_history(patient_dict)
+        all_family_history.extend(family_history)
 
         # Persist advanced clinical metadata back onto the PatientRecord for downstream exports
         patient.metadata['sdoh_risk_score'] = patient_dict.get('sdoh_risk_score', 0.0)
@@ -3801,16 +3808,44 @@ def main():
         patient.metadata['care_plan_overdue'] = care_summary.get('overdue', 0)
         patient.metadata['care_plan_scheduled'] = care_summary.get('scheduled', 0)
 
+        # Refresh the dictionary snapshot so metadata changes are captured
+        patient_snapshot = patient.to_dict()
+        lifecycle_patients.append(
+            LifecyclePatient.from_legacy(
+                patient_snapshot,
+                encounters=encounters,
+                conditions=conditions,
+                medications=medications,
+                immunizations=immunizations,
+                observations=observations,
+                allergies=allergies,
+                procedures=procedures,
+                metadata={**patient.metadata, "care_plan_details": care_plans},
+            )
+        )
+        # Restore patient_dict reference for downstream legacy operations
+        patient_dict = patient_snapshot
+
     def save(df, name):
         if output_csv:
             df.write_csv(os.path.join(output_dir, f"{name}.csv"))
         if output_parquet:
             df.write_parquet(os.path.join(output_dir, f"{name}.parquet"))
-    
+
+    def save_lifecycle_patients(patients_list, filename="lifecycle_patients.json"):
+        """Persist lifecycle-focused patient payloads for the new simulator path."""
+        import json
+
+        lifecycle_path = os.path.join(output_dir, filename)
+        payload = [patient.to_serializable_dict() for patient in patients_list]
+        with open(lifecycle_path, "w") as handle:
+            json.dump(payload, handle, indent=2)
+        return lifecycle_path
+
     def save_fhir_bundle(patients_list, conditions_list, filename="fhir_bundle.json"):
         """Save FHIR bundle with Patient and Condition resources"""
         import json
-        
+
         fhir_formatter = FHIRFormatter()
         bundle_entries = []
         
@@ -3946,6 +3981,9 @@ def main():
     
     for df, name in tqdm(tables_to_save, desc="Saving tables", unit="tables"):
         save(df, name)
+
+    lifecycle_output = save_lifecycle_patients(lifecycle_patients)
+    print(f"Lifecycle patient payload saved: {os.path.basename(lifecycle_output)}")
 
     print("\nExporting specialized formats...")
     
