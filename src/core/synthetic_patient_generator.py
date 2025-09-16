@@ -11,7 +11,7 @@ import os
 import yaml
 import json
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Any, Tuple
+from typing import List, Dict, Optional, Any, Tuple, Union
 from tqdm import tqdm
 
 from .terminology_catalogs import (
@@ -1624,54 +1624,90 @@ class MigrationSimulator:
 
 class FHIRFormatter:
     """Basic FHIR R4 formatter for Phase 1"""
-    
+
     @staticmethod
-    def create_patient_resource(patient_record: PatientRecord) -> Dict[str, Any]:
+    def create_patient_resource(patient_record: Union[PatientRecord, LifecyclePatient]) -> Dict[str, Any]:
         """Create basic FHIR R4 Patient resource"""
-        return {
-            "resourceType": "Patient",
-            "id": patient_record.patient_id,
-            "identifier": [
-                {
-                    "use": "usual",
-                    "type": {
-                        "coding": [{"system": "http://terminology.hl7.org/CodeSystem/v2-0203", "code": "MR"}]
-                    },
-                    "value": patient_record.mrn or patient_record.generate_mrn()
+
+        if isinstance(patient_record, LifecyclePatient):
+            identifiers = patient_record.identifiers
+            mrn = identifiers.get("mrn") or identifiers.get("vista_id") or patient_record.patient_id
+            ssn = identifiers.get("ssn")
+            address = patient_record.address
+            address_lines = [address.get("line")] if address.get("line") else []
+            birthdate = patient_record.birth_date.isoformat()
+            given_names = [name for name in [patient_record.first_name, patient_record.middle_name] if name]
+            phone = patient_record.contact.get("phone")
+        else:
+            mrn = patient_record.mrn or patient_record.generate_mrn()
+            ssn = patient_record.ssn
+            address_lines = [patient_record.address] if patient_record.address else []
+            birthdate = patient_record.birthdate
+            given_names = [patient_record.first_name]
+            phone = getattr(patient_record, "phone", None)
+
+        identifiers_payload = [
+            {
+                "use": "usual",
+                "type": {
+                    "coding": [{"system": "http://terminology.hl7.org/CodeSystem/v2-0203", "code": "MR"}]
                 },
+                "value": mrn,
+            }
+        ]
+        if ssn:
+            identifiers_payload.append(
                 {
                     "use": "official",
                     "type": {
                         "coding": [{"system": "http://terminology.hl7.org/CodeSystem/v2-0203", "code": "SS"}]
                     },
                     "system": "http://hl7.org/fhir/sid/us-ssn",
-                    "value": patient_record.ssn
+                    "value": ssn,
                 }
-            ] if patient_record.ssn else [
+            )
+
+        address_payload = []
+        if address_lines:
+            if isinstance(patient_record, LifecyclePatient):
+                address_payload.append(
+                    {
+                        "use": "home",
+                        "line": address_lines,
+                        "city": patient_record.address.get("city"),
+                        "state": patient_record.address.get("state"),
+                        "postalCode": patient_record.address.get("postal_code"),
+                        "country": patient_record.address.get("country"),
+                    }
+                )
+            else:
+                address_payload.append(
+                    {
+                        "use": "home",
+                        "line": address_lines,
+                        "city": patient_record.city,
+                        "state": patient_record.state,
+                        "postalCode": patient_record.zip,
+                        "country": patient_record.country,
+                    }
+                )
+
+        return {
+            "resourceType": "Patient",
+            "id": patient_record.patient_id,
+            "identifier": identifiers_payload,
+            "active": True,
+            "telecom": ([{"system": "phone", "value": phone}] if phone else []),
+            "name": [
                 {
-                    "use": "usual",
-                    "type": {
-                        "coding": [{"system": "http://terminology.hl7.org/CodeSystem/v2-0203", "code": "MR"}]
-                    },
-                    "value": patient_record.mrn or patient_record.generate_mrn()
+                    "use": "official",
+                    "family": patient_record.last_name,
+                    "given": given_names,
                 }
             ],
-            "active": True,
-            "name": [{
-                "use": "official",
-                "family": patient_record.last_name,
-                "given": [patient_record.first_name]
-            }],
             "gender": patient_record.gender,
-            "birthDate": patient_record.birthdate,
-            "address": [{
-                "use": "home",
-                "line": [patient_record.address],
-                "city": patient_record.city,
-                "state": patient_record.state,
-                "postalCode": patient_record.zip,
-                "country": patient_record.country
-            }] if patient_record.address else []
+            "birthDate": birthdate,
+            "address": address_payload,
         }
     
     @staticmethod
@@ -1720,20 +1756,52 @@ class HL7v2Formatter:
     """HL7 v2.x message formatter for Phase 2"""
     
     @staticmethod
-    def create_adt_message(patient_record: PatientRecord, encounter: Dict[str, Any] = None, message_type: str = "A04") -> str:
+    def create_adt_message(
+        patient_record: Union[PatientRecord, LifecyclePatient],
+        encounter: Dict[str, Any] = None,
+        message_type: str = "A04",
+    ) -> str:
         """Create HL7 v2 ADT (Admit/Discharge/Transfer) message"""
         from datetime import datetime
-        
+
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         message_control_id = f"MSG{random.randint(100000, 999999)}"
-        
+
         segments = []
-        
+
+        if isinstance(patient_record, LifecyclePatient):
+            identifiers = patient_record.identifiers
+            mrn = identifiers.get("mrn") or identifiers.get("vista_id") or patient_record.patient_id
+            ssn = identifiers.get("ssn", "")
+            birthdate = patient_record.birth_date.strftime("%Y%m%d") if patient_record.birth_date else ""
+            gender = patient_record.gender.upper()[:1] if patient_record.gender else "U"
+            address_line = patient_record.address.get("line", "")
+            address_city = patient_record.address.get("city", "")
+            address_state = patient_record.address.get("state", "")
+            address_zip = patient_record.address.get("postal_code", "")
+            phone = patient_record.contact.get("phone", "")
+            language = patient_record.language or ""
+            marital_status = patient_record.marital_status or ""
+            middle_name = patient_record.middle_name or ""
+        else:
+            mrn = patient_record.mrn or patient_record.generate_mrn()
+            ssn = patient_record.ssn or ""
+            birthdate = patient_record.birthdate.replace("-", "") if patient_record.birthdate else ""
+            gender = patient_record.gender.upper()[0] if patient_record.gender else "U"
+            address_line = patient_record.address
+            address_city = patient_record.city
+            address_state = patient_record.state
+            address_zip = patient_record.zip
+            phone = getattr(patient_record, "phone", "") or ""
+            language = getattr(patient_record, "language", "")
+            marital_status = getattr(patient_record, "marital_status", "")
+            middle_name = getattr(patient_record, "middle_name", "")
+
         # MSH - Message Header
         msh = (f"MSH|^~\\&|VistA|VA_FACILITY|Oracle|ORACLE_FACILITY|{timestamp}||"
                f"ADT^{message_type}|{message_control_id}|P|2.5")
         segments.append(msh)
-        
+
         # EVN - Event Type  
         evn = f"EVN|{message_type}|{timestamp}|||"
         segments.append(evn)
@@ -1743,23 +1811,23 @@ class HL7v2Formatter:
             "PID",
             "1",  # Set ID
             "",   # External ID
-            f"{patient_record.mrn}^^^VA^MR~{patient_record.ssn}^^^USA^SS" if patient_record.ssn else f"{patient_record.mrn}^^^VA^MR",
+            f"{mrn}^^^VA^MR~{ssn}^^^USA^SS" if ssn else f"{mrn}^^^VA^MR",
             "",   # Alternate Patient ID
-            f"{patient_record.last_name}^{patient_record.first_name}^{patient_record.middle_name}",
+            f"{patient_record.last_name}^{patient_record.first_name}^{middle_name}",
             "",   # Mother's Maiden Name
-            patient_record.birthdate.replace('-', ''),
-            patient_record.gender.upper()[0] if patient_record.gender else "U",
+            birthdate,
+            gender,
             "",   # Patient Alias
             HL7v2Formatter._get_hl7_race_code(patient_record.race),
-            f"{patient_record.address}^^{patient_record.city}^{patient_record.state}^{patient_record.zip}",
+            f"{address_line}^^{address_city}^{address_state}^{address_zip}",
             "",   # County Code
-            patient_record.phone if hasattr(patient_record, 'phone') and patient_record.phone else "",
+            phone,
             "",   # Business Phone
-            HL7v2Formatter._get_hl7_language_code(patient_record.language),
-            HL7v2Formatter._get_hl7_marital_code(patient_record.marital_status),
+            HL7v2Formatter._get_hl7_language_code(language),
+            HL7v2Formatter._get_hl7_marital_code(marital_status),
             "",   # Religion
             f"{patient_record.patient_id}^^^VA^AN",  # Account Number
-            patient_record.ssn if patient_record.ssn else "",
+            ssn,
             "",   # Driver's License
             "",   # Mother's Identifier
             HL7v2Formatter._get_hl7_ethnicity_code(patient_record.ethnicity),
@@ -1849,25 +1917,56 @@ class HL7v2Formatter:
         return "\r".join(segments)
     
     @staticmethod
-    def create_oru_message(patient_record: PatientRecord, observations: list) -> str:
+    def create_oru_message(
+        patient_record: Union[PatientRecord, LifecyclePatient], observations: list
+    ) -> str:
         """Create HL7 v2 ORU (Observation Result) message for lab results"""
         from datetime import datetime
-        
+
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         message_control_id = f"LAB{random.randint(100000, 999999)}"
-        
+
         segments = []
-        
+
+        if isinstance(patient_record, LifecyclePatient):
+            identifiers = patient_record.identifiers
+            mrn = identifiers.get("mrn") or identifiers.get("vista_id") or patient_record.patient_id
+            ssn = identifiers.get("ssn", "")
+            middle_name = patient_record.middle_name or ""
+            birthdate = (
+                patient_record.birth_date.strftime("%Y%m%d") if patient_record.birth_date else ""
+            )
+            gender = patient_record.gender.upper()[:1] if patient_record.gender else "U"
+            address_line = patient_record.address.get("line", "")
+            address_city = patient_record.address.get("city", "")
+            address_state = patient_record.address.get("state", "")
+            address_zip = patient_record.address.get("postal_code", "")
+        else:
+            mrn = patient_record.mrn or patient_record.generate_mrn()
+            ssn = patient_record.ssn or ""
+            middle_name = getattr(patient_record, "middle_name", "")
+            birthdate = patient_record.birthdate.replace("-", "") if patient_record.birthdate else ""
+            gender = patient_record.gender.upper()[0] if patient_record.gender else "U"
+            address_line = patient_record.address
+            address_city = patient_record.city
+            address_state = patient_record.state
+            address_zip = patient_record.zip
+
         # MSH - Message Header
         msh = (f"MSH|^~\\&|VistA|VA_FACILITY|LAB|LAB_FACILITY|{timestamp}||"
                f"ORU^R01|{message_control_id}|P|2.5")
         segments.append(msh)
-        
+
         # PID - Patient Identification (same as ADT)
-        pid = (f"PID|1||{patient_record.mrn}^^^VA^MR~{patient_record.ssn}^^^USA^SS||"
-               f"{patient_record.last_name}^{patient_record.first_name}^{patient_record.middle_name}||"
-               f"{patient_record.birthdate.replace('-', '')}|{patient_record.gender.upper()[0]}|||"
-               f"{patient_record.address}^^{patient_record.city}^{patient_record.state}^{patient_record.zip}")
+        identifier = f"{mrn}^^^VA^MR"
+        if ssn:
+            identifier = f"{identifier}~{ssn}^^^USA^SS"
+
+        pid = (
+            f"PID|1||{identifier}||{patient_record.last_name}^"
+            f"{patient_record.first_name}^{middle_name}||{birthdate}|{gender}|||"
+            f"{address_line}^^{address_city}^{address_state}^{address_zip}"
+        )
         segments.append(pid)
         
         # OBR - Observation Request
@@ -3989,11 +4088,11 @@ def main():
     
     # Export FHIR bundle (Phase 1: basic Patient and Condition resources)
     print("Creating FHIR bundle...")
-    save_fhir_bundle(patients, all_conditions, "fhir_bundle.json")
+    save_fhir_bundle(lifecycle_patients, all_conditions, "fhir_bundle.json")
     
     # Export HL7 v2 messages (Phase 2: ADT and ORU messages)
     print("Creating HL7 v2 messages...")
-    save_hl7_messages(patients, all_encounters, all_observations, "hl7_messages")
+    save_hl7_messages(lifecycle_patients, all_encounters, all_observations, "hl7_messages")
     
     # Export VistA MUMPS globals (Phase 3: VA migration simulation)
     print("Creating VistA MUMPS globals...")

@@ -273,6 +273,7 @@ class Patient:
     gender: str
     race: str
     ethnicity: str
+    middle_name: Optional[str] = None
     language: Optional[str] = None
     marital_status: Optional[str] = None
     contact: Dict[str, Any] = field(default_factory=dict)
@@ -351,6 +352,7 @@ class Patient:
             patient_id=patient.get("patient_id", ""),
             first_name=patient.get("first_name", ""),
             last_name=patient.get("last_name", ""),
+            middle_name=patient.get("middle_name"),
             birth_date=birth_date,
             gender=patient.get("gender", ""),
             race=patient.get("race", ""),
