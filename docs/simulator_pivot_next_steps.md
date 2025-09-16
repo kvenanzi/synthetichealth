@@ -3,14 +3,15 @@
 This checklist captures the outstanding tasks to complete the simulator-first refactor after the migration logic split.
 
 ## Phase 0 – Migration Branch Finalization
-- Run `python tools/prepare_migration_branch.py ../migration_snapshot` to stage migration modules.
-- Create and push the long-lived `migration` branch containing the staged files and legacy docs.
-- Remove migration-related imports and CLI flags from `main` once the branch is available.
+- ✅ Run `python tools/prepare_migration_branch.py migration_snapshot` to stage migration modules.
+- ✅ Create and push the long-lived `migration` branch containing the staged files and legacy docs.
+- 🔄 Audit `main` for residual migration references (e.g., log messaging) and remove once downstream consumers finish transitioning.
 
 ## Phase 1 – Lifecycle Engine Enhancements
-- Refactor remaining generator helpers (`generate_*`) into lifecycle-focused components under `src/core/lifecycle/`.
-- Add broader unit coverage for lifecycle pipelines as helper functions are extracted.
+- 🔄 Refactor remaining generator helpers (`generate_*`) into lifecycle-focused components under `src/core/lifecycle/` (current focus).
+- 🔄 Expand unit coverage for lifecycle pipelines as helper functions migrate out of the legacy generator.
 - ✅ Introduce scenario configuration loaders, CLI selection, and lifecycle orchestrator wiring.
+- ✅ Add smoke/unit tests for scenario loading and lifecycle orchestration to guard regressions.
 
 ## Phase 2 – Terminology Platform
 - Replace bespoke catalogs with normalized datasets under `data/terminology/`.
