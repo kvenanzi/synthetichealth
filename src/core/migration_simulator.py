@@ -1,13 +1,15 @@
 """Migration simulation engine supporting legacy VistA→Oracle workflows."""
 from __future__ import annotations
 
+import json
 import math
+import os
 import random
 import time
 import uuid
 from collections import Counter, defaultdict
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple
 
 from faker import Faker
 
@@ -572,9 +574,152 @@ class MigrationSimulator:
             handle.write("\n".join(report_lines))
 
 
+def run_migration_phase(
+    *,
+    patients: List["PatientRecord"],
+    output_dir: str,
+    config: Dict[str, Any],
+    get_config: Callable[[str, Any], Any],
+) -> None:
+    """Execute the optional migration simulation phase and persist analytics."""
+
+    print("\n" + "=" * 60)
+    print("PHASE 4: MIGRATION SIMULATION")
+    print("=" * 60)
+
+    migration_config = MigrationConfig()
+    migration_settings = config.get("migration_settings", {})
+    if "success_rates" in migration_settings:
+        migration_config.stage_success_rates.update(migration_settings["success_rates"])
+    if "network_failure_rate" in migration_settings:
+        migration_config.network_failure_rate = migration_settings["network_failure_rate"]
+    if "system_overload_rate" in migration_settings:
+        migration_config.system_overload_rate = migration_settings["system_overload_rate"]
+    if "retry_attempts" in migration_settings:
+        migration_config.retry_attempts = migration_settings["retry_attempts"]
+    if "retry_delay_seconds" in migration_settings:
+        migration_config.retry_delay_seconds = migration_settings["retry_delay_seconds"]
+    if "retry_failures" in migration_settings:
+        migration_config.retry_failures = migration_settings["retry_failures"]
+
+    simulator = MigrationSimulator(migration_config)
+
+    batch_size = get_config("batch_size", 100)
+    migration_strategy = get_config("migration_strategy", "staged")
+    migration_report_file = get_config("migration_report", None)
+    migration_config.retry_failures = bool(get_config("retry_failures", migration_config.retry_failures))
+    migration_config.retry_attempts = int(get_config("max_retry_attempts", migration_config.retry_attempts))
+    migration_config.retry_delay_seconds = float(
+        get_config("retry_delay_seconds", migration_config.retry_delay_seconds)
+    )
+
+    print(f"Simulating migration for {len(patients)} patients...")
+    print(f"Batch size: {batch_size}")
+    print(f"Strategy: {migration_strategy}")
+
+    total_batches = (len(patients) + batch_size - 1) // batch_size
+
+    for batch_num in range(total_batches):
+        start_idx = batch_num * batch_size
+        end_idx = min(start_idx + batch_size, len(patients))
+        batch_patients = patients[start_idx:end_idx]
+        batch_id = f"batch_{batch_num + 1:03d}"
+
+        print(f"Processing {batch_id}: {len(batch_patients)} patients...")
+        batch_result = simulator.simulate_staged_migration(
+            batch_patients,
+            batch_id=batch_id,
+            migration_strategy=migration_strategy,
+        )
+
+        print(f"  - Overall Success Rate: {batch_result.overall_success_rate:.1%}")
+        print(f"  - Average Quality Score: {batch_result.average_quality_score:.3f}")
+        print(f"  - Failed Patients: {batch_result.total_errors}")
+        failed_stages = [r for r in batch_result.stage_results if r.status == "partial_failure"]
+        if failed_stages:
+            failures = ", ".join(sorted({r.stage for r in failed_stages}))
+            print(f"  - Failures in stages: {failures}")
+        print("")
+
+    print("Generating migration analytics...")
+    analytics = simulator.get_migration_analytics()
+
+    print("\nMIGRATION EXECUTIVE SUMMARY")
+    print("-" * 40)
+    summary = analytics.get("summary", {})
+    if summary:
+        print(f"Total Batches: {summary.get('total_batches', 0)}")
+        print(f"Total Patients: {summary.get('total_patients', 0)}")
+        print(f"Overall Success Rate: {summary.get('overall_success_rate', 0.0):.1%}")
+        print(f"Average Data Quality: {summary.get('average_quality_score', 0.0):.3f}")
+        print(f"Total Errors: {summary.get('total_errors', 0)}")
+
+    stage_perf = analytics.get("stage_performance", {})
+    if stage_perf:
+        print("\nSTAGE PERFORMANCE")
+        print("-" * 40)
+        for stage, stats in stage_perf.items():
+            print(
+                f"{stage.upper()}: {stats['success_rate']:.1%} success, "
+                f"{stats['average_duration']:.1f}s avg duration"
+            )
+
+    failure_analysis = analytics.get("failure_analysis", {})
+    failure_types = failure_analysis.get("failure_types", {})
+    if failure_types:
+        print("\nTOP FAILURE TYPES")
+        print("-" * 40)
+        for failure_type, count in sorted(failure_types.items(), key=lambda item: item[1], reverse=True)[:3]:
+            print(f"{failure_type}: {count} occurrences")
+
+    recommendations = analytics.get("recommendations", [])
+    if recommendations:
+        print("\nRECOMMENDAYIONS")
+        print("-" * 40)
+        for index, rec in enumerate(recommendations[:3], 1):
+            print(f"{index}. {rec}")
+
+    if migration_report_file:
+        report_path = os.path.join(output_dir, migration_report_file)
+        simulator.export_migration_report(report_path)
+        print(f"\nDetailed migration report saved to: {report_path}")
+
+    quality_data = {
+        "migration_summary": analytics.get("summary", {}),
+        "stage_performance": analytics.get("stage_performance", {}),
+        "quality_trends": analytics.get("quality_trends", {}),
+        "sdoh_equity": analytics.get("sdoh_equity", {}),
+        "care_pathways": analytics.get("care_pathways", {}),
+        "retry_statistics": analytics.get("retry_statistics", {}),
+        "patient_quality_scores": [
+            {
+                "patient_id": patient.patient_id,
+                "initial_quality": 1.0,
+                "final_quality": patient.metadata.get("data_quality_score", 0.0),
+                "quality_degradation": 1.0 - patient.metadata.get("data_quality_score", 0.0),
+                "migration_status": patient.metadata.get("migration_status"),
+            }
+            for patient in patients
+        ],
+        "patient_failures": [
+            failure
+            for batch in simulator.migration_history
+            for failure in getattr(batch, "patient_failures", [])
+        ],
+    }
+
+    migration_quality_file = os.path.join(output_dir, "migration_quality_report.json")
+    with open(migration_quality_file, "w") as handle:
+        json.dump(quality_data, handle, indent=2)
+
+    print("Migration quality metrics saved to: migration_quality_report.json")
+    print("\nMigration simulation completed successfully!")
+
+
 __all__ = [
     "MigrationSimulator",
     "MIGRATION_STAGES",
     "ETL_SUBSTAGES",
     "FAILURE_TYPES",
+    "run_migration_phase",
 ]
