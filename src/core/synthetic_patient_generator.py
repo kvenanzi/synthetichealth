@@ -3021,17 +3021,31 @@ def main():
     parser.add_argument("--both", action="store_true", help="Output both CSV and Parquet files (default)")
     parser.add_argument("--config", type=str, default=None, help="Path to YAML config file")
     parser.add_argument("--report-file", type=str, default=None, help="Path to save summary report (optional)")
-    
-    # Migration simulation arguments
+
+    # Migration simulation arguments (legacy branch support)
     parser.add_argument("--simulate-migration", action="store_true", help="Enable migration simulation")
     parser.add_argument("--batch-size", type=int, default=100, help="Batch size for migration simulation")
-    parser.add_argument("--migration-strategy", type=str, default="staged", 
-                       choices=["staged", "big_bang", "parallel"], help="Migration strategy")
+    parser.add_argument(
+        "--migration-strategy",
+        type=str,
+        default="staged",
+        choices=["staged", "big_bang", "parallel"],
+        help="Migration strategy",
+    )
     parser.add_argument("--migration-report", type=str, default=None, help="Output migration report file")
-    parser.add_argument("--retry-failures", action="store_true", help="Retry failed patients during migration simulation")
+    parser.add_argument(
+        "--retry-failures",
+        action="store_true",
+        help="Retry failed patients during migration simulation",
+    )
     parser.add_argument("--max-retry-attempts", type=int, default=None, help="Maximum retry attempts per patient")
-    parser.add_argument("--retry-delay-seconds", type=float, default=None, help="Delay between retry attempts (simulated seconds)")
-    
+    parser.add_argument(
+        "--retry-delay-seconds",
+        type=float,
+        default=None,
+        help="Delay between retry attempts (simulated seconds)",
+    )
+
     args, unknown = parser.parse_known_args()
 
     config = {}
@@ -3518,7 +3532,7 @@ def main():
         )
     else:
         print("\nSkipping migration simulation (use --simulate-migration to enable)")
-    
+
     print(f"\nAll outputs saved to: {output_dir}")
     print("Generation completed successfully!")
 
