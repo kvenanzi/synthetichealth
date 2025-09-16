@@ -1,0 +1,33 @@
+# Simulator Pivot: Remaining Work Plan
+
+This checklist captures the outstanding tasks to complete the simulator-first refactor after the migration logic split.
+
+## Phase 0 – Migration Branch Finalization
+- Run `python tools/prepare_migration_branch.py ../migration_snapshot` to stage migration modules.
+- Create and push the long-lived `migration` branch containing the staged files and legacy docs.
+- Remove migration-related imports and CLI flags from `main` once the branch is available.
+
+## Phase 1 – Lifecycle Engine Enhancements
+- Refactor remaining generator helpers (`generate_*`) into lifecycle-focused components under `src/core/lifecycle/`.
+- Add unit coverage for `LifecyclePatient.from_legacy`, exporter adapters, and `run_migration_phase`.
+- Introduce scenario configuration loaders and expose CLI commands to list/run scenarios.
+
+## Phase 2 – Terminology Platform
+- Replace bespoke catalogs with normalized datasets under `data/terminology/`.
+- Implement terminology loaders with filtering/caching support and connect them to scenario templates.
+- Expand FHIR/CSV exporters to consume the new terminology services.
+
+## Phase 3 – Clinical Realism & Validation
+- Model workflow engines (referrals, lab cycles, care plan adherence) using probabilistic state machines.
+- Rebuild validation to cover schema, terminology, and temporal consistency; ensure new tests run in CI.
+- Add performance/snapshot tests to protect export stability and generator throughput.
+
+## Phase 4 – Docs, Tooling, and Release Prep
+- Rewrite README and docs to focus on the simulator; link to the migration branch for legacy usage.
+- Replace migration dashboards with clinical/SDOH analytics summaries and update utility scripts.
+- Update CI pipelines, dependency manifests, and release notes to reflect the new architecture.
+
+## Supporting Tasks
+- Audit remaining modules for hard-coded migration references and remove or gate them.
+- Capture design decisions in the implementation journal for transparency across phases.
+- Plan beta milestones or internal releases once each phase reaches testing parity.
