@@ -252,7 +252,7 @@ analytics = {
             "total_executions": int
         }
     },
-    "failure_analysis": {
+"failure_analysis": {
         "failure_types": Dict[str, int],
         "failure_by_stage": Dict[str, int],
         "most_common_failure": str
@@ -263,9 +263,35 @@ analytics = {
         "quality_trend": float,
         "quality_variance": float
     },
+    "sdoh_equity": {
+        "average_sdoh_risk": float,
+        "average_deprivation_index": float,
+        "average_access_score": float,
+        "average_social_support": float,
+        "top_care_gaps": Dict[str, int]
+    },
+    "care_pathways": {
+        "average_care_plans_per_patient": float,
+        "average_completed": float,
+        "average_overdue": float
+    },
+    "retry_statistics": {
+        "total_failures": int,
+        "resolved_failures": int,
+        "unresolved_failures": int,
+        "average_attempts": float
+    },
     "recommendations": List[str]
 }
 ```
+
+To create a dashboard-friendly summary, run:
+
+```bash
+python3 tools/generate_dashboard_summary.py output_phase4_large
+```
+
+This produces `dashboard_summary.json` capturing SDOH averages, top care gaps, and care-plan distributions for quick visualization.
 
 ### Automated Recommendations
 The simulator generates actionable recommendations based on migration results:
@@ -310,6 +336,13 @@ python synthetic_patient_generator.py \
     --batch-size 50 \
     --migration-strategy staged \
     --migration-report detailed_report.txt
+
+# Enable retry logic for transient failures
+python synthetic_patient_generator.py \
+    --num-records 200 \
+    --simulate-migration \
+    --retry-failures \
+    --max-retry-attempts 2
 
 # Using configuration file
 python synthetic_patient_generator.py --config migration_config.yaml
