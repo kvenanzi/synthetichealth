@@ -28,6 +28,9 @@ from .lifecycle import (
     Observation as LifecycleObservation,
     Encounter as LifecycleEncounter,
 )
+from .lifecycle.loader import load_scenario_config
+from .lifecycle.orchestrator import LifecycleOrchestrator
+from .lifecycle.scenarios import list_scenarios
 from .migration_simulator import run_migration_phase
 
 # Constants for data generation
@@ -3021,29 +3024,62 @@ def main():
     parser.add_argument("--both", action="store_true", help="Output both CSV and Parquet files (default)")
     parser.add_argument("--config", type=str, default=None, help="Path to YAML config file")
     parser.add_argument("--report-file", type=str, default=None, help="Path to save summary report (optional)")
-    
+    parser.add_argument("--scenario", type=str, default=None, help="Name of lifecycle scenario to apply")
+    parser.add_argument("--scenario-file", type=str, default=None, help="Path to scenario overrides YAML")
+    parser.add_argument("--list-scenarios", action="store_true", help="List available scenarios and exit")
+
     # Migration simulation arguments
     parser.add_argument("--simulate-migration", action="store_true", help="Enable migration simulation")
     parser.add_argument("--batch-size", type=int, default=100, help="Batch size for migration simulation")
-    parser.add_argument("--migration-strategy", type=str, default="staged", 
-                       choices=["staged", "big_bang", "parallel"], help="Migration strategy")
+    parser.add_argument(
+        "--migration-strategy",
+        type=str,
+        default="staged",
+        choices=["staged", "big_bang", "parallel"],
+        help="Migration strategy",
+    )
     parser.add_argument("--migration-report", type=str, default=None, help="Output migration report file")
     parser.add_argument("--retry-failures", action="store_true", help="Retry failed patients during migration simulation")
     parser.add_argument("--max-retry-attempts", type=int, default=None, help="Maximum retry attempts per patient")
-    parser.add_argument("--retry-delay-seconds", type=float, default=None, help="Delay between retry attempts (simulated seconds)")
-    
+    parser.add_argument(
+        "--retry-delay-seconds",
+        type=float,
+        default=None,
+        help="Delay between retry attempts (simulated seconds)",
+    )
+
     args, unknown = parser.parse_known_args()
+
+    if getattr(args, "list_scenarios", False):
+        print("Available scenarios:")
+        for name in list_scenarios():
+            print(f"  - {name}")
+        return
 
     config = {}
     if args.config:
         config = load_yaml_config(args.config)
+
+    scenario_name = args.scenario or config.get('scenario')
+    scenario_file = args.scenario_file or config.get('scenario_file')
+    try:
+        scenario_config = load_scenario_config(scenario_name, scenario_file)
+    except ValueError as exc:
+        print(exc)
+        return
+    scenario_config = dict(scenario_config) if scenario_config else {}
+    scenario_metadata = scenario_config.pop('metadata', {}) if scenario_config else {}
 
     def get_config(key, default=None):
         # CLI flag overrides config file
         val = getattr(args, key, None)
         if val not in [None, False]:
             return val
-        return config.get(key, default)
+        if key in config and config[key] not in [None, False]:
+            return config[key]
+        if scenario_config and key in scenario_config:
+            return scenario_config[key]
+        return default
 
     num_records = int(get_config('num_records', 1000))
     output_dir = get_config('output_dir', '.')
@@ -3079,6 +3115,12 @@ def main():
     education_dist = parse_distribution(education_dist, SDOH_EDUCATION, default_dist={e: 1/len(SDOH_EDUCATION) for e in SDOH_EDUCATION})
     employment_dist = parse_distribution(employment_dist, SDOH_EMPLOYMENT, default_dist={e: 1/len(SDOH_EMPLOYMENT) for e in SDOH_EMPLOYMENT})
     housing_dist = parse_distribution(housing_dist, SDOH_HOUSING, default_dist={h: 1/len(SDOH_HOUSING) for h in SDOH_HOUSING})
+
+    active_scenario_name = scenario_name or ('custom' if scenario_config else 'unspecified')
+    orchestrator = LifecycleOrchestrator(
+        scenario_name=active_scenario_name,
+        scenario_details=scenario_metadata,
+    )
 
     def generate_patient_with_dist(_):
         """Generate patient with distribution constraints using PatientRecord class"""
@@ -3211,7 +3253,7 @@ def main():
         # Refresh the dictionary snapshot so metadata changes are captured
         patient_snapshot = patient.to_dict()
         lifecycle_patients.append(
-            LifecyclePatient.from_legacy(
+            orchestrator.build_patient(
                 patient_snapshot,
                 encounters=encounters,
                 conditions=conditions,
@@ -3454,6 +3496,7 @@ def main():
     age_bins_dict = {f"{a}-{b}": (a, b) for a, b in age_bins}
     patients_df = pl.DataFrame(patients)
     report_lines = []
+    report_lines.append(f"Scenario: {active_scenario_name}")
     report_lines.append(f"Patients: {len(patients)}")
     report_lines.append(f"Encounters: {len(all_encounters)}")
     report_lines.append(f"Conditions: {len(all_conditions)}")
@@ -3510,15 +3553,9 @@ def main():
     
     # Phase 4: Migration Simulation
     if get_config('simulate_migration', False):
-        run_migration_phase(
-            patients=patients,
-            output_dir=output_dir,
-            config=config,
-            get_config=get_config,
-        )
-    else:
-        print("\nSkipping migration simulation (use --simulate-migration to enable)")
-    
+        print("\nMigration simulation has moved to the dedicated 'migration' branch. "
+              "Check out that branch to continue using the legacy tooling.")
+
     print(f"\nAll outputs saved to: {output_dir}")
     print("Generation completed successfully!")
 
