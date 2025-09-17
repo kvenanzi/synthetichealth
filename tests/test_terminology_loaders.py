@@ -49,6 +49,31 @@ def test_load_snomed_conditions_metadata_contains_mapping():
     assert any(entry.metadata.get("icd10_mapping") == "I10" for entry in entries)
 
 
+def test_icd10_loader_prefers_normalized(monkeypatch, tmp_path: Path):
+    base = tmp_path / "terminology"
+    icd_dir = base / "icd10"
+    icd_dir.mkdir(parents=True)
+
+    normalized = icd_dir / "icd10_full.csv"
+    normalized.write_text(
+        "order,code,level,short_description,description,chapter,ncbi_url\n"
+        "00001,A00,0,Cholera,Cholera,,https://icd10cmtool.cdc.gov/?fy=2026&code=A00\n",
+        encoding="utf-8",
+    )
+
+    # Seed fallback (ignored because normalized exists)
+    (icd_dir / "icd10_conditions.csv").write_text(
+        "code,description,chapter,ncbi_url\nZZZ,Test,Chapter,https://example.com\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("TERMINOLOGY_ROOT", str(base))
+    entries = load_icd10_conditions()
+    monkeypatch.delenv("TERMINOLOGY_ROOT", raising=False)
+
+    assert entries[0].code == "A00"
+
+
 def test_loinc_loader_prefers_normalized(monkeypatch, tmp_path: Path):
     base = tmp_path / "terminology"
     loinc_dir = base / "loinc"

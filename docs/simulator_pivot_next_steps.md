@@ -16,7 +16,7 @@ This checklist captures the outstanding tasks to complete the simulator-first re
 ## Phase 2 – Terminology Platform
 - ✅ Replace bespoke catalogs with normalized datasets under `data/terminology/`.
 - ✅ Implement terminology loaders with filtering/caching support and connect them to scenario templates.
-- 🔄 Normalize official ICD-10, SNOMED CT, and RxNorm releases once source archives are available.
+- 🔄 Normalize official ICD-10, SNOMED CT, and RxNorm releases once source archives are available (ICD-10 importer added; SNOMED/RxNorm pending).
 - Populate terminology datasets with comprehensive NLM/NCBI extracts (pending larger import tooling).
 - Expand FHIR/CSV exporters to consume the new terminology services.
 

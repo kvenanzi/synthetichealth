@@ -50,8 +50,16 @@ def _load_csv(path: Path, code_field: str, display_field: str) -> List[Terminolo
 def load_icd10_conditions(root: Optional[str] = None) -> List[TerminologyEntry]:
     """Load ICD-10-CM condition concepts."""
 
-    path = _resolve_path("icd10/icd10_conditions.csv", root)
-    return _load_csv(path, code_field="code", display_field="description")
+    normalized_path = _resolve_path("icd10/icd10_full.csv", root)
+    if normalized_path.exists():
+        path = normalized_path
+        code_field = "code"
+        display_field = "description"
+    else:
+        path = _resolve_path("icd10/icd10_conditions.csv", root)
+        code_field = "code"
+        display_field = "description"
+    return _load_csv(path, code_field=code_field, display_field=display_field)
 
 
 def load_loinc_labs(root: Optional[str] = None) -> List[TerminologyEntry]:

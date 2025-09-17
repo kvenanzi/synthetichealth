@@ -23,4 +23,16 @@ python tools/import_loinc.py \
 
 `load_loinc_labs` will automatically prefer `loinc_full.csv` when it exists while retaining the lightweight seed file for quick tests.
 
-Normalization scripts for ICD-10-CM, SNOMED CT, and RxNorm will follow the same pattern once authored; in the meantime the full distributions can remain under their respective `raw/` folders and the loaders will continue to use the committed seed tables.
+### Normalizing Official ICD-10-CM Tables
+
+After extracting `icd10cm-order-YYYY.txt` into `icd10/raw/`, run:
+
+```bash
+python3 tools/import_icd10.py \
+  --raw data/terminology/icd10/raw/icd10cm-order-2026.txt \
+  --output data/terminology/icd10/icd10_full.csv
+```
+
+`load_icd10_conditions` will automatically prefer `icd10_full.csv` when present.
+
+Normalization scripts for SNOMED CT and RxNorm will follow the same pattern; until then, keep their full distributions under the respective `raw/` folders while the loaders continue to rely on the committed seed tables.
