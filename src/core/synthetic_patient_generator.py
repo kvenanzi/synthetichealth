@@ -3,9 +3,10 @@ from faker import Faker
 import random
 import concurrent.futures
 import sys
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 import uuid
 from collections import defaultdict, Counter
+from functools import partial
 import argparse
 import os
 import yaml
@@ -55,7 +56,7 @@ from .lifecycle.generation.clinical import (
     generate_procedures,
     parse_distribution,
 )
-from .lifecycle.generation.patient import generate_patient_profile
+from .lifecycle.generation.patient import generate_patient_profile_for_index
 from .lifecycle.loader import load_scenario_config
 from .lifecycle.orchestrator import LifecycleOrchestrator
 from .lifecycle.scenarios import list_scenarios
@@ -1128,41 +1129,44 @@ def main():
         scenario_details=scenario_metadata,
     )
 
-    def generate_patient_with_dist(_):
-        """Generate a patient record using the lifecycle profile helpers."""
+    profile_generator = partial(
+        generate_patient_profile_for_index,
+        age_dist=age_dist,
+        gender_dist=gender_dist,
+        race_dist=race_dist,
+        smoking_dist=smoking_dist,
+        alcohol_dist=alcohol_dist,
+        education_dist=education_dist,
+        employment_dist=employment_dist,
+        housing_dist=housing_dist,
+        faker=fake,
+    )
 
-        profile = generate_patient_profile(
-            age_dist,
-            gender_dist,
-            race_dist,
-            smoking_dist,
-            alcohol_dist,
-            education_dist,
-            employment_dist,
-            housing_dist,
-            faker=fake,
-        )
+    print(f"Generating {num_records} patient profiles in parallel...")
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        profiles = list(tqdm(
+            executor.map(profile_generator, range(num_records)),
+            total=num_records,
+            desc="Generating patient profiles",
+            unit="profiles"
+        ))
 
+    patients: List[PatientRecord] = []
+    for profile in profiles:
         record_kwargs = {**profile}
         birthdate = record_kwargs.pop("birthdate")
         if isinstance(birthdate, datetime):
-            record_kwargs["birthdate"] = birthdate.date().isoformat()
+            birth_value = birthdate.date()
+        elif isinstance(birthdate, date):
+            birth_value = birthdate
         else:
-            record_kwargs["birthdate"] = birthdate.isoformat()
+            birth_value = datetime.fromisoformat(str(birthdate)).date()
+        record_kwargs["birthdate"] = birth_value.isoformat()
 
         patient = PatientRecord(**record_kwargs)
         patient.generate_vista_id()
         patient.generate_mrn()
-        return patient
-
-    print(f"Generating {num_records} patients and related tables in parallel...")
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        patients = list(tqdm(
-            executor.map(generate_patient_with_dist, range(num_records)), 
-            total=num_records,
-            desc="Generating patients",
-            unit="patients"
-        ))
+        patients.append(patient)
 
     all_encounters = []
     all_conditions = []

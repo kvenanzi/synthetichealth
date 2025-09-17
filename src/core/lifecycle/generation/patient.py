@@ -107,6 +107,34 @@ def generate_patient_profile(
     return profile
 
 
+def generate_patient_profile_for_index(
+    _: int,
+    *,
+    age_dist,
+    gender_dist,
+    race_dist,
+    smoking_dist,
+    alcohol_dist,
+    education_dist,
+    employment_dist,
+    housing_dist,
+    faker: Faker | None = None,
+) -> Dict[str, Any]:
+    """Executor-friendly wrapper that delegates to ``generate_patient_profile``."""
+
+    return generate_patient_profile(
+        age_dist,
+        gender_dist,
+        race_dist,
+        smoking_dist,
+        alcohol_dist,
+        education_dist,
+        employment_dist,
+        housing_dist,
+        faker=faker,
+    )
+
+
 def build_patient_record(profile: Dict[str, Any]) -> LifecyclePatient:
     """Create a lifecycle ``Patient`` instance from a generated profile."""
 
@@ -163,6 +191,6 @@ def build_patient_record(profile: Dict[str, Any]) -> LifecyclePatient:
 __all__ = [
     "generate_patient_demographics",
     "generate_patient_profile",
+    "generate_patient_profile_for_index",
     "build_patient_record",
 ]
-

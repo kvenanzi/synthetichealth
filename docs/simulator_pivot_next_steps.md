@@ -8,8 +8,8 @@ This checklist captures the outstanding tasks to complete the simulator-first re
 - ✅ Remove migration flags/messages from `main` after downstream transition.
 
 ## Phase 1 – Lifecycle Engine Enhancements
-- 🔄 Refactor remaining generator helpers (`generate_*`) into lifecycle-focused components under `src/core/lifecycle/` (current focus).
-- 🔄 Expand unit coverage for lifecycle pipelines as helper functions migrate out of the legacy generator.
+- ✅ Refactor remaining generator helpers (`generate_*`) into lifecycle-focused components under `src/core/lifecycle/`.
+- ✅ Expand unit coverage for lifecycle pipelines as helper functions migrate out of the legacy generator.
 - ✅ Introduce scenario configuration loaders, CLI selection, and lifecycle orchestrator wiring.
 - ✅ Add smoke/unit tests for scenario loading and lifecycle orchestration to guard regressions.
 
