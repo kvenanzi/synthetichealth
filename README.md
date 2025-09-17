@@ -1,14 +1,15 @@
 # Synthetic Healthcare Data Generator
 
-A comprehensive synthetic healthcare data generator designed for healthcare migration simulations, EHR system testing, and interoperability research. This system generates realistic, Synthea-like healthcare data with multi-format export capabilities.
+A lifecycle-focused synthetic healthcare simulator that produces richly coded patient records for interoperability prototyping, analytics experimentation, and migration rehearsals. Phase 2 introduces normalized terminology datasets sourced from the U.S. National Library of Medicine (NLM) / NCBI so exports now carry authoritative ICD‑10, LOINC, SNOMED CT, and RxNorm references.
 
 ## Features
 
-- **Multi-Format Export**: Generate data in FHIR R4, HL7 v2.x, VistA MUMPS, CSV, and Parquet formats
-- **Clinical Realism**: Realistic medical relationships, proper coding (ICD-10, CPT, LOINC, NDC, CVX), and epidemiological accuracy
-- **Migration Simulation**: Advanced healthcare data migration testing with failure simulation and analytics
-- **Performance Optimized**: Parallel processing with concurrent.futures for high-performance generation
-- **Referential Integrity**: Maintains data consistency across all export formats
+- **Scenario-driven lifecycle engine** – demographic distributions, SDOH configuration, and orchestrated care pathways now live under `src/core/lifecycle/`.
+- **Terminology platform (Phase 2)** – normalized vocabularies in `data/terminology/` with direct NCBI/MeSH/PubChem links, loader utilities, and scenario-level code curation.
+- **Multi-format exports** – FHIR R4 bundles (with NCBI reference extensions), HL7 v2 ADT/ORU messages, VistA MUMPS globals, CSV, and Parquet outputs.
+- **Migration simulation toolkit** – staged ETVL pipeline, failure injection, analytics dashboards, and audit logging for migration rehearsals.
+- **Parallel performance** – generation uses `concurrent.futures` to scale to tens of thousands of synthetic patients.
+- **Referential integrity** – patient identifiers stay consistent across every export format.
 
 ## Quick Start
 
@@ -19,14 +20,15 @@ git clone https://github.com/ospfer/synthetichealth.git
 cd synthetichealth
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+pip3 install -r data/requirements.txt  # minimal lifecycle dependencies
+pip3 install -r requirements.txt       # full migration/analytics stack
 ```
 
 ### Basic Usage
 
 ```bash
 # Generate synthetic healthcare data (all formats)
-python3 -m src.core.synthetic_patient_generator --num-records 100
+python3 -m src.core.synthetic_patient_generator --num-records 100 --output-dir output
 
 # Run migration simulation demo
 python3 demos/migration_demo.py
@@ -40,8 +42,10 @@ python3 demos/final_performance_demo.py
 ```
 synthetichealth/
 ├── src/
-│   ├── core/                          # Core data generation modules
-│   │   ├── synthetic_patient_generator.py  # Main data generator
+│   ├── core/
+│   │   ├── lifecycle/                 # Lifecycle engine, scenarios, orchestrator
+│   │   ├── terminology/               # Terminology loaders & helpers (Phase 2)
+│   │   ├── synthetic_patient_generator.py  # Main lifecycle-aware generator
 │   │   ├── enhanced_migration_simulator.py # Migration simulation engine
 │   │   └── enhanced_migration_tracker.py   # Migration analytics
 │   ├── generators/                    # Specialized data generators
@@ -53,7 +57,9 @@ synthetichealth/
 │   ├── enhanced_migration_demo.py    # Advanced migration simulation
 │   ├── migration_analytics_demo.py   # Analytics and reporting demo
 │   └── final_performance_demo.py     # Performance testing suite
-├── tests/                            # Test suites
+├── tests/                            # Pytest suites (lifecycle, migration, terminology)
+├── data/
+│   └── terminology/                  # ICD-10, LOINC, SNOMED, RxNorm CSV seeds
 ├── config/                           # Configuration files
 │   ├── config.yaml                   # Basic configuration
 │   └── phase5_enhanced_config.yaml   # Advanced migration settings
@@ -74,14 +80,20 @@ synthetichealth/
 All formats maintain referential integrity via patient_id linkage:
 - `patients`: Demographics, SDOH factors, multiple identifiers
 - `encounters`: Healthcare visits with realistic patterns
-- `conditions`: ICD-10 coded diagnoses with clinical status
-- `medications`: NDC coded prescriptions linked to conditions
+- `conditions`: ICD-10/SNOMED coded diagnoses with clinical status
+- `medications`: RxNorm/NDC coded prescriptions linked to indications
 - `allergies`: SNOMED coded substance allergies
 - `procedures`: CPT coded medical procedures
 - `immunizations`: CVX coded vaccination records
 - `observations`: LOINC coded vitals and lab results
 - `deaths`: Mortality data with cause mapping
 - `family_history`: Genetic predisposition modeling
+
+## Terminology Platform (Phase 2)
+
+- Seed vocabularies live under `data/terminology/` with direct NCBI/MeSH/PubChem references for each ICD-10, LOINC, SNOMED CT, and RxNorm concept.
+- Loader utilities in `src/core/terminology/` expose simple filtering/search helpers and respect the `TERMINOLOGY_ROOT` environment variable for pointing at larger institutional vocabularies.
+- Scenario definitions declare curated code lists that `load_scenario_config` resolves into fully hydrated terminology bundles for the generator and exporters.
 
 ## Migration Simulation
 
@@ -123,14 +135,14 @@ Includes migration simulation parameters, failure rates, and analytics settings.
 
 ### Running Tests
 ```bash
-# Basic performance test
-python3 tests/simple_performance_test.py
+# Lifecycle and terminology coverage
+pytest tests/test_patient_generation.py tests/test_clinical_generation.py tests/test_terminology_loaders.py
 
-# Migration simulation tests
-python3 tests/test_migration_simulator.py
+# Migration simulations
+pytest tests/test_migration_simulator.py tests/test_enhanced_migration.py
 
-# Full test suite
-python3 tests/run_performance_tests.py
+# Full suite
+pytest
 ```
 
 ### Demo Scripts
@@ -155,6 +167,7 @@ python3 demos/migration_analytics_demo.py
 - **faker**: Realistic demographic data generation
 - **PyYAML**: Configuration file management
 - **concurrent.futures**: Parallel processing support
+- **pytest**: Primary automated test runner
 
 ### Performance
 - Optimized for large-scale data generation (10k+ records)
@@ -170,18 +183,19 @@ python3 demos/migration_analytics_demo.py
 
 ## Implementation Status
 
-### Completed Phases
-- **Phase 1**: Core Extensions - Enhanced PatientRecord class with multi-format IDs
-- **Phase 2**: HL7 v2 Support - Message creation and validation
-- **Phase 3**: VistA MUMPS Format - Global structure and field mappings
-- **Phase 4**: Migration Simulation - Staged migration with failure injection
-- **Phase 5**: Integration & Testing - Unified architecture and performance optimization
+### Roadmap Snapshot
+- **Phase 0** – Migration branch split and repository realignment (complete)
+- **Phase 1** – Lifecycle engine foundation, scenario orchestration, unit coverage (complete)
+- **Phase 2** – Terminology platform with NCBI-linked vocabularies (in progress)
+- **Phase 3** – Clinical realism & validation enhancements (up next)
+- **Phase 4** – Documentation, tooling, and release readiness
 
 ### Current Capabilities
-- Multi-format healthcare data generation
-- Advanced migration simulation with analytics
-- Performance testing and optimization
-- Comprehensive validation and error handling
+- Scenario-driven lifecycle generation with SDOH enrichment
+- Normalized terminology loaders and NCBI-referenced exports
+- Multi-format healthcare data generation (FHIR/HL7/VistA/CSV/Parquet)
+- Migration simulation with analytics and performance benchmarking
+- Pytest-based automation for lifecycle, terminology, and migration flows
 
 ## License
 
