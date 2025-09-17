@@ -55,6 +55,7 @@ from .lifecycle.generation.clinical import (
     generate_procedures,
     parse_distribution,
 )
+from .lifecycle.generation.patient import generate_patient_profile
 from .lifecycle.loader import load_scenario_config
 from .lifecycle.orchestrator import LifecycleOrchestrator
 from .lifecycle.scenarios import list_scenarios
@@ -1128,54 +1129,30 @@ def main():
     )
 
     def generate_patient_with_dist(_):
-        """Generate patient with distribution constraints using PatientRecord class"""
-        # Age bin
-        age_bin_label = sample_from_dist(age_dist)
-        a_min, a_max = map(int, age_bin_label.split("-"))
-        age = random.randint(a_min, a_max)
-        birthdate = datetime.now().date() - timedelta(days=age * 365)
-        income = random.randint(0, 200000) if age >= 18 else 0
-        gender = sample_from_dist(gender_dist)
-        race = sample_from_dist(race_dist)
-        smoking_status = sample_from_dist(smoking_dist)
-        alcohol_use = sample_from_dist(alcohol_dist)
-        education = sample_from_dist(education_dist) if age >= 18 else "None"
-        employment_status = sample_from_dist(employment_dist) if age >= 16 else "Student"
-        housing_status = sample_from_dist(housing_dist)
-        
-        patient = PatientRecord(
-            first_name=fake.first_name(),
-            last_name=fake.last_name(),
-            middle_name=fake.first_name()[:1],  # Simple middle initial
-            gender=gender,
-            birthdate=birthdate.isoformat(),
-            age=age,
-            race=race,
-            ethnicity=random.choice(ETHNICITIES),
-            address=fake.street_address(),
-            city=fake.city(),
-            state=fake.state_abbr(),
-            zip=fake.zipcode(),
-            country="US",
-            phone=fake.phone_number(),
-            email=fake.email(),
-            marital_status=random.choice(MARITAL_STATUSES),
-            language=random.choice(LANGUAGES),
-            insurance=random.choice(INSURANCES),
-            ssn=fake.ssn(),
-            # SDOH fields
-            smoking_status=smoking_status,
-            alcohol_use=alcohol_use,
-            education=education,
-            employment_status=employment_status,
-            income=income,
-            housing_status=housing_status,
+        """Generate a patient record using the lifecycle profile helpers."""
+
+        profile = generate_patient_profile(
+            age_dist,
+            gender_dist,
+            race_dist,
+            smoking_dist,
+            alcohol_dist,
+            education_dist,
+            employment_dist,
+            housing_dist,
+            faker=fake,
         )
-        
-        # Generate healthcare IDs
+
+        record_kwargs = {**profile}
+        birthdate = record_kwargs.pop("birthdate")
+        if isinstance(birthdate, datetime):
+            record_kwargs["birthdate"] = birthdate.date().isoformat()
+        else:
+            record_kwargs["birthdate"] = birthdate.isoformat()
+
+        patient = PatientRecord(**record_kwargs)
         patient.generate_vista_id()
         patient.generate_mrn()
-        
         return patient
 
     print(f"Generating {num_records} patients and related tables in parallel...")
