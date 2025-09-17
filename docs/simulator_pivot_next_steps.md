@@ -14,8 +14,8 @@ This checklist captures the outstanding tasks to complete the simulator-first re
 - ✅ Add smoke/unit tests for scenario loading and lifecycle orchestration to guard regressions.
 
 ## Phase 2 – Terminology Platform
-- Replace bespoke catalogs with normalized datasets under `data/terminology/`.
-- Implement terminology loaders with filtering/caching support and connect them to scenario templates.
+- ✅ Replace bespoke catalogs with normalized datasets under `data/terminology/`.
+- ✅ Implement terminology loaders with filtering/caching support and connect them to scenario templates.
 - Expand FHIR/CSV exporters to consume the new terminology services.
 
 ## Phase 3 – Clinical Realism & Validation

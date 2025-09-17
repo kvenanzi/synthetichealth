@@ -17,6 +17,11 @@ DEFAULT_SCENARIOS: Dict[str, Dict[str, object]] = {
             "Native American": 0.02,
             "Other": 0.04,
         },
+        "terminology": {
+            "icd10_codes": ["E11.9", "I10", "J45.909"],
+            "loinc_codes": ["2345-7", "2951-2", "718-7"],
+            "rxnorm_cuis": ["860975", "197361", "617320"],
+        },
     },
     "cardiometabolic": {
         "metadata": {"description": "Older population with cardiometabolic burden"},
@@ -31,6 +36,11 @@ DEFAULT_SCENARIOS: Dict[str, Dict[str, object]] = {
             "Other": 0.04,
         },
         "smoking_dist": {"Never": 0.35, "Former": 0.45, "Current": 0.20},
+        "terminology": {
+            "icd10_codes": ["E11.9", "I10"],
+            "loinc_codes": ["2345-7", "2951-2"],
+            "rxnorm_cuis": ["860975", "197361"],
+        },
     },
     "pediatric": {
         "metadata": {"description": "Pediatric-focused clinic population"},
@@ -43,6 +53,11 @@ DEFAULT_SCENARIOS: Dict[str, Dict[str, object]] = {
             "Hispanic": 0.26,
             "Native American": 0.02,
             "Other": 0.04,
+        },
+        "terminology": {
+            "icd10_codes": ["J45.909"],
+            "loinc_codes": ["718-7"],
+            "rxnorm_cuis": ["617320"],
         },
     },
 }
@@ -60,4 +75,3 @@ def get_scenario(name: str) -> Dict[str, object]:
     if name not in DEFAULT_SCENARIOS:
         raise KeyError(f"Scenario '{name}' is not defined")
     return deepcopy(DEFAULT_SCENARIOS[name])
-

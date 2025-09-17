@@ -8,6 +8,10 @@ def test_load_default_scenario_general():
     scenario = load_scenario_config("general")
     assert scenario["age_dist"]["19-40"] > 0
     assert scenario["gender_dist"]["male"] > 0
+    terminology = scenario.get("terminology_details")
+    assert terminology and "icd10" in terminology
+    icd_codes = {entry.code for entry in terminology["icd10"]}
+    assert "E11.9" in icd_codes
 
 
 def test_scenario_override():
@@ -26,6 +30,7 @@ metadata:
         scenario = load_scenario_config("general", override_path.as_posix())
         assert scenario["age_dist"]["0-18"] == 1.0
         assert scenario["metadata"]["description"] == "Custom mix"
+        assert scenario["terminology_details"]["loinc"]
 
 
 def test_unknown_override_file():
@@ -36,4 +41,3 @@ def test_unknown_override_file():
         except FileNotFoundError:
             return
         raise AssertionError("Expected FileNotFoundError for missing override file")
-
