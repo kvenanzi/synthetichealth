@@ -93,6 +93,7 @@ All formats maintain referential integrity via patient_id linkage:
 
 - Seed vocabularies live under `data/terminology/` with direct NCBI/MeSH/PubChem references for each ICD-10, LOINC, SNOMED CT, and RxNorm concept.
 - Loader utilities in `src/core/terminology/` expose simple filtering/search helpers and respect the `TERMINOLOGY_ROOT` environment variable for pointing at larger institutional vocabularies.
+- Normalize official releases with the import scripts in `tools/` (e.g., `python tools/import_loinc.py --raw data/terminology/loinc/raw/LoincTable/Loinc.csv`). The loaders automatically prefer these normalized tables when present.
 - Scenario definitions declare curated code lists that `load_scenario_config` resolves into fully hydrated terminology bundles for the generator and exporters.
 
 ## Migration Simulation
