@@ -55,9 +55,17 @@ def load_icd10_conditions(root: Optional[str] = None) -> List[TerminologyEntry]:
 
 
 def load_loinc_labs(root: Optional[str] = None) -> List[TerminologyEntry]:
-    """Load LOINC laboratory observations."""
+    """Load LOINC laboratory observations.
 
-    path = _resolve_path("loinc/loinc_labs.csv", root)
+    Prefers the normalized ``loinc_full.csv`` produced by ``tools/import_loinc.py``
+    but falls back to the seed file committed in the repository.
+    """
+
+    normalized_path = _resolve_path("loinc/loinc_full.csv", root)
+    if normalized_path.exists():
+        path = normalized_path
+    else:
+        path = _resolve_path("loinc/loinc_labs.csv", root)
     return _load_csv(path, code_field="loinc_code", display_field="long_common_name")
 
 

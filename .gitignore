@@ -32,6 +32,7 @@ lifecycle_patients.json
 terminology_reference.csv
 # Allow checked-in terminology assets
 !data/terminology/**
+data/terminology/**/raw/
 data/*performance*_results*.json
 data/hl7_messages_validation.json
 data/migration_quality_report.json

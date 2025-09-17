@@ -47,3 +47,29 @@ def test_environment_override(tmp_path: Path, monkeypatch):
 def test_load_snomed_conditions_metadata_contains_mapping():
     entries = load_snomed_conditions()
     assert any(entry.metadata.get("icd10_mapping") == "I10" for entry in entries)
+
+
+def test_loinc_loader_prefers_normalized(monkeypatch, tmp_path: Path):
+    base = tmp_path / "terminology"
+    loinc_dir = base / "loinc"
+    loinc_dir.mkdir(parents=True)
+
+    normalized = loinc_dir / "loinc_full.csv"
+    normalized.write_text(
+        "loinc_code,long_common_name,component,property,system,loinc_class,ncbi_url\n"
+        "9999-9,Normalized Test,COMP,PROP,SYS,CLASS,https://loinc.org/9999-9\n",
+        encoding="utf-8",
+    )
+
+    # Seed fallback (should be ignored because normalized exists)
+    (loinc_dir / "loinc_labs.csv").write_text(
+        "loinc_code,long_common_name,component,property,system,ncbi_url\n"
+        "1111-1,Seed Entry,COMP,PROP,SYS,https://loinc.org/1111-1\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("TERMINOLOGY_ROOT", str(base))
+    entries = load_loinc_labs()
+    monkeypatch.delenv("TERMINOLOGY_ROOT", raising=False)
+
+    assert entries[0].code == "9999-9"
