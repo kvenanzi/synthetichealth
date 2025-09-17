@@ -28,21 +28,28 @@ from .lifecycle import (
     Observation as LifecycleObservation,
     Encounter as LifecycleEncounter,
 )
+from .lifecycle.constants import (
+    GENDERS,
+    RACES,
+    ETHNICITIES,
+    MARITAL_STATUSES,
+    LANGUAGES,
+    INSURANCES,
+    ENCOUNTER_TYPES,
+    ENCOUNTER_REASONS,
+    CONDITION_STATUSES,
+    SDOH_SMOKING,
+    SDOH_ALCOHOL,
+    SDOH_EDUCATION,
+    SDOH_EMPLOYMENT,
+    SDOH_HOUSING,
+    AGE_BINS,
+    AGE_BIN_LABELS,
+)
 from .lifecycle.loader import load_scenario_config
 from .lifecycle.orchestrator import LifecycleOrchestrator
 from .lifecycle.scenarios import list_scenarios
 from .migration_simulator import run_migration_phase
-
-# Constants for data generation
-GENDERS = ["male", "female", "other"]
-RACES = ["White", "Black", "Asian", "Hispanic", "Native American", "Other"]
-ETHNICITIES = ["Not Hispanic or Latino", "Hispanic or Latino"]
-MARITAL_STATUSES = ["Never Married", "Married", "Divorced", "Widowed", "Separated"]
-LANGUAGES = ["English", "Spanish", "Chinese", "French", "German", "Vietnamese"]
-INSURANCES = ["Medicare", "Medicaid", "Private", "Uninsured"]
-ENCOUNTER_TYPES = ["Wellness Visit", "Emergency", "Follow-up", "Specialist", "Lab", "Surgery"]
-ENCOUNTER_REASONS = ["Checkup", "Injury", "Illness", "Chronic Disease", "Vaccination", "Lab Work"]
-CONDITION_STATUSES = ["active", "resolved", "remission"]
 
 CONDITION_CATALOG = {entry["display"]: entry for entry in CONDITION_TERMS}
 MEDICATION_CATALOG = {entry["display"]: entry for entry in MEDICATION_TERMS}
@@ -504,12 +511,6 @@ CLINICAL_PROCEDURES = {
 
 # Backward compatibility - simplified observation types for legacy functions
 OBSERVATION_TYPES = ["Height", "Weight", "Blood Pressure", "Heart Rate", "Temperature", "Hemoglobin A1c", "Cholesterol"]
-
-SDOH_SMOKING = ["Never", "Former", "Current"]
-SDOH_ALCOHOL = ["Never", "Occasional", "Regular", "Heavy"]
-SDOH_EDUCATION = ["None", "Primary", "Secondary", "High School", "Associate", "Bachelor", "Master", "Doctorate"]
-SDOH_EMPLOYMENT = ["Unemployed", "Employed", "Student", "Retired", "Disabled"]
-SDOH_HOUSING = ["Stable", "Homeless", "Temporary", "Assisted Living"]
 
 # PHASE 1: Expanded death causes with ICD-10-CM coding and age stratification
 DEATH_CAUSES_BY_AGE = {
@@ -3085,9 +3086,7 @@ def main():
     output_parquet = output_format in ["parquet", "both"]
 
     # Parse distributions
-    age_bins = [(0, 18), (19, 40), (41, 65), (66, 120)]
-    age_bin_labels = [f"{a}-{b}" for a, b in age_bins]
-    age_dist = parse_distribution(age_dist, age_bin_labels, default_dist={l: 1/len(age_bin_labels) for l in age_bin_labels})
+    age_dist = parse_distribution(age_dist, AGE_BIN_LABELS, default_dist={l: 1/len(AGE_BIN_LABELS) for l in AGE_BIN_LABELS})
     gender_dist = parse_distribution(gender_dist, GENDERS, default_dist={g: 1/len(GENDERS) for g in GENDERS})
     race_dist = parse_distribution(race_dist, RACES, default_dist={r: 1/len(RACES) for r in RACES})
     smoking_dist = parse_distribution(smoking_dist, SDOH_SMOKING, default_dist={s: 1/len(SDOH_SMOKING) for s in SDOH_SMOKING})
@@ -3473,7 +3472,7 @@ def main():
             return binned
         return collections.Counter(lst)
 
-    age_bins_dict = {f"{a}-{b}": (a, b) for a, b in age_bins}
+    age_bins_dict = {f"{a}-{b}": (a, b) for a, b in AGE_BINS}
     patients_df = pl.DataFrame(patients)
     report_lines = []
     report_lines.append(f"Scenario: {active_scenario_name}")
