@@ -10,6 +10,7 @@ from .models import (
     CarePlanSummary,
     Patient,
 )
+from .records import PatientRecord
 from .constants import (
     GENDERS,
     RACES,
@@ -38,6 +39,7 @@ __all__ = [
     "ImmunizationRecord",
     "CarePlanSummary",
     "Patient",
+    "PatientRecord",
     "GENDERS",
     "RACES",
     "ETHNICITIES",
