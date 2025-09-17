@@ -3028,26 +3028,6 @@ def main():
     parser.add_argument("--scenario-file", type=str, default=None, help="Path to scenario overrides YAML")
     parser.add_argument("--list-scenarios", action="store_true", help="List available scenarios and exit")
 
-    # Migration simulation arguments
-    parser.add_argument("--simulate-migration", action="store_true", help="Enable migration simulation")
-    parser.add_argument("--batch-size", type=int, default=100, help="Batch size for migration simulation")
-    parser.add_argument(
-        "--migration-strategy",
-        type=str,
-        default="staged",
-        choices=["staged", "big_bang", "parallel"],
-        help="Migration strategy",
-    )
-    parser.add_argument("--migration-report", type=str, default=None, help="Output migration report file")
-    parser.add_argument("--retry-failures", action="store_true", help="Retry failed patients during migration simulation")
-    parser.add_argument("--max-retry-attempts", type=int, default=None, help="Maximum retry attempts per patient")
-    parser.add_argument(
-        "--retry-delay-seconds",
-        type=float,
-        default=None,
-        help="Delay between retry attempts (simulated seconds)",
-    )
-
     args, unknown = parser.parse_known_args()
 
     if getattr(args, "list_scenarios", False):
@@ -3551,11 +3531,6 @@ def main():
     report = "\n".join(report_lines)
     print_and_save_report(report, get_config('report_file', None))
     
-    # Phase 4: Migration Simulation
-    if get_config('simulate_migration', False):
-        print("\nMigration simulation has moved to the dedicated 'migration' branch. "
-              "Check out that branch to continue using the legacy tooling.")
-
     print(f"\nAll outputs saved to: {output_dir}")
     print("Generation completed successfully!")
 

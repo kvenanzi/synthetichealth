@@ -5,7 +5,7 @@ This checklist captures the outstanding tasks to complete the simulator-first re
 ## Phase 0 – Migration Branch Finalization
 - ✅ Run `python tools/prepare_migration_branch.py migration_snapshot` to stage migration modules.
 - ✅ Create and push the long-lived `migration` branch containing the staged files and legacy docs.
-- 🔄 Audit `main` for residual migration references (e.g., log messaging) and remove once downstream consumers finish transitioning.
+- ✅ Remove migration flags/messages from `main` after downstream transition.
 
 ## Phase 1 – Lifecycle Engine Enhancements
 - 🔄 Refactor remaining generator helpers (`generate_*`) into lifecycle-focused components under `src/core/lifecycle/` (current focus).
