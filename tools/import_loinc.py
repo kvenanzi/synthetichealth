@@ -1,7 +1,7 @@
 """Normalize official LOINC tables into the format consumed by the loader.
 
-Usage:
-    python tools/import_loinc.py \
+Usage (run inside the project virtualenv):
+    python3 tools/import_loinc.py \
         --raw data/terminology/loinc/raw/LoincTable/Loinc.csv \
         --output data/terminology/loinc/loinc_full.csv
 
