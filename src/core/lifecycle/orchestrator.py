@@ -34,8 +34,18 @@ class LifecycleOrchestrator:
         if self.scenario_details:
             merged_metadata.setdefault("scenario_details", self.scenario_details)
 
+        patient_payload = dict(patient)
+        for summary_key in (
+            "care_plan_total",
+            "care_plan_completed",
+            "care_plan_overdue",
+            "care_plan_scheduled",
+        ):
+            if summary_key in merged_metadata and summary_key not in patient_payload:
+                patient_payload[summary_key] = merged_metadata[summary_key]
+
         return LifecyclePatient.from_legacy(
-            patient,
+            patient_payload,
             encounters=encounters,
             conditions=conditions,
             medications=medications,
