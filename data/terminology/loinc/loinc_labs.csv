@@ -1,0 +1,4 @@
+loinc_code,long_common_name,component,property,system,ncbi_url
+2345-7,Glucose [Mass/volume] in Blood,Glucose,MCnc,Blood,https://www.ncbi.nlm.nih.gov/mesh/D001786
+2951-2,Sodium [Moles/volume] in Serum or Plasma,Sodium,SCnc,Ser/Plas,https://www.ncbi.nlm.nih.gov/mesh/D012964
+718-7,Hemoglobin [Mass/volume] in Blood,Hemoglobin,MCnc,Blood,https://www.ncbi.nlm.nih.gov/mesh/D006434

@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add:*)",
+      "Bash(git checkout:*)",
+      "Bash(git pull:*)",
+      "Bash(git merge:*)",
+      "Bash(git push:*)",
+      "Bash(python3:*)",
+      "Bash(python test_enhanced_migration.py)",
+      "Bash(pip install:*)",
+      "Bash(find:*)",
+      "Bash(awk:*)",
+      "Bash(git reset:*)",
+      "Read(//home/kevin/.ssh/**)",
+      "Bash(ssh-keygen:*)",
+      "Bash(ssh-add:*)",
+      "Bash(cat:*)",
+      "Bash(ssh:*)",
+      "Bash(git remote set-url:*)",
+      "Bash(git remote:*)",
+      "Bash(git config:*)",
+      "Bash(grep:*)",
+      "Bash(git rm:*)",
+      "Bash(git commit:*)",
+      "Bash(rm:*)",
+      "Bash(mkdir:*)",
+      "Bash(git mv:*)",
+      "Bash(python:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

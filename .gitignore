@@ -2,22 +2,45 @@ CLAUDE.md
 standards.md
 
 # Generated synthetic healthcare data files
-*.csv
-*.parquet
-*.json
+patients*.csv
+encounters*.csv
+conditions*.csv
+medications*.csv
+immunizations*.csv
+observations*.csv
+procedures*.csv
+allergies*.csv
+family_history*.csv
+deaths*.csv
+care_plans*.csv
+*patients.parquet
+*encounters.parquet
+*conditions.parquet
+*medications.parquet
+*immunizations.parquet
+*observations.parquet
+*procedures.parquet
+*allergies.parquet
+*family_history.parquet
+*deaths.parquet
+*care_plans.parquet
 *.hl7
 *.fhir
 *.mumps
-*.xml
+fhir_bundle.json
+lifecycle_patients.json
+terminology_reference.csv
+# Allow checked-in terminology assets
+!data/terminology/**
+data/*performance*_results*.json
+data/hl7_messages_validation.json
+data/migration_quality_report.json
 
 # VistA MUMPS globals
 vista_globals.mumps
 
 # HL7 message files
 hl7_messages_*.hl7
-
-# FHIR bundles and resources
-fhir_*.json
 
 # Migration audit logs
 migration_audit.log

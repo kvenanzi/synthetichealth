@@ -16,6 +16,7 @@ This checklist captures the outstanding tasks to complete the simulator-first re
 ## Phase 2 – Terminology Platform
 - ✅ Replace bespoke catalogs with normalized datasets under `data/terminology/`.
 - ✅ Implement terminology loaders with filtering/caching support and connect them to scenario templates.
+- Populate terminology datasets with comprehensive NLM/NCBI extracts (pending larger import tooling).
 - Expand FHIR/CSV exporters to consume the new terminology services.
 
 ## Phase 3 – Clinical Realism & Validation

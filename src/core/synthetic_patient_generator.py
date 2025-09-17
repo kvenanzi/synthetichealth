@@ -60,43 +60,59 @@ from .lifecycle.generation.patient import generate_patient_profile_for_index
 from .lifecycle.loader import load_scenario_config
 from .lifecycle.orchestrator import LifecycleOrchestrator
 from .lifecycle.scenarios import list_scenarios
+from .terminology import TerminologyEntry
 from .migration_simulator import run_migration_phase
 
 # Local faker instance for legacy generator utilities
 fake = Faker()
 
 # Terminology mapping lookup (Phase 5)
-TERMINOLOGY_MAPPINGS = {
-    'conditions': {
-        name: {
-            'icd10': data.get('icd10'),
-            'snomed': data.get('snomed')
+def build_default_terminology_mappings() -> Dict[str, Dict[str, Optional[str]]]:
+    return {
+        'conditions': {
+            name: {
+                'icd10': data.get('icd10'),
+                'snomed': data.get('snomed')
+            }
+            for name, data in CONDITION_CATALOG.items()
+        },
+        'medications': {
+            name: {
+                'rxnorm': data.get('rxnorm'),
+                'ndc': data.get('ndc')
+            }
+            for name, data in MEDICATION_CATALOG.items()
+        },
+        'immunizations': {
+            name: {
+                'cvx': data.get('cvx'),
+                'snomed': data.get('snomed')
+            }
+            for name, data in IMMUNIZATION_CATALOG.items()
         }
-        for name, data in CONDITION_CATALOG.items()
-    },
-    'medications': {
-        name: {
-            'rxnorm': data.get('rxnorm'),
-            'ndc': data.get('ndc')
-        }
-        for name, data in MEDICATION_CATALOG.items()
-    },
-    'immunizations': {
-        name: {
-            'cvx': data.get('cvx'),
-            'snomed': data.get('snomed')
-        }
-        for name, data in IMMUNIZATION_CATALOG.items()
     }
-}
+
+
+def build_terminology_lookup(context: Optional[Dict[str, List[TerminologyEntry]]]) -> Dict[str, Dict[str, TerminologyEntry]]:
+    if not context:
+        return {}
+    lookup: Dict[str, Dict[str, TerminologyEntry]] = {}
+    for system, entries in context.items():
+        lookup[system] = {entry.code: entry for entry in entries}
+    return lookup
+
+
+TERMINOLOGY_MAPPINGS = build_default_terminology_mappings()
 
 # Migration Simulation Classes
 
 class FHIRFormatter:
-    """Basic FHIR R4 formatter for Phase 1"""
+    """FHIR R4 formatter that can annotate codes with NCBI references."""
 
-    @staticmethod
-    def create_patient_resource(patient_record: Union[PatientRecord, LifecyclePatient]) -> Dict[str, Any]:
+    def __init__(self, terminology_lookup: Optional[Dict[str, Dict[str, TerminologyEntry]]] = None):
+        self.terminology_lookup = terminology_lookup or {}
+
+    def create_patient_resource(self, patient_record: Union[PatientRecord, LifecyclePatient]) -> Dict[str, Any]:
         """Create basic FHIR R4 Patient resource"""
 
         if isinstance(patient_record, LifecyclePatient):
@@ -180,9 +196,10 @@ class FHIRFormatter:
             "address": address_payload,
         }
     
-    @staticmethod
     def create_condition_resource(
-        patient_id: str, condition: Union[Dict[str, Any], LifecycleCondition]
+        self,
+        patient_id: str,
+        condition: Union[Dict[str, Any], LifecycleCondition],
     ) -> Dict[str, Any]:
         """Create basic FHIR R4 Condition resource with terminology mappings"""
 
@@ -201,21 +218,9 @@ class FHIRFormatter:
 
         coding = []
         if "icd10" in codes:
-            coding.append(
-                {
-                    "system": "http://hl7.org/fhir/sid/icd-10-cm",
-                    "code": codes["icd10"],
-                    "display": condition_name,
-                }
-            )
+            coding.append(self._build_coding("http://hl7.org/fhir/sid/icd-10-cm", codes["icd10"], condition_name))
         if "snomed" in codes:
-            coding.append(
-                {
-                    "system": "http://snomed.info/sct",
-                    "code": codes["snomed"],
-                    "display": condition_name,
-                }
-            )
+            coding.append(self._build_coding("http://snomed.info/sct", codes["snomed"], condition_name))
 
         # Fallback if no coding found
         if not coding:
@@ -242,6 +247,33 @@ class FHIRFormatter:
             },
             "onsetDateTime": onset_date,
         }
+
+    def _build_coding(self, system: str, code: Optional[str], display: str) -> Dict[str, Any]:
+        coding_entry = {
+            "system": system,
+            "code": code,
+            "display": display,
+        }
+        if not code:
+            return coding_entry
+
+        lookup_key = None
+        if system.endswith("icd-10-cm"):
+            lookup_key = "icd10"
+        elif "snomed" in system:
+            lookup_key = "snomed"
+
+        if lookup_key and code in self.terminology_lookup.get(lookup_key, {}):
+            entry = self.terminology_lookup[lookup_key][code]
+            ncbi_url = entry.metadata.get("ncbi_url")
+            if ncbi_url:
+                coding_entry.setdefault("extension", []).append(
+                    {
+                        "url": "https://www.ncbi.nlm.nih.gov/",
+                        "valueUri": ncbi_url,
+                    }
+                )
+        return coding_entry
 
 class HL7v2Formatter:
     """HL7 v2.x message formatter for Phase 2"""
@@ -958,6 +990,8 @@ def main():
         return
     scenario_config = dict(scenario_config) if scenario_config else {}
     scenario_metadata = scenario_config.pop('metadata', {}) if scenario_config else {}
+    terminology_details = scenario_config.get('terminology_details') if scenario_config else None
+    terminology_lookup = build_terminology_lookup(terminology_details)
 
     def get_config(key, default=None):
         # CLI flag overrides config file
@@ -1150,11 +1184,11 @@ def main():
             json.dump(payload, handle, indent=2)
         return lifecycle_path
 
-    def save_fhir_bundle(patients_list, filename="fhir_bundle.json"):
+    def save_fhir_bundle(patients_list, terminology_lookup, filename="fhir_bundle.json"):
         """Save FHIR bundle with Patient and Condition resources"""
         import json
 
-        fhir_formatter = FHIRFormatter()
+        fhir_formatter = FHIRFormatter(terminology_lookup)
         bundle_entries = []
 
         # Add Patient resources
@@ -1188,7 +1222,28 @@ def main():
             json.dump(fhir_bundle, f, indent=2)
         
         print(f"FHIR Bundle saved: {filename} ({len(bundle_entries)} resources)")
-    
+
+    def save_terminology_reference(terminology_lookup, output_directory, filename="terminology_reference.csv"):
+        if not terminology_lookup:
+            return
+
+        rows: List[Dict[str, Any]] = []
+        for system, entries in terminology_lookup.items():
+            for entry in entries.values():
+                row = {
+                    "system": system,
+                    "code": entry.code,
+                    "display": entry.display,
+                }
+                row.update(entry.metadata)
+                rows.append(row)
+
+        if not rows:
+            return
+
+        df = pl.DataFrame(rows)
+        df.write_csv(os.path.join(output_directory, filename))
+
     def save_hl7_messages(patients_list, encounters_list, observations_list, filename_prefix="hl7_messages"):
         """Save HL7 v2 messages (ADT and ORU)"""
         hl7_formatter = HL7v2Formatter()
@@ -1332,7 +1387,8 @@ def main():
     
     # Export FHIR bundle (Phase 1: basic Patient and Condition resources)
     print("Creating FHIR bundle...")
-    save_fhir_bundle(lifecycle_patients, "fhir_bundle.json")
+    save_fhir_bundle(lifecycle_patients, terminology_lookup, "fhir_bundle.json")
+    save_terminology_reference(terminology_lookup, output_dir)
     
     # Export HL7 v2 messages (Phase 2: ADT and ORU messages)
     print("Creating HL7 v2 messages...")
