@@ -9,6 +9,7 @@ Phase 2 introduces normalized clinical code sets sourced from the U.S. National 
 | SNOMED CT   | https://www.nlm.nih.gov/healthit/snomedct/us_edition.html | `snomed/snomed_conditions.csv` (seed) / `snomed/raw/` (official) |
 | RxNorm      | https://www.nlm.nih.gov/research/umls/rxnorm/docs/rxnormfiles.html | `rxnorm/rxnorm_medications.csv` (seed) / `rxnorm/raw/` (official) |
 | VSAC        | https://vsac.nlm.nih.gov/ | `vsac/raw/` (official value set releases) |
+| UMLS 2025AA | https://www.nlm.nih.gov/research/umls/licensedcontent/umlsknowledgesources.html | `umls/raw/` (full UMLS release) |
 
 > **Note:** Full distributions may require license or UMLS credentials. The loader utilities added in Phase 2 accept alternate filesystem paths or database connections for production-scale vocabularies.
 
