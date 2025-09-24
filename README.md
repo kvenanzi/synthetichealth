@@ -1,15 +1,16 @@
 # Synthetic Healthcare Data Generator
 
-A lifecycle-focused synthetic healthcare simulator that produces richly coded patient records for interoperability prototyping, analytics experimentation, and migration rehearsals. Phase 2 introduces normalized terminology datasets sourced from the U.S. National Library of Medicine (NLM) / NCBI so exports now carry authoritative ICD‑10, LOINC, SNOMED CT, and RxNorm references.
+A lifecycle-focused synthetic healthcare simulator that produces richly coded patient records for interoperability prototyping, analytics experimentation, and scenario-driven research. Phase 2 centers on high-fidelity patient generation by pairing curated lifecycle logic with normalized clinical terminology datasets from the U.S. National Library of Medicine (NLM) and NCBI. The generator ships with lightweight seeds for local development, optional loaders for official releases, and a DuckDB terminology warehouse for high-volume runs.
 
 ## Features
 
-- **Scenario-driven lifecycle engine** – demographic distributions, SDOH configuration, and orchestrated care pathways now live under `src/core/lifecycle/`.
-- **Terminology platform (Phase 2)** – normalized vocabularies in `data/terminology/` with direct NCBI/MeSH/PubChem links, loader utilities, and scenario-level code curation.
-- **Multi-format exports** – FHIR R4 bundles (with NCBI reference extensions), HL7 v2 ADT/ORU messages, VistA MUMPS globals, CSV, and Parquet outputs.
-- **Migration simulation toolkit** – staged ETVL pipeline, failure injection, analytics dashboards, and audit logging for migration rehearsals.
-- **Parallel performance** – generation uses `concurrent.futures` to scale to tens of thousands of synthetic patients.
+- **Scenario-driven lifecycle engine** – demographic distributions, SDOH configuration, and orchestrated care pathways live under `src/core/lifecycle/`, enabling nuanced longitudinal cohorts.
+- **Authoritative terminology datasets** – normalized ICD-10-CM, LOINC, SNOMED CT, and RxNorm tables (with hooks for VSAC value sets and the UMLS release) power terminology-aware generation and exports.
+- **DuckDB-backed lookups** – build a shared `terminology.duckdb` warehouse for fast joins and larger vocabularies while keeping CSV seeds for lightweight usage.
+- **Multi-format exports** – FHIR R4 bundles (with NCBI reference extensions), HL7 v2 ADT/ORU messages, VistA MUMPS globals, CSV, and Parquet outputs are emitted from the same patient records.
+- **Parallel performance** – generation uses `concurrent.futures` and Polars pipelines to scale to tens of thousands of synthetic patients.
 - **Referential integrity** – patient identifiers stay consistent across every export format.
+- **Optional migration toolchain** – legacy migration simulators, analytics, and demos remain available for teams rehearsing data conversions but are no longer the primary focus of the project.
 
 ## Quick Start
 
@@ -20,64 +21,114 @@ git clone https://github.com/ospfer/synthetichealth.git
 cd synthetichealth
 python3 -m venv .venv
 source .venv/bin/activate
-pip3 install -r data/requirements.txt  # minimal lifecycle dependencies
-pip3 install -r requirements.txt       # full migration/analytics stack
+pip3 install -r data/requirements.txt  # core generator dependencies (Polars, Faker, terminology loaders)
+pip3 install -r requirements.txt       # optional analytics, migration, and integration extras
 ```
 
-### Basic Usage
+### Terminology setup
+
+Lightweight CSV seeds for each code system are committed under `data/terminology/` for quick experimentation. To ingest the official releases and consolidate them into DuckDB:
 
 ```bash
-# Generate synthetic healthcare data (all formats)
-python3 -m src.core.synthetic_patient_generator --num-records 100 --output-dir output
+# Inspect available code systems
+ls data/terminology
 
-# Run migration simulation demo
-python3 demos/migration_demo.py
+# Normalize official tables (examples)
+python3 tools/import_loinc.py --raw data/terminology/loinc/raw/LoincTable/Loinc.csv --output data/terminology/loinc/loinc_full.csv
+python3 tools/import_icd10.py --raw data/terminology/icd10/raw/icd10cm-order-2026.txt --output data/terminology/icd10/icd10_full.csv
+python3 tools/import_snomed.py --concept ... --description ... --output data/terminology/snomed/snomed_full.csv
+python3 tools/import_rxnorm.py --rxnconso ... --output data/terminology/rxnorm/rxnorm_full.csv
 
-# Run performance analysis
-python3 demos/final_performance_demo.py
+# Build the consolidated DuckDB warehouse
+python3 tools/build_terminology_db.py --root data/terminology --output data/terminology/terminology.duckdb
 ```
 
-## Project Structure
+Set `TERMINOLOGY_DB_PATH` (or rely on the default `data/terminology/terminology.duckdb`) so loaders can read directly from DuckDB during high-volume generation. The loaders also respect `TERMINOLOGY_ROOT` for pointing at external filesystems that host larger vocabularies.
+
+### Basic usage
+
+```bash
+# Generate synthetic healthcare data (CSV + Parquet by default)
+python3 -m src.core.synthetic_patient_generator --num-records 1000 --output-dir output
+
+# List available lifecycle scenarios
+python3 -m src.core.synthetic_patient_generator --list-scenarios
+
+# Use a specific scenario with the DuckDB-backed terminology warehouse
+TERMINOLOGY_DB_PATH=data/terminology/terminology.duckdb \
+python3 -m src.core.synthetic_patient_generator --num-records 500 --scenario chronic_conditions --output-dir output
+
+# Produce only CSV or Parquet outputs
+python3 -m src.core.synthetic_patient_generator --num-records 250 --output-dir output --csv
+```
+
+## Clinical terminology datasets
+
+Phase 2 introduces normalized clinical code sets sourced from NLM / NCBI resources. Each directory contains lightweight seeds for development and `raw/` folders for staging official releases:
+
+| Code System | Source | Local Layout |
+|-------------|--------|--------------|
+| **ICD-10-CM** | https://www.cdc.gov/nchs/icd/icd10cm.htm | `icd10/icd10_conditions.csv` (seed) / `icd10/raw/` (official text exports) |
+| **LOINC** | https://loinc.org/downloads/loinc | `loinc/loinc_labs.csv` (seed) / `loinc/raw/` (official CSV extract) |
+| **SNOMED CT** | https://www.nlm.nih.gov/healthit/snomedct/us_edition.html | `snomed/snomed_conditions.csv` (seed) / `snomed/raw/` (snapshot directories) |
+| **RxNorm** | https://www.nlm.nih.gov/research/umls/rxnorm/docs/rxnormfiles.html | `rxnorm/rxnorm_medications.csv` (seed) / `rxnorm/raw/` (RRF release) |
+| **VSAC (optional)** | https://vsac.nlm.nih.gov/ | `vsac/raw/` (value set exports staged locally) |
+| **UMLS 2025AA (optional)** | https://www.nlm.nih.gov/research/umls/licensedcontent/umlsknowledgesources.html | `umls/raw/` (full UMLS release for advanced mappings) |
+
+Normalization scripts in `tools/` generate `_full.csv` tables aligned with the loader schemas. When both the seed and normalized tables exist, the loaders automatically prioritize the richer dataset. Keep licensed content outside of version control and configure environment variables to point the generator at your secure storage.
+
+### Import script workflow
+
+Each import utility is a thin CLI that reads the official release artifacts, trims them to the columns referenced by our loaders, and emits a normalized CSV that can be versioned locally:
+
+| Script | Required source files (defaults) | Key operations | Output schema |
+|--------|----------------------------------|----------------|----------------|
+| `tools/import_icd10.py` | `data/terminology/icd10/raw/icd10cm-order-*.txt` (CDC order file) | Parses the fixed-width order file, extracts the ICD code hierarchy, attaches long/short descriptions, and builds direct lookup URLs. | `code`, `description`, `short_description`, `level`, `order`, `chapter`, `ncbi_url` |
+| `tools/import_loinc.py` | `data/terminology/loinc/raw/LoincTable/Loinc.csv` | Loads the official CSV with Polars, filters to ACTIVE records, and projects core laboratory metadata plus a concept URL. | `loinc_code`, `long_common_name`, `component`, `property`, `system`, `loinc_class`, `ncbi_url` |
+| `tools/import_snomed.py` | `.../Snapshot/Terminology/sct2_Concept_Snapshot_*.txt` & `.../Snapshot/Terminology/sct2_Description_Snapshot-en_*.txt` | Joins active concepts to the English preferred terms, retains the definition status, and builds a browser lookup link. | `snomed_id`, `pt_name`, `definition_status_id`, `ncbi_url` |
+| `tools/import_rxnorm.py` | `data/terminology/rxnorm/raw/rrf/RXNCONSO.RRF` | Streams the RXNCONSO table, filters to unsuppressed RxNorm concepts in preferred TTYs, and materializes an RxNav lookup URL. | `rxnorm_cui`, `tty`, `ingredient_name`, `source_code`, `sab`, `ndc_example`, `ncbi_url` |
+
+All of the scripts accept `--raw`/`--output` (or `--concept`/`--description` for SNOMED) arguments so you can target new releases or alternate staging directories without editing code. They validate that the source files exist, raise descriptive errors when parsing fails, and ensure the output directories are created before writing the normalized CSV. The resulting `_full.csv` files are then consumed directly by the DuckDB builder and terminology loaders.
+
+## DuckDB terminology warehouse
+
+The `tools/build_terminology_db.py` script materializes the normalized CSVs into a single `terminology.duckdb` database. This warehouse accelerates terminology joins, supports ad hoc analytics, and reduces memory pressure during large-scale patient generation. Loaders will automatically connect to DuckDB when `TERMINOLOGY_DB_PATH` is set (defaulting to `data/terminology/terminology.duckdb`) while continuing to fall back to CSV seeds for lightweight scenarios.
+
+## Project structure
 
 ```
 synthetichealth/
 ├── src/
 │   ├── core/
 │   │   ├── lifecycle/                 # Lifecycle engine, scenarios, orchestrator
-│   │   ├── terminology/               # Terminology loaders & helpers (Phase 2)
-│   │   ├── synthetic_patient_generator.py  # Main lifecycle-aware generator
-│   │   ├── enhanced_migration_simulator.py # Migration simulation engine
-│   │   └── enhanced_migration_tracker.py   # Migration analytics
+│   │   ├── terminology/               # Terminology loaders, DuckDB adapters, environment helpers
+│   │   ├── synthetic_patient_generator.py  # Main lifecycle-aware generator CLI
+│   │   ├── analytics/                 # Generation analytics utilities
+│   │   └── migration_simulator.py     # Optional migration rehearsal utilities
 │   ├── generators/                    # Specialized data generators
 │   ├── validation/                    # Data validation modules
-│   ├── analytics/                     # Migration analytics tools
 │   └── integration/                   # System integration components
-├── demos/                             # Demonstration scripts
-│   ├── migration_demo.py             # Basic migration demonstration
-│   ├── enhanced_migration_demo.py    # Advanced migration simulation
-│   ├── migration_analytics_demo.py   # Analytics and reporting demo
-│   └── final_performance_demo.py     # Performance testing suite
-├── tests/                            # Pytest suites (lifecycle, migration, terminology)
+├── tools/                             # Import scripts, DuckDB builder, utilities
 ├── data/
-│   └── terminology/                  # ICD-10, LOINC, SNOMED, RxNorm CSV seeds
-├── config/                           # Configuration files
-│   ├── config.yaml                   # Basic configuration
-│   └── phase5_enhanced_config.yaml   # Advanced migration settings
-└── docs/                             # Documentation
+│   └── terminology/                  # ICD-10, LOINC, SNOMED, RxNorm seeds + DuckDB output
+├── demos/                             # Demonstration scripts (generation, performance, optional migration)
+├── tests/                             # Pytest suites for lifecycle, terminology, analytics, migration
+├── config/                            # Configuration files (baseline + scenario overrides)
+└── docs/                              # Additional documentation
 ```
 
-## Generated Data Formats
+## Generated data formats
 
-### Healthcare Interoperability Standards
-- **FHIR R4**: US Core compliant Patient and Condition resources
+### Healthcare interoperability standards
+- **FHIR R4**: US Core compliant Patient and Condition resources (with optional NCBI reference extensions)
 - **HL7 v2.x**: ADT (Admit/Discharge/Transfer) and ORU (Observation Result) messages
 - **VistA MUMPS**: Production-accurate VA FileMan global structures
 
-### Analytics Formats
-- **CSV/Parquet**: Normalized relational tables for research and analytics
+### Analytics formats
+- **CSV/Parquet**: Normalized relational tables for research and analytics workflows
 
-### Data Tables
-All formats maintain referential integrity via patient_id linkage:
+### Core tables
+All formats maintain referential integrity via `patient_id` linkage:
 - `patients`: Demographics, SDOH factors, multiple identifiers
 - `encounters`: Healthcare visits with realistic patterns
 - `conditions`: ICD-10/SNOMED coded diagnoses with clinical status
@@ -89,128 +140,42 @@ All formats maintain referential integrity via patient_id linkage:
 - `deaths`: Mortality data with cause mapping
 - `family_history`: Genetic predisposition modeling
 
-## Terminology Platform (Phase 2)
+## Terminology loaders & helpers
 
 - Seed vocabularies live under `data/terminology/` with direct NCBI/MeSH/PubChem references for each ICD-10, LOINC, SNOMED CT, and RxNorm concept.
-- Loader utilities in `src/core/terminology/` expose simple filtering/search helpers and respect the `TERMINOLOGY_ROOT` environment variable for pointing at larger institutional vocabularies.
-- Normalize official releases with the import scripts in `tools/` (e.g., `python3 tools/import_loinc.py ...`, `python3 tools/import_icd10.py ...`, `python3 tools/import_snomed.py ...`, `python3 tools/import_rxnorm.py ...`). The loaders automatically prefer these normalized tables when present.
-- Build the shared DuckDB warehouse via `python3 tools/build_terminology_db.py --root data/terminology --output data/terminology/terminology.duckdb`; set `TERMINOLOGY_DB_PATH` to opt in for high-volume generation.
-- Scenario definitions declare curated code lists that `load_scenario_config` resolves into fully hydrated terminology bundles for the generator and exporters.
+- Loader utilities in `src/core/terminology/` expose filtering/search helpers and respect the `TERMINOLOGY_ROOT` environment variable for pointing at larger institutional vocabularies.
+- `load_scenario_config` resolves curated code lists into fully hydrated terminology bundles for the generator and exporters.
+- DuckDB-backed lookups activate automatically when `TERMINOLOGY_DB_PATH` is supplied.
 
-## Migration Simulation
+## Optional migration tooling
 
-The system includes advanced migration simulation capabilities for healthcare data transformation projects:
-
-### Features
-- **Staged Migration**: Extract, Transform, Validate, Load (ETVL) pipeline simulation
-- **Failure Injection**: Realistic failure scenarios with configurable rates
-- **Data Quality Tracking**: Monitors degradation throughout migration process
-- **Performance Analytics**: Detailed timing and throughput analysis
-- **Error Classification**: Categorizes and tracks different failure types
-
-### Migration Analytics
-- Success/failure rates by stage and batch
-- Data quality degradation analysis
-- Performance metrics and bottleneck identification
-- Automated recommendations for improvement
-
-## Configuration
-
-### Basic Configuration (config/config.yaml)
-```yaml
-demographics:
-  age_distribution: [0.1, 0.15, 0.2, 0.25, 0.2, 0.1]
-  
-output:
-  directory: "./output"
-  formats: ["csv", "fhir", "hl7", "vista"]
-  
-generation:
-  seed: 42
-  parallel_workers: 4
-```
-
-### Advanced Migration Configuration (config/phase5_enhanced_config.yaml)
-Includes migration simulation parameters, failure rates, and analytics settings.
+Legacy migration simulation capabilities remain for organizations rehearsing Extract-Transform-Validate-Load (ETVL) pipelines. Demos under `demos/migration_*.py`, analytics helpers in `src/core/analytics/`, and configuration profiles in `config/phase5_enhanced_config.yaml` illustrate how to adapt the synthetic records for migration rehearsals without changing the core generation workflow.
 
 ## Development
 
-### Running Tests
+### Running tests
+
 ```bash
 # Lifecycle and terminology coverage
 pytest tests/test_patient_generation.py tests/test_clinical_generation.py tests/test_terminology_loaders.py
 
-# Migration simulations
+# Optional migration simulations and analytics
 pytest tests/test_migration_simulator.py tests/test_enhanced_migration.py
 
 # Full suite
 pytest
 ```
 
-### Demo Scripts
+### Demo scripts
+
 ```bash
-# Basic migration demonstration
-python3 demos/migration_demo.py
-
-# Enhanced migration with analytics
-python3 demos/enhanced_migration_demo.py
-
-# Performance benchmarking
+# Generation and performance benchmarking
 python3 demos/final_performance_demo.py
+python3 demos/integration_performance_demo.py
 
-# Migration analytics and reporting
+# Optional migration demonstrations
+python3 demos/migration_demo.py
+python3 demos/enhanced_migration_demo.py
 python3 demos/migration_analytics_demo.py
 ```
 
-## Technical Specifications
-
-### Dependencies
-- **polars**: High-performance DataFrame operations
-- **faker**: Realistic demographic data generation
-- **PyYAML**: Configuration file management
-- **concurrent.futures**: Parallel processing support
-- **pytest**: Primary automated test runner
-
-### Performance
-- Optimized for large-scale data generation (10k+ records)
-- Parallel processing with configurable worker pools
-- Memory-efficient data structures using Polars
-- Streaming output for large datasets
-
-### Standards Compliance
-- **FHIR R4**: US Core compliance with proper terminology
-- **HL7 v2.x**: Message validation and format compliance
-- **VistA**: Production-accurate FileMan global structures
-- **Medical Coding**: ICD-10, CPT, LOINC, NDC, CVX, SNOMED
-
-## Implementation Status
-
-### Roadmap Snapshot
-- **Phase 0** – Migration branch split and repository realignment (complete)
-- **Phase 1** – Lifecycle engine foundation, scenario orchestration, unit coverage (complete)
-- **Phase 2** – Terminology platform with NCBI-linked vocabularies (in progress)
-- **Phase 3** – Clinical realism & validation enhancements (up next)
-- **Phase 4** – Documentation, tooling, and release readiness
-
-### Current Capabilities
-- Scenario-driven lifecycle generation with SDOH enrichment
-- Normalized terminology loaders and NCBI-referenced exports
-- Multi-format healthcare data generation (FHIR/HL7/VistA/CSV/Parquet)
-- Migration simulation with analytics and performance benchmarking
-- Pytest-based automation for lifecycle, terminology, and migration flows
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests for new functionality
-5. Submit a pull request
-
-## Support
-
-For issues, questions, or contributions, please use the GitHub issue tracker.
