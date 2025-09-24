@@ -37,4 +37,17 @@ python3 tools/import_icd10.py \
 
 `load_icd10_conditions` will automatically prefer `icd10_full.csv` when present.
 
-Normalization scripts for SNOMED CT and RxNorm will follow the same pattern; until then, keep their full distributions under the respective `raw/` folders while the loaders continue to rely on the committed seed tables.
+### Normalizing Official SNOMED CT Tables
+
+After extracting the SNOMED CT US Managed Service snapshot into `snomed/raw/`, run:
+
+```bash
+python3 tools/import_snomed.py \
+  --concept data/terminology/snomed/raw/SnomedCT_ManagedServiceUS_PRODUCTION_US1000124_20250901T120000Z/Snapshot/Terminology/sct2_Concept_Snapshot_US1000124_20250901.txt \
+  --description data/terminology/snomed/raw/SnomedCT_ManagedServiceUS_PRODUCTION_US1000124_20250901T120000Z/Snapshot/Terminology/sct2_Description_Snapshot-en_US1000124_20250901.txt \
+  --output data/terminology/snomed/snomed_full.csv
+```
+
+`load_snomed_conditions` will automatically prefer `snomed_full.csv` when present.
+
+Normalization scripts for RxNorm (and optional VSAC subsets) will follow the same pattern; until then, keep their full distributions under the respective `raw/` folders while the loaders continue to rely on the committed seed tables.

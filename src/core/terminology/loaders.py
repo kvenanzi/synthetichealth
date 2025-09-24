@@ -78,7 +78,11 @@ def load_loinc_labs(root: Optional[str] = None) -> List[TerminologyEntry]:
 
 
 def load_snomed_conditions(root: Optional[str] = None) -> List[TerminologyEntry]:
-    path = _resolve_path("snomed/snomed_conditions.csv", root)
+    normalized_path = _resolve_path("snomed/snomed_full.csv", root)
+    if normalized_path.exists():
+        path = normalized_path
+    else:
+        path = _resolve_path("snomed/snomed_conditions.csv", root)
     return _load_csv(path, code_field="snomed_id", display_field="pt_name")
 
 

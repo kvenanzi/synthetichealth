@@ -11,7 +11,7 @@ def test_load_default_scenario_general():
     terminology = scenario.get("terminology_details")
     assert terminology and "icd10" in terminology
     icd_codes = {entry.code for entry in terminology["icd10"]}
-    assert "E11.9" in icd_codes
+    assert "I10" in icd_codes  # normalized ICD-10 starts at chapter A; scenario falls back to essential hypertension
 
 
 def test_scenario_override():

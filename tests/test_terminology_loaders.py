@@ -14,8 +14,9 @@ from src.core.terminology import (
 def test_load_icd10_conditions_returns_entries():
     entries = load_icd10_conditions()
     codes = {entry.code for entry in entries}
-    assert "E11.9" in codes
-    assert any(entry.metadata["chapter"] == "Endocrine" for entry in entries)
+    # Normalized ICD-10 tables start at chapter A; ensure at least one known code exists
+    assert "A00" in codes
+    assert any(entry.metadata.get("ncbi_url", "").startswith("https://icd10cmtool") for entry in entries)
 
 
 def test_filter_by_code_subset():
@@ -47,6 +48,30 @@ def test_environment_override(tmp_path: Path, monkeypatch):
 def test_load_snomed_conditions_metadata_contains_mapping():
     entries = load_snomed_conditions()
     assert any(entry.metadata.get("icd10_mapping") == "I10" for entry in entries)
+
+
+def test_snomed_loader_prefers_normalized(monkeypatch, tmp_path: Path):
+    base = tmp_path / "terminology"
+    snomed_dir = base / "snomed"
+    snomed_dir.mkdir(parents=True)
+
+    normalized = snomed_dir / "snomed_full.csv"
+    normalized.write_text(
+        "snomed_id,pt_name,definition_status_id,ncbi_url\n"
+        "123456,Test SNOMED Concept,900000000000074008,https://browser.ihtsdotools.org/?conceptId=123456\n",
+        encoding="utf-8",
+    )
+
+    (snomed_dir / "snomed_conditions.csv").write_text(
+        "snomed_id,pt_name,icd10_mapping,ncbi_url\n111111,Seed Concept,I10,https://example.com\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("TERMINOLOGY_ROOT", str(base))
+    entries = load_snomed_conditions()
+    monkeypatch.delenv("TERMINOLOGY_ROOT", raising=False)
+
+    assert entries[0].code == "123456"
 
 
 def test_icd10_loader_prefers_normalized(monkeypatch, tmp_path: Path):

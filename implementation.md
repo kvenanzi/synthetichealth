@@ -4,13 +4,13 @@ This document captures the current state and near-term priorities for the simula
 
 ## Current Status Snapshot
 - **Lifecycle engine (Phase 1)**: completed; generator uses lifecycle modules, orchestrator, and scenario configs.
-- **Terminology platform (Phase 2)**: LOINC and ICD-10 importers exist; loaders prefer normalized tables while seeds remain for CI. SNOMED CT and RxNorm still rely on seed data until their importers are authored.
+- **Terminology platform (Phase 2)**: LOINC, ICD-10, and SNOMED importers exist; loaders prefer normalized tables while seeds remain for CI. RxNorm still relies on seed data until its importer is authored.
 - **Exports**: FHIR/HL7/VistA/CSV/Parquet remain in sync; FHIR adds NCBI extensions when terminology metadata is available.
 
 ## Immediate Next Steps
 1. **Build remaining importers**
-   - Create `tools/import_snomed.py` and `tools/import_rxnorm.py` to normalize the official drops now staged under `data/terminology/<system>/raw/`.
-   - Extend loaders/tests to prefer the normalized outputs, mirroring the LOINC/ICD-10 pattern.
+   - Create `tools/import_rxnorm.py` to normalize the official drop now staged under `data/terminology/rxnorm/raw/`.
+   - Extend loaders/tests to prefer the normalized outputs, mirroring the LOINC/ICD-10/SNOMED pattern.
 2. **Design terminology DuckDB warehouse**
    - Define schema for ICD-10, LOINC, SNOMED, RxNorm, and future VSAC value sets.
    - Draft ingestion jobs (likely in `tools/`) that load the normalized CSVs into `data/terminology/terminology.duckdb`.
