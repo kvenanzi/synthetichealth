@@ -4,14 +4,13 @@ This document captures the current state and near-term priorities for the simula
 
 ## Current Status Snapshot
 - **Lifecycle engine (Phase 1)**: completed; generator uses lifecycle modules, orchestrator, and scenario configs.
-- **Terminology platform (Phase 2)**: LOINC, ICD-10, SNOMED, and RxNorm importers exist; loaders prefer normalized tables while seeds remain for CI.
+- **Terminology platform (Phase 2)**: LOINC, ICD-10, SNOMED, and RxNorm importers exist; loaders prefer normalized CSVs (or the optional DuckDB warehouse) while seeds remain for CI.
 - **Exports**: FHIR/HL7/VistA/CSV/Parquet remain in sync; FHIR adds NCBI extensions when terminology metadata is available.
 
 ## Immediate Next Steps
-1. **Design terminology DuckDB warehouse**
-   - Define schema for ICD-10, LOINC, SNOMED, RxNorm, and future VSAC value sets.
-   - Draft ingestion jobs (likely in `tools/`) that load the normalized CSVs into `data/terminology/terminology.duckdb`.
-   - Update loaders to optionally query DuckDB when present, falling back to CSV seeds otherwise.
+1. **Extend terminology DuckDB workflows**
+   - Add VSAC/UMLS staging to `tools/build_terminology_db.py` and decide how/when to regenerate the database (CLI flag, build step, documentation).
+   - Document `TERMINOLOGY_DB_PATH` usage and incorporate the warehouse into developer onboarding.
 2. **Prepare for Phase 3 clinical realism**
    - Once the vocabularies are in DuckDB, outline the clinical rules that ensure realistic condition/med/lab combinations (e.g., contraindications, age-appropriate labs).
 

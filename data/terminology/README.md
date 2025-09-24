@@ -62,4 +62,16 @@ python3 tools/import_rxnorm.py \
 
 `load_rxnorm_medications` will automatically prefer `rxnorm_full.csv` when present.
 
+### Building the DuckDB Terminology Warehouse
+
+To consolidate the normalized CSVs into a single analytic store, run:
+
+```bash
+python3 tools/build_terminology_db.py \
+  --root data/terminology \
+  --output data/terminology/terminology.duckdb
+```
+
+Set `TERMINOLOGY_DB_PATH` (or rely on the default `data/terminology/terminology.duckdb`) so loaders can read directly from DuckDB during high-volume generation while seeds remain available for lightweight scenarios.
+
 Normalization scripts for optional VSAC subsets will follow the same pattern; until then, keep their full distributions under the respective `raw/` folders while the loaders continue to rely on the committed seed tables.

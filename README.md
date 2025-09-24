@@ -94,6 +94,7 @@ All formats maintain referential integrity via patient_id linkage:
 - Seed vocabularies live under `data/terminology/` with direct NCBI/MeSH/PubChem references for each ICD-10, LOINC, SNOMED CT, and RxNorm concept.
 - Loader utilities in `src/core/terminology/` expose simple filtering/search helpers and respect the `TERMINOLOGY_ROOT` environment variable for pointing at larger institutional vocabularies.
 - Normalize official releases with the import scripts in `tools/` (e.g., `python3 tools/import_loinc.py ...`, `python3 tools/import_icd10.py ...`, `python3 tools/import_snomed.py ...`, `python3 tools/import_rxnorm.py ...`). The loaders automatically prefer these normalized tables when present.
+- Build the shared DuckDB warehouse via `python3 tools/build_terminology_db.py --root data/terminology --output data/terminology/terminology.duckdb`; set `TERMINOLOGY_DB_PATH` to opt in for high-volume generation.
 - Scenario definitions declare curated code lists that `load_scenario_config` resolves into fully hydrated terminology bundles for the generator and exporters.
 
 ## Migration Simulation

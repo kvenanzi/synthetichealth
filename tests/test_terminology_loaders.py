@@ -10,6 +10,8 @@ from src.core.terminology import (
     search_by_term,
 )
 
+import duckdb
+
 
 def test_load_icd10_conditions_returns_entries():
     entries = load_icd10_conditions()
@@ -147,3 +149,23 @@ def test_rxnorm_loader_prefers_normalized(monkeypatch, tmp_path: Path):
     monkeypatch.delenv("TERMINOLOGY_ROOT", raising=False)
 
     assert entries[0].code == "12345"
+
+
+def test_loader_reads_duckdb(monkeypatch, tmp_path: Path):
+    db_path = tmp_path / "terminology.duckdb"
+    con = duckdb.connect(str(db_path))
+    try:
+        con.execute(
+            "CREATE TABLE icd10 (code VARCHAR, description VARCHAR, short_description VARCHAR, level VARCHAR, order VARCHAR, chapter VARCHAR, ncbi_url VARCHAR)"
+        )
+        con.execute(
+            "INSERT INTO icd10 VALUES ('Z99', 'Dependence on enabling machines and devices', 'Dependence on machines', '0', '00000', 'Factors influencing health status', 'https://example.com/Z99')"
+        )
+    finally:
+        con.close()
+
+    monkeypatch.setenv("TERMINOLOGY_DB_PATH", str(db_path))
+    entries = load_icd10_conditions()
+    monkeypatch.delenv("TERMINOLOGY_DB_PATH", raising=False)
+
+    assert entries[0].code == "Z99"
