@@ -87,7 +87,11 @@ def load_snomed_conditions(root: Optional[str] = None) -> List[TerminologyEntry]
 
 
 def load_rxnorm_medications(root: Optional[str] = None) -> List[TerminologyEntry]:
-    path = _resolve_path("rxnorm/rxnorm_medications.csv", root)
+    normalized_path = _resolve_path("rxnorm/rxnorm_full.csv", root)
+    if normalized_path.exists():
+        path = normalized_path
+    else:
+        path = _resolve_path("rxnorm/rxnorm_medications.csv", root)
     return _load_csv(path, code_field="rxnorm_cui", display_field="ingredient_name")
 
 

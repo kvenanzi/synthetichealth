@@ -35,6 +35,8 @@ terminology_reference.csv
 data/terminology/**/raw/
 data/terminology/loinc/loinc_full.csv
 data/terminology/icd10/icd10_full.csv
+data/terminology/snomed/snomed_full.csv
+data/terminology/rxnorm/rxnorm_full.csv
 data/*performance*_results*.json
 data/hl7_messages_validation.json
 data/migration_quality_report.json

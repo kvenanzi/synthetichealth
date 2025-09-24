@@ -123,3 +123,27 @@ def test_loinc_loader_prefers_normalized(monkeypatch, tmp_path: Path):
     monkeypatch.delenv("TERMINOLOGY_ROOT", raising=False)
 
     assert entries[0].code == "9999-9"
+
+
+def test_rxnorm_loader_prefers_normalized(monkeypatch, tmp_path: Path):
+    base = tmp_path / "terminology"
+    rx_dir = base / "rxnorm"
+    rx_dir.mkdir(parents=True)
+
+    normalized = rx_dir / "rxnorm_full.csv"
+    normalized.write_text(
+        "rxnorm_cui,tty,ingredient_name,source_code,sab,ndc_example,ncbi_url\n"
+        "12345,SCD,Test Drug,,RXNORM,,https://rxnav.nlm.nih.gov/REST/rxcui/12345\n",
+        encoding="utf-8",
+    )
+
+    (rx_dir / "rxnorm_medications.csv").write_text(
+        "rxnorm_cui,tty,ingredient_name,ndc_example,ncbi_url\n99999,SCD,Seed Drug,,https://example.com\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("TERMINOLOGY_ROOT", str(base))
+    entries = load_rxnorm_medications()
+    monkeypatch.delenv("TERMINOLOGY_ROOT", raising=False)
+
+    assert entries[0].code == "12345"

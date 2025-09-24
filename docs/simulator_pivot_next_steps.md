@@ -16,9 +16,9 @@ This checklist captures the outstanding tasks to complete the simulator-first re
 ## Phase 2 – Terminology Platform
 - ✅ Replace bespoke catalogs with normalized datasets under `data/terminology/`.
 - ✅ Implement terminology loaders with filtering/caching support and connect them to scenario templates.
-- 🔄 Normalize official ICD-10, SNOMED CT, and RxNorm releases once source archives are available (ICD-10 & SNOMED importers added; RxNorm pending).
+- 🔄 Normalize official ICD-10, SNOMED CT, and RxNorm releases once source archives are available (importers added; keep scripts updated for future drops).
 - 🔄 Populate terminology datasets with comprehensive NLM/NCBI extracts (pending larger import tooling).
-- 🔄 Create import utilities for RxNorm mirroring `tools/import_loinc.py`/`tools/import_icd10.py`, update loaders to prefer normalized tables, and add pytest coverage.
+- 🔄 Enrich terminology integration (e.g., map RxNorm CUIs to clinical scenarios, extend exporters) now that normalized tables exist for all vocabularies.
 - 🔄 Design a DuckDB terminology warehouse (schema, ingestion jobs) to ingest normalized ICD-10/LOINC/SNOMED/RxNorm tables; update loaders to optionally read from `data/terminology/terminology.duckdb` for high-volume runs.
 - Expand FHIR/CSV exporters to consume the new terminology services.
 

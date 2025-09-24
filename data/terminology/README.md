@@ -50,4 +50,16 @@ python3 tools/import_snomed.py \
 
 `load_snomed_conditions` will automatically prefer `snomed_full.csv` when present.
 
-Normalization scripts for RxNorm (and optional VSAC subsets) will follow the same pattern; until then, keep their full distributions under the respective `raw/` folders while the loaders continue to rely on the committed seed tables.
+### Normalizing Official RxNorm Tables
+
+After extracting the RxNorm full release into `rxnorm/raw/`, run:
+
+```bash
+python3 tools/import_rxnorm.py \
+  --rxnconso data/terminology/rxnorm/raw/rrf/RXNCONSO.RRF \
+  --output data/terminology/rxnorm/rxnorm_full.csv
+```
+
+`load_rxnorm_medications` will automatically prefer `rxnorm_full.csv` when present.
+
+Normalization scripts for optional VSAC subsets will follow the same pattern; until then, keep their full distributions under the respective `raw/` folders while the loaders continue to rely on the committed seed tables.
