@@ -62,6 +62,33 @@ python3 -m src.core.synthetic_patient_generator --num-records 500 --scenario chr
 python3 -m src.core.synthetic_patient_generator --num-records 250 --output-dir output --csv
 ```
 
+## Developer onboarding checklist
+
+1. **Create the virtual environment and install dependencies**
+   ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate
+   pip install -r requirements.txt
+   ```
+2. **Stage terminology data**
+   - Keep lightweight seeds under `data/terminology/<system>/*.csv` for local testing.
+   - Drop official archives into the matching `raw/` folders and run the import utilities in `tools/` to generate `*_full.csv` extracts (ICD-10, LOINC, SNOMED, RxNorm, plus optional VSAC and UMLS snapshots).
+3. **Materialize the DuckDB warehouse**
+   ```bash
+   python3 tools/build_terminology_db.py \
+     --root data/terminology \
+     --output data/terminology/terminology.duckdb \
+     --force
+   ```
+   Re-run this command whenever new releases are imported so the consolidated warehouse stays current.
+4. **Configure environment variables**
+   ```bash
+   export TERMINOLOGY_DB_PATH="$(pwd)/data/terminology/terminology.duckdb"
+   # Optional: persist for future shells
+   echo "TERMINOLOGY_DB_PATH=$(pwd)/data/terminology/terminology.duckdb" >> .env
+   ```
+   Loaders automatically fall back to CSV seeds when the DuckDB path is not available, but setting `TERMINOLOGY_DB_PATH` unlocks faster joins for high-volume simulation runs.
+
 ## Clinical terminology datasets
 
 Phase 2 introduces normalized clinical code sets sourced from NLM / NCBI resources. Each directory contains lightweight seeds for development and `raw/` folders for staging official releases:
@@ -72,14 +99,23 @@ Phase 2 introduces normalized clinical code sets sourced from NLM / NCBI resou
 | **LOINC** | https://loinc.org/downloads/loinc | `loinc/loinc_labs.csv` (seed) / `loinc/raw/` (official CSV extract) |
 | **SNOMED CT** | https://www.nlm.nih.gov/healthit/snomedct/us_edition.html | `snomed/snomed_conditions.csv` (seed) / `snomed/raw/` (snapshot directories) |
 | **RxNorm** | https://www.nlm.nih.gov/research/umls/rxnorm/docs/rxnormfiles.html | `rxnorm/rxnorm_medications.csv` (seed) / `rxnorm/raw/` (RRF release) |
-| **VSAC (optional)** | https://vsac.nlm.nih.gov/ | `vsac/raw/` (value set exports staged locally) |
-| **UMLS 2025AA (optional)** | https://www.nlm.nih.gov/research/umls/licensedcontent/umlsknowledgesources.html | `umls/raw/` (full UMLS release for advanced mappings) |
+| **VSAC (optional)** | https://vsac.nlm.nih.gov/ | `vsac/vsac_value_sets.csv` (optional seed) / `vsac/raw/` (value set exports staged locally) |
+| **UMLS 2025AA (optional)** | https://www.nlm.nih.gov/research/umls/licensedcontent/umlsknowledgesources.html | `umls/umls_concepts.csv` (optional seed) / `umls/raw/` (full UMLS release for advanced mappings) |
 
 Normalization scripts in `tools/` generate `_full.csv` tables aligned with the loader schemas. When both the seed and normalized tables exist, the loaders automatically prioritize the richer dataset. Keep licensed content outside of version control and configure environment variables to point the generator at your secure storage.
 
 ## DuckDB terminology warehouse
 
-The `tools/build_terminology_db.py` script materializes the normalized CSVs into a single `terminology.duckdb` database. This warehouse accelerates terminology joins, supports ad hoc analytics, and reduces memory pressure during large-scale patient generation. Loaders will automatically connect to DuckDB when `TERMINOLOGY_DB_PATH` is set (defaulting to `data/terminology/terminology.duckdb`) while continuing to fall back to CSV seeds for lightweight scenarios.
+The `tools/build_terminology_db.py` script materializes the normalized CSVs into a single `terminology.duckdb` database (including optional VSAC value sets and UMLS concept tables when their extracts are present). Rebuild the file with `--force` whenever fresh terminology drops are imported so analytics, exporters, and runtime loaders stay aligned.
+
+```bash
+python3 tools/build_terminology_db.py \
+  --root data/terminology \
+  --output data/terminology/terminology.duckdb \
+  --force
+```
+
+Set `TERMINOLOGY_DB_PATH` (or rely on the default `data/terminology/terminology.duckdb`) so loaders and exports can read directly from DuckDB during high-volume generation. When the environment variable is absent or the file is missing the system gracefully falls back to the committed CSV seeds.
 
 ## Project structure
 
