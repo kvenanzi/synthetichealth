@@ -20,6 +20,8 @@ This checklist captures the outstanding tasks to complete the simulator-first re
 - 🔄 Populate terminology datasets with comprehensive NLM/NCBI extracts (pending larger import tooling).
 - 🔄 Enrich terminology integration (e.g., map RxNorm CUIs to clinical scenarios, extend exporters) now that normalized tables exist for all vocabularies.
 - 🔄 Design a DuckDB terminology warehouse (schema, ingestion jobs) to ingest normalized ICD-10/LOINC/SNOMED/RxNorm tables; (build script and loader integration in progress—extend to VSAC/UMLS + document usage in pipeline).
+  - ✅ `tools/build_terminology_db.py` now stages VSAC value sets and UMLS concepts and documents the DuckDB rebuild cadence.
+  - 🔄 Author import utilities for VSAC/UMLS so normalized CSVs can be generated alongside the existing ICD-10/LOINC/SNOMED/RxNorm helpers.
 - Expand FHIR/CSV exporters to consume the new terminology services.
 
 ## Phase 3 – Clinical Realism & Validation

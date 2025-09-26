@@ -9,8 +9,9 @@ This document captures the current state and near-term priorities for the simula
 
 ## Immediate Next Steps
 1. **Extend terminology DuckDB workflows**
-   - Add VSAC/UMLS staging to `tools/build_terminology_db.py` and decide how/when to regenerate the database (CLI flag, build step, documentation).
-   - Document `TERMINOLOGY_DB_PATH` usage and incorporate the warehouse into developer onboarding.
+   - ✅ VSAC/UMLS staging added to `tools/build_terminology_db.py` alongside a `--force` rebuild guard.
+   - ✅ DuckDB onboarding guidance (`TERMINOLOGY_DB_PATH`, regeneration cadence) folded into the main README and terminology docs.
+   - 🔄 Automate normalization for VSAC/UMLS drops (dedicated import scripts or documented ETL steps) so staging isn't manual.
 2. **Prepare for Phase 3 clinical realism**
    - Once the vocabularies are in DuckDB, outline the clinical rules that ensure realistic condition/med/lab combinations (e.g., contraindications, age-appropriate labs).
 
