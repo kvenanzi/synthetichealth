@@ -7,6 +7,45 @@ This document captures the current state and near-term priorities for the simula
 - **Terminology platform (Phase 2)**: LOINC, ICD-10, SNOMED, and RxNorm importers exist; loaders prefer normalized CSVs (or the optional DuckDB warehouse) while seeds remain for CI.
 - **Exports**: FHIR/HL7/VistA/CSV/Parquet remain in sync; FHIR now emits Observation resources with VSAC value set references and appends UMLS concept extensions (alongside NCBI links) when terminology metadata is available.
 
+## Phase Roadmap
+
+### Phase 0 – Migration Branch Finalization
+- ✅ Run `python tools/prepare_migration_branch.py migration_snapshot` to stage migration modules.
+- ✅ Create and push the long-lived `migration` branch containing the staged files and legacy docs.
+- ✅ Remove migration flags/messages from `main` after downstream transition.
+
+### Phase 1 – Lifecycle Engine Enhancements
+- ✅ Refactor remaining generator helpers (`generate_*`) into lifecycle-focused components under `src/core/lifecycle/`.
+- ✅ Expand unit coverage for lifecycle pipelines as helper functions migrate out of the legacy generator.
+- ✅ Introduce scenario configuration loaders, CLI selection, and lifecycle orchestrator wiring.
+- ✅ Add smoke/unit tests for scenario loading and lifecycle orchestration to guard regressions.
+
+### Phase 2 – Terminology Platform
+- ✅ Replace bespoke catalogs with normalized datasets under `data/terminology/`.
+- ✅ Implement terminology loaders with filtering/caching support and connect them to scenario templates.
+- 🔄 Normalize official ICD-10, SNOMED CT, and RxNorm releases once source archives are available (importers added; keep scripts updated for future drops).
+- 🔄 Populate terminology datasets with comprehensive NLM/NCBI extracts (pending larger import tooling).
+- 🔄 Enrich terminology integration (e.g., map RxNorm CUIs to clinical scenarios, extend exporters) now that normalized tables exist for all vocabularies.
+- 🔄 Design a DuckDB terminology warehouse (schema, ingestion jobs) to ingest normalized ICD-10/LOINC/SNOMED/RxNorm tables; extend coverage to VSAC/UMLS and document usage in the pipeline.
+  - ✅ `tools/build_terminology_db.py` stages VSAC value sets and UMLS concepts and documents the DuckDB rebuild cadence.
+  - 🔄 Author import utilities for VSAC/UMLS so normalized CSVs can be generated alongside the existing ICD-10/LOINC/SNOMED/RxNorm helpers.
+- 🔄 Expand FHIR/CSV exporters to consume the new terminology services (Condition work landed; Observation + VSAC/UMLS extensions in progress for broader formats).
+
+### Phase 3 – Clinical Realism & Validation
+- Model workflow engines (referrals, lab cycles, care plan adherence) using probabilistic state machines.
+- Rebuild validation to cover schema, terminology, and temporal consistency; ensure new tests run in CI.
+- Add performance/snapshot tests to protect export stability and generator throughput.
+
+### Phase 4 – Docs, Tooling, and Release Prep
+- Rewrite README and docs to focus on the simulator; link to the migration branch for legacy usage.
+- Replace migration dashboards with clinical/SDOH analytics summaries and update utility scripts.
+- Update CI pipelines, dependency manifests, and release notes to reflect the new architecture.
+
+### Supporting Tasks
+- Audit remaining modules for hard-coded migration references and remove or gate them.
+- Capture design decisions in this implementation journal for transparency across phases.
+- Plan beta milestones or internal releases once each phase reaches testing parity.
+
 ## Immediate Next Steps
 1. **Extend terminology DuckDB workflows**
    - ✅ VSAC/UMLS staging added to `tools/build_terminology_db.py` alongside a `--force` rebuild guard.
@@ -17,7 +56,7 @@ This document captures the current state and near-term priorities for the simula
    - Once the vocabularies are in DuckDB, outline the clinical rules that ensure realistic condition/med/lab combinations (e.g., contraindications, age-appropriate labs).
 
 ## Reminders
-- The working checklist lives in `docs/simulator_pivot_next_steps.md`—update it whenever milestones land.
+- Keep this document updated whenever milestones land; it is the authoritative checklist for the pivot.
 - Raw vendor archives belong in `data/terminology/<system>/raw/`; normalized CSVs stay in the root of each system directory and should be ignored once exported to DuckDB.
 - Run test suites with `pytest` before wrapping up to keep the signal clean.
 
