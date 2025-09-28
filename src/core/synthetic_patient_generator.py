@@ -11,7 +11,7 @@ from datetime import date, datetime, timedelta
 import uuid
 from collections import defaultdict, Counter
 from functools import partial
-from typing import List, Dict, Optional, Any, Tuple, Union
+from typing import List, Dict, Optional, Any, Tuple, Union, Iterable
 from tqdm import tqdm
 
 from .terminology_catalogs import LAB_CODES
@@ -20,6 +20,7 @@ from .lifecycle import (
     Condition as LifecycleCondition,
     Observation as LifecycleObservation,
     Encounter as LifecycleEncounter,
+    MedicationOrder as LifecycleMedicationOrder,
     PatientRecord,
 )
 from .lifecycle.constants import (
@@ -60,7 +61,13 @@ from .lifecycle.generation.patient import generate_patient_profile_for_index
 from .lifecycle.loader import load_scenario_config
 from .lifecycle.orchestrator import LifecycleOrchestrator
 from .lifecycle.scenarios import list_scenarios
-from .terminology import TerminologyEntry, ValueSetMember, UmlsConcept
+from .terminology import (
+    TerminologyEntry,
+    ValueSetMember,
+    UmlsConcept,
+    load_loinc_labs,
+    load_rxnorm_medications,
+)
 from .migration_simulator import run_migration_phase
 
 # Local faker instance for legacy generator utilities
@@ -94,7 +101,8 @@ def build_default_terminology_mappings() -> Dict[str, Dict[str, Optional[str]]]:
 
 
 def build_terminology_lookup(
-    context: Optional[Dict[str, object]]
+    context: Optional[Dict[str, object]],
+    root_override: Optional[str] = None,
 ) -> Dict[str, Dict[str, TerminologyEntry]]:
     """Normalize terminology context into dictionaries keyed by code.
 
@@ -171,6 +179,8 @@ class FHIRFormatter:
 
     def __init__(self, terminology_lookup: Optional[Dict[str, Dict[str, TerminologyEntry]]] = None):
         self.terminology_lookup = terminology_lookup or {}
+        self.rxnorm_lookup = self.terminology_lookup.get("rxnorm", {})
+        self.loinc_lookup = self.terminology_lookup.get("loinc", {})
         vsac_entries = self.terminology_lookup.get("vsac", {})
         self.vsac_by_code: Dict[str, List[TerminologyEntry]] = {}
         for entry in vsac_entries.values():
@@ -374,6 +384,84 @@ class FHIRFormatter:
                 )
         return coding_entry
 
+    def create_medication_statement_resource(
+        self,
+        patient_id: str,
+        medication: Union[Dict[str, Any], LifecycleMedicationOrder],
+    ) -> Dict[str, Any]:
+        medication_id = getattr(medication, "medication_id", None) or str(uuid.uuid4())
+        medication_name = getattr(medication, "name", None) or medication.get("medication", "Unknown Medication")
+        start_date = getattr(medication, "start_date", None)
+        if not start_date:
+            start_date = medication.get("start_date") if isinstance(medication, dict) else None
+        if isinstance(start_date, datetime):
+            effective = start_date.isoformat()
+        elif isinstance(start_date, date):
+            effective = datetime.combine(start_date, datetime.min.time()).isoformat()
+        elif isinstance(start_date, str):
+            effective = start_date
+        else:
+            effective = datetime.now().isoformat()
+
+        rxnorm_code = None
+        if isinstance(medication, LifecycleMedicationOrder):
+            rxnorm_code = medication.rxnorm_code
+        else:
+            rxnorm_code = medication.get("rxnorm_code") or medication.get("rxnorm")
+
+        coding: Dict[str, Any] = {
+            "coding": [],
+        }
+        if rxnorm_code:
+            rxnorm_entry = self.rxnorm_lookup.get(str(rxnorm_code))
+            display = rxnorm_entry.display if rxnorm_entry else medication_name
+            coding["coding"].append(
+                {
+                    "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                    "code": str(rxnorm_code),
+                    "display": display,
+                }
+            )
+            umls_concepts = self.umls_by_source.get(("RXNORM", str(rxnorm_code)), [])
+            if umls_concepts:
+                extensions = coding["coding"][-1].setdefault("extension", [])
+                for concept in umls_concepts:
+                    extensions.append(
+                        {
+                            "url": "http://example.org/fhir/StructureDefinition/umls-concept",
+                            "extension": [
+                                {"url": "cui", "valueCode": concept.code},
+                                {"url": "preferredName", "valueString": concept.display},
+                                {
+                                    "url": "semanticType",
+                                    "valueString": concept.metadata.get("semantic_type", ""),
+                                },
+                            ],
+                        }
+                    )
+        if not coding["coding"]:
+            coding["text"] = medication_name
+
+        dosage = None
+        if isinstance(medication, LifecycleMedicationOrder):
+            dosage = medication.metadata.get("dosage")
+        else:
+            dosage = medication.get("dosage")
+
+        resource: Dict[str, Any] = {
+            "resourceType": "MedicationStatement",
+            "id": medication_id,
+            "status": "active",
+            "medicationCodeableConcept": coding,
+            "subject": {"reference": f"Patient/{patient_id}"},
+            "effectiveDateTime": effective,
+        }
+
+        if dosage:
+            resource["dosage"] = [{"text": dosage}]
+
+        return resource
+
     def create_observation_resource(
         self,
         patient_id: str,
@@ -385,8 +473,7 @@ class FHIRFormatter:
             status = "final"
 
         loinc_code = observation.metadata.get("loinc_code") or observation.metadata.get("loinc")
-        loinc_lookup = self.terminology_lookup.get("loinc", {})
-        loinc_entry = loinc_lookup.get(loinc_code) if loinc_code else None
+        loinc_entry = self.loinc_lookup.get(str(loinc_code)) if loinc_code else None
         display = loinc_entry.display if loinc_entry else observation.name
 
         coding = {
@@ -443,8 +530,8 @@ class FHIRFormatter:
         if observation.reference_range:
             observation_resource["referenceRange"] = [observation.reference_range]
 
-        if loinc_code and loinc_code in self.vsac_by_code:
-            for member in self.vsac_by_code[loinc_code]:
+        if loinc_code and str(loinc_code) in self.vsac_by_code:
+            for member in self.vsac_by_code[str(loinc_code)]:
                 value_set_oid = member.metadata.get("value_set_oid")
                 canonical = f"urn:oid:{value_set_oid}" if value_set_oid else None
                 extensions = observation_resource.setdefault("extension", [])
@@ -1175,7 +1262,8 @@ def main():
     scenario_config = dict(scenario_config) if scenario_config else {}
     scenario_metadata = scenario_config.pop('metadata', {}) if scenario_config else {}
     terminology_details = scenario_config.get('terminology_details') if scenario_config else None
-    terminology_lookup = build_terminology_lookup(terminology_details)
+    terminology_root_override = scenario_config.get('terminology_root') if scenario_config else None
+    terminology_lookup = build_terminology_lookup(terminology_details, terminology_root_override)
 
     def get_config(key, default=None):
         # CLI flag overrides config file
@@ -1352,6 +1440,102 @@ def main():
         # Restore patient_dict reference for downstream legacy operations
         patient_dict = patient_snapshot
 
+    def ensure_lookup_entries(system: str, codes: Iterable[Optional[str]], loader) -> None:
+        existing = terminology_lookup.setdefault(system, {})
+        missing = {str(code) for code in codes if code and str(code) not in existing}
+        if not missing:
+            return
+        try:
+            entries = loader(terminology_root_override)
+        except Exception:
+            return
+        for entry in entries:
+            if entry.code in missing:
+                existing[entry.code] = entry
+        if existing:
+            terminology_lookup[system] = existing
+
+    ensure_lookup_entries(
+        "rxnorm",
+        (med.get("rxnorm_code") for med in all_medications),
+        load_rxnorm_medications,
+    )
+    ensure_lookup_entries(
+        "loinc",
+        (obs.get("loinc_code") for obs in all_observations),
+        load_loinc_labs,
+    )
+
+    def build_umls_source_index() -> Dict[Tuple[str, str], List[TerminologyEntry]]:
+        index: Dict[Tuple[str, str], List[TerminologyEntry]] = {}
+        for entry in terminology_lookup.get("umls", {}).values():
+            sab = entry.metadata.get("sab")
+            source_code = entry.metadata.get("code")
+            if not sab or not source_code:
+                continue
+            index.setdefault((sab.upper(), str(source_code)), []).append(entry)
+        return index
+
+    umls_source_index = build_umls_source_index()
+
+    vsac_index: Dict[str, List[TerminologyEntry]] = {}
+    for entry in terminology_lookup.get("vsac", {}).values():
+        vsac_index.setdefault(entry.code, []).append(entry)
+
+    loinc_lookup = terminology_lookup.get("loinc", {})
+    rxnorm_lookup = terminology_lookup.get("rxnorm", {})
+
+    for record in all_observations:
+        code = record.get("loinc_code") or record.get("loinc")
+        if code:
+            entry = loinc_lookup.get(str(code))
+            if entry:
+                record.setdefault("loinc_display", entry.display)
+                if entry.metadata.get("ncbi_url"):
+                    record.setdefault("loinc_ncbi_url", entry.metadata["ncbi_url"])
+            vsac_entries = vsac_index.get(str(code), [])
+            oids = sorted(
+                {
+                    item.metadata.get("value_set_oid")
+                    for item in vsac_entries
+                    if item.metadata.get("value_set_oid")
+                }
+            )
+            if oids:
+                record["value_set_oids"] = ",".join(oids)
+                names = sorted(
+                    {
+                        item.metadata.get("value_set_name")
+                        for item in vsac_entries
+                        if item.metadata.get("value_set_name")
+                    }
+                )
+                if names:
+                    record["value_set_names"] = ",".join(names)
+
+    for record in all_medications:
+        code = record.get("rxnorm_code") or record.get("rxnorm")
+        if code:
+            entry = rxnorm_lookup.get(str(code))
+            if entry:
+                record.setdefault("rxnorm_display", entry.display)
+                if entry.metadata.get("ndc_example"):
+                    record.setdefault("ndc_example", entry.metadata.get("ndc_example"))
+            umls_entries = umls_source_index.get(("RXNORM", str(code)), [])
+            if umls_entries:
+                cuis = sorted({item.code for item in umls_entries if item.code})
+                semantic_types = sorted(
+                    {
+                        item.metadata.get("semantic_type")
+                        for item in umls_entries
+                        if item.metadata.get("semantic_type")
+                    }
+                )
+                if cuis:
+                    record["umls_cuis"] = ",".join(cuis)
+                if semantic_types:
+                    record["umls_semantic_types"] = ",".join(semantic_types)
+
     def save(df, name):
         if output_csv:
             df.write_csv(os.path.join(output_dir, f"{name}.csv"))
@@ -1392,6 +1576,16 @@ def main():
                     patient.patient_id, condition
                 )
                 bundle_entries.append({"resource": condition_resource})
+
+        # Add MedicationStatement resources
+        for patient in tqdm(patients_list, desc="Creating FHIR Medication resources", unit="patients"):
+            if not isinstance(patient, LifecyclePatient):
+                continue
+            for medication in patient.medications:
+                medication_resource = fhir_formatter.create_medication_statement_resource(
+                    patient.patient_id, medication
+                )
+                bundle_entries.append({"resource": medication_resource})
 
         # Add Observation resources when lifecycle data is available
         for patient in tqdm(patients_list, desc="Creating FHIR Observation resources", unit="patients"):

@@ -35,9 +35,18 @@ def normalize_snomed(concept_path: Path, description_path: Path, output_path: Pa
         raise FileNotFoundError(f"Description snapshot not found: {description_path}")
 
     concepts = pl.read_csv(concept_path, separator="\t")
+    concepts = concepts.with_columns([
+        pl.col("id").cast(pl.Utf8),
+        pl.col("definitionStatusId").cast(pl.Utf8),
+    ])
     concepts = concepts.filter((pl.col("active") == 1))
 
     descriptions = pl.read_csv(description_path, separator="\t")
+    descriptions = descriptions.with_columns([
+        pl.col("conceptId").cast(pl.Utf8),
+        pl.col("typeId").cast(pl.Utf8),
+        pl.col("caseSignificanceId").cast(pl.Utf8),
+    ])
     descriptions = descriptions.filter((pl.col("active") == 1))
 
     preferred_terms = descriptions.filter(
@@ -53,10 +62,14 @@ def normalize_snomed(concept_path: Path, description_path: Path, output_path: Pa
         pl.col("id").alias("snomed_id"),
         pl.col("pt_name"),
         pl.col("definitionStatusId").alias("definition_status_id"),
-        pl.lit("https://browser.ihtsdotools.org/?perspective=full&conceptId=")
-        .append(pl.col("id"))
-        .alias("ncbi_url"),
+        pl.concat_str(
+            [
+                pl.lit("https://browser.ihtsdotools.org/?perspective=full&conceptId="),
+                pl.col("id"),
+            ]
+        ).alias("ncbi_url"),
     )
+    joined = joined.unique(subset="snomed_id")
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     joined.write_csv(output_path)

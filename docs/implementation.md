@@ -4,7 +4,7 @@ This document captures the current state and near-term priorities for the simula
 
 ## Current Status Snapshot
 - **Lifecycle engine (Phase 1)**: completed; generator uses lifecycle modules, orchestrator, and scenario configs.
-- **Terminology platform (Phase 2)**: LOINC, ICD-10, SNOMED, and RxNorm importers exist; loaders prefer normalized CSVs (or the optional DuckDB warehouse) while seeds remain for CI.
+- **Terminology platform (Phase 2)**: LOINC, ICD-10, SNOMED, RxNorm, VSAC, and UMLS importers are automated; loaders prefer normalized CSVs or the DuckDB warehouse while lightweight seeds remain for CI.
 - **Exports**: FHIR/HL7/VistA/CSV/Parquet remain in sync; FHIR now emits Observation resources with VSAC value set references and appends UMLS concept extensions (alongside NCBI links) when terminology metadata is available.
 
 ## Phase Roadmap
@@ -23,13 +23,13 @@ This document captures the current state and near-term priorities for the simula
 ### Phase 2 – Terminology Platform
 - ✅ Replace bespoke catalogs with normalized datasets under `data/terminology/`.
 - ✅ Implement terminology loaders with filtering/caching support and connect them to scenario templates.
-- 🔄 Normalize official ICD-10, SNOMED CT, and RxNorm releases once source archives are available (importers added; keep scripts updated for future drops).
-- 🔄 Populate terminology datasets with comprehensive NLM/NCBI extracts (pending larger import tooling).
-- 🔄 Enrich terminology integration (e.g., map RxNorm CUIs to clinical scenarios, extend exporters) now that normalized tables exist for all vocabularies.
-- 🔄 Design a DuckDB terminology warehouse (schema, ingestion jobs) to ingest normalized ICD-10/LOINC/SNOMED/RxNorm tables; extend coverage to VSAC/UMLS and document usage in the pipeline.
+- ✅ Normalize official ICD-10, SNOMED CT, and RxNorm releases once source archives are available (importers now covered by unit tests for canonical samples).
+- ✅ Populate terminology datasets with comprehensive NLM/NCBI extracts (automated via `tools/refresh_terminology.py`).
+- ✅ Enrich terminology integration (e.g., map RxNorm CUIs to clinical scenarios, extend exporters) now that normalized tables exist for all vocabularies.
+- ✅ Design a DuckDB terminology warehouse (schema, ingestion jobs) to ingest normalized ICD-10/LOINC/SNOMED/RxNorm tables; extend coverage to VSAC/UMLS and document usage in the pipeline.
   - ✅ `tools/build_terminology_db.py` stages VSAC value sets and UMLS concepts and documents the DuckDB rebuild cadence.
-  - 🔄 Author import utilities for VSAC/UMLS so normalized CSVs can be generated alongside the existing ICD-10/LOINC/SNOMED/RxNorm helpers.
-- 🔄 Expand FHIR/CSV exporters to consume the new terminology services (Condition work landed; Observation + VSAC/UMLS extensions in progress for broader formats).
+  - ✅ Author import utilities for VSAC/UMLS so normalized CSVs can be generated alongside the existing ICD-10/LOINC/SNOMED/RxNorm helpers.
+- ✅ Expand FHIR/CSV exporters to consume the new terminology services (Condition, Medication, and Observation resources now emit VSAC/UMLS context).
 
 ### Phase 3 – Clinical Realism & Validation
 - Model workflow engines (referrals, lab cycles, care plan adherence) using probabilistic state machines.
@@ -47,13 +47,12 @@ This document captures the current state and near-term priorities for the simula
 - Plan beta milestones or internal releases once each phase reaches testing parity.
 
 ## Immediate Next Steps
-1. **Extend terminology DuckDB workflows**
-   - ✅ VSAC/UMLS staging added to `tools/build_terminology_db.py` alongside a `--force` rebuild guard.
-   - ✅ DuckDB onboarding guidance (`TERMINOLOGY_DB_PATH`, regeneration cadence) folded into the main README and terminology docs.
-   - ✅ Lifecycle scenarios surface VSAC/UMLS assets and exporters consume them for FHIR + CSV outputs.
-   - 🔄 Automate normalization for VSAC/UMLS drops (dedicated import scripts or documented ETL steps) so staging isn't manual.
-2. **Prepare for Phase 3 clinical realism**
-   - Once the vocabularies are in DuckDB, outline the clinical rules that ensure realistic condition/med/lab combinations (e.g., contraindications, age-appropriate labs).
+1. **Initiate Phase 3 clinical realism**
+   - Design probabilistic workflow engines (referrals, lab cycles, care plan adherence) that leverage the enriched terminology services.
+   - Outline clinical rules that ensure realistic condition, medication, and lab pairings (contraindications, age-appropriate screenings, etc.).
+2. **Expand validation and performance coverage**
+   - Rebuild validation suites to cover schema, terminology, and temporal consistency while exercising VSAC/UMLS paths in CI.
+   - Add performance/snapshot tests to protect export stability and generator throughput before advancing to Phase 4 deliverables.
 
 ## Reminders
 - Keep this document updated whenever milestones land; it is the authoritative checklist for the pivot.

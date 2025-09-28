@@ -1,36 +1,18 @@
 from __future__ import annotations
 
-import gzip
-from io import BytesIO
-from pathlib import Path
 import sys
-import zipfile
+from pathlib import Path
 
+HELPER_DIR = Path(__file__).resolve().parent
+helper_str = str(HELPER_DIR)
+if helper_str not in sys.path:
+    sys.path.insert(0, helper_str)
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-project_str = str(PROJECT_ROOT)
-if project_str not in sys.path:
-    sys.path.insert(0, project_str)
+from terminology_helpers import add_project_root, create_umls_archive
+
+add_project_root()
 
 from tools import import_umls
-
-
-def _gzip_bytes(content: str) -> bytes:
-    buffer = BytesIO()
-    with gzip.GzipFile(fileobj=buffer, mode="wb") as handle:
-        handle.write(content.encode("utf-8"))
-    return buffer.getvalue()
-
-
-def create_umls_archive(path: Path) -> None:
-    mrconso = (
-        "C0000005|ENG|P|L0000005|PF|S0000005|Y|A0000005|SA1|SC1|SD1|RXNORM|PT|12345|Sample Preferred Term|0|N|0|\n"
-    )
-    mrsty = "C0000005|T047||Disease or Syndrome|AT0000005|0|\n"
-
-    with zipfile.ZipFile(path, "w") as archive:
-        archive.writestr("2025AA/META/MRCONSO.RRF.aa.gz", _gzip_bytes(mrconso))
-        archive.writestr("2025AA/META/MRSTY.RRF.gz", _gzip_bytes(mrsty))
 
 
 def test_iter_umls_rows_streams_single_archive(tmp_path):
@@ -54,6 +36,6 @@ def test_iter_umls_rows_streams_single_archive(tmp_path):
     assert row.tui == "T047"
     assert row.sab == "RXNORM"
     assert row.code == "12345"
-    assert row.tty == "PT"
+    assert row.tty == "IN"
     assert row.aui == "A0000005"
     assert row.source_atom_name == "Sample Preferred Term"

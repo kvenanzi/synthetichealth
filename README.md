@@ -41,6 +41,9 @@ python3 tools/import_rxnorm.py --rxnconso ... --output data/terminology/rxnorm/r
 
 # Build the consolidated DuckDB warehouse
 python3 tools/build_terminology_db.py --root data/terminology --output data/terminology/terminology.duckdb
+
+# Or run the one-stop refresh (detects staged raw files and rebuilds DuckDB)
+python3 tools/refresh_terminology.py --root data/terminology --rebuild-db --force
 ```
 
 Set `TERMINOLOGY_DB_PATH` (or rely on the default `data/terminology/terminology.duckdb`) so loaders can read directly from DuckDB during high-volume generation. The loaders also respect `TERMINOLOGY_ROOT` for pointing at external filesystems that host larger vocabularies.

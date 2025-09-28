@@ -1,16 +1,20 @@
 from __future__ import annotations
 
-import sys
 from datetime import datetime
+
+import sys
 from pathlib import Path
 
+HELPER_DIR = Path(__file__).resolve().parent / "tools"
+helper_str = str(HELPER_DIR)
+if helper_str not in sys.path:
+    sys.path.insert(0, helper_str)
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-root_str = str(PROJECT_ROOT)
-if root_str not in sys.path:
-    sys.path.insert(0, root_str)
+from terminology_helpers import add_project_root
 
-from src.core.lifecycle.models import Observation
+add_project_root()
+
+from src.core.lifecycle.models import MedicationOrder, Observation
 from src.core.synthetic_patient_generator import (
     FHIRFormatter,
     TerminologyEntry,
@@ -123,3 +127,41 @@ def test_observation_resource_includes_vsac_extension():
     resource = formatter.create_observation_resource("patient-1", observation)
     extension_urls = [ext.get("url") for ext in resource.get("extension", [])]
     assert "http://hl7.org/fhir/StructureDefinition/valueset-reference" in extension_urls
+
+
+def test_medication_statement_includes_umls_extensions():
+    rxnorm_entry = TerminologyEntry(
+        code="12345",
+        display="Sample RxNorm Drug",
+        metadata={"ndc_example": "00000-0000"},
+    )
+    umls_concept = UmlsConcept(
+        cui="C0000005",
+        preferred_name="Sample RxNorm Drug",
+        semantic_type="Clinical Drug",
+        tui="T200",
+        sab="RXNORM",
+        code="12345",
+        tty="IN",
+        metadata={},
+    )
+    lookup = build_terminology_lookup({"rxnorm": [rxnorm_entry], "umls": [umls_concept]})
+    formatter = FHIRFormatter(lookup)
+
+    medication = MedicationOrder(
+        medication_id="med-1",
+        patient_id="patient-1",
+        name="Sample RxNorm Drug",
+        start_date=datetime(2025, 1, 2).date(),
+        end_date=None,
+        rxnorm_code="12345",
+        ndc_code=None,
+        therapeutic_class=None,
+        metadata={},
+    )
+
+    resource = formatter.create_medication_statement_resource("patient-1", medication)
+    coding = resource["medicationCodeableConcept"]["coding"][0]
+    assert coding["code"] == "12345"
+    extension_urls = [ext.get("url") for ext in coding.get("extension", [])]
+    assert "http://example.org/fhir/StructureDefinition/umls-concept" in extension_urls

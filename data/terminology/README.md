@@ -13,6 +13,8 @@ Phase 2 introduces normalized clinical code sets sourced from the U.S. National 
 
 > **Note:** Full distributions may require license or UMLS credentials. The loader utilities added in Phase 2 accept alternate filesystem paths or database connections for production-scale vocabularies.
 
+> **Tip:** When multiple raw archives are staged, run `python3 tools/refresh_terminology.py --root data/terminology --rebuild-db` to normalize every system and rebuild the DuckDB warehouse in one pass.
+
 ### Normalizing Official LOINC Tables
 
 After extracting the official LOINC zip into `loinc/raw/`, generate a normalized table aligned with the loader schema via:
