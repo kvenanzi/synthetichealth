@@ -10,7 +10,7 @@ import csv
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional
 
 try:  # optional dependency for DuckDB-backed lookups
     import duckdb  # type: ignore
@@ -29,6 +29,31 @@ class TerminologyEntry:
 
     code: str
     display: str
+    metadata: Dict[str, str]
+
+
+@dataclass
+class ValueSetMember:
+    """Represents a single VSAC value set membership."""
+
+    value_set_oid: str
+    value_set_name: str
+    code: str
+    display: str
+    metadata: Dict[str, str]
+
+
+@dataclass
+class UmlsConcept:
+    """Represents a normalized UMLS concept atom."""
+
+    cui: str
+    preferred_name: str
+    semantic_type: str
+    tui: str
+    sab: str
+    code: str
+    tty: str
     metadata: Dict[str, str]
 
 
@@ -55,12 +80,9 @@ def _resolve_db_path(root_override: Optional[str]) -> Optional[Path]:
     return None
 
 
-def _load_from_db(
-    table: str,
-    code_field: str,
-    display_field: str,
-    root_override: Optional[str],
-) -> Optional[List[TerminologyEntry]]:
+def _fetch_table_records(table: str, root_override: Optional[str]) -> Optional[List[Dict[str, Any]]]:
+    """Fetch all rows from a DuckDB table, returning ``None`` on failure."""
+
     if duckdb is None:
         return None
     db_path = _resolve_db_path(root_override)
@@ -68,7 +90,7 @@ def _load_from_db(
         return None
     try:
         con = duckdb.connect(str(db_path))
-    except Exception:  # pragma: no cover - connection failure fallback
+    except Exception:  # pragma: no cover - connection failure
         return None
     try:
         try:
@@ -77,7 +99,18 @@ def _load_from_db(
             return None
     finally:
         con.close()
-    records = df.to_dict(orient="records")
+    return df.to_dict(orient="records") if not df.empty else []
+
+
+def _load_from_db(
+    table: str,
+    code_field: str,
+    display_field: str,
+    root_override: Optional[str],
+) -> Optional[List[TerminologyEntry]]:
+    records = _fetch_table_records(table, root_override)
+    if records is None:
+        return None
     entries: List[TerminologyEntry] = []
     for row in records:
         code = row.get(code_field)
@@ -104,6 +137,14 @@ def _load_csv(path: Path, code_field: str, display_field: str) -> List[Terminolo
             metadata = {k: v for k, v in row.items() if k not in {code_field, display_field}}
             entries.append(TerminologyEntry(code=code, display=display, metadata=metadata))
     return entries
+
+
+def _read_csv_rows(path: Path) -> List[Dict[str, str]]:
+    if not path.exists():
+        return []
+    with path.open("r", encoding="utf-8") as handle:
+        reader = csv.DictReader(handle)
+        return [row for row in reader]
 
 
 def load_icd10_conditions(root: Optional[str] = None) -> List[TerminologyEntry]:
@@ -166,6 +207,86 @@ def load_rxnorm_medications(root: Optional[str] = None) -> List[TerminologyEntry
     return _load_csv(path, code_field="rxnorm_cui", display_field="ingredient_name")
 
 
+def load_vsac_value_sets(root: Optional[str] = None) -> List[ValueSetMember]:
+    """Load VSAC value set members from DuckDB or CSV files.
+
+    Returns an empty list when neither a DuckDB table nor CSV export is present.
+    """
+
+    rows = _fetch_table_records("vsac_value_sets", root)
+    if rows is None:
+        normalized_path = _resolve_path("vsac/vsac_value_sets_full.csv", root)
+        seed_path = _resolve_path("vsac/vsac_value_sets.csv", root)
+        if normalized_path.exists():
+            rows = _read_csv_rows(normalized_path)
+        elif seed_path.exists():
+            rows = _read_csv_rows(seed_path)
+        else:
+            return []
+
+    members: List[ValueSetMember] = []
+    for row in rows:
+        oid = (row.get("value_set_oid") or "").strip()
+        code = (row.get("code") or "").strip()
+        display = (row.get("display_name") or "").strip()
+        if not oid or not code or not display:
+            continue
+        member = ValueSetMember(
+            value_set_oid=oid,
+            value_set_name=(row.get("value_set_name") or "").strip(),
+            code=code,
+            display=display,
+            metadata={
+                key: (value if value is not None else "")
+                for key, value in row.items()
+                if key not in {"value_set_oid", "value_set_name", "code", "display_name"}
+            },
+        )
+        members.append(member)
+    return members
+
+
+def load_umls_concepts(root: Optional[str] = None) -> List[UmlsConcept]:
+    """Load UMLS concept atoms from DuckDB or CSV files."""
+
+    rows = _fetch_table_records("umls_concepts", root)
+    if rows is None:
+        normalized_path = _resolve_path("umls/umls_concepts_full.csv", root)
+        seed_path = _resolve_path("umls/umls_concepts.csv", root)
+        if normalized_path.exists():
+            rows = _read_csv_rows(normalized_path)
+        elif seed_path.exists():
+            rows = _read_csv_rows(seed_path)
+        else:
+            return []
+
+    concepts: List[UmlsConcept] = []
+    for row in rows:
+        cui = (row.get("cui") or "").strip()
+        preferred = (row.get("preferred_name") or "").strip()
+        sab = (row.get("sab") or "").strip()
+        code = (row.get("code") or "").strip()
+        tty = (row.get("tty") or "").strip()
+        if not cui or not preferred:
+            continue
+        concept = UmlsConcept(
+            cui=cui,
+            preferred_name=preferred,
+            semantic_type=(row.get("semantic_type") or "").strip(),
+            tui=(row.get("tui") or "").strip(),
+            sab=sab,
+            code=code,
+            tty=tty,
+            metadata={
+                key: (value if value is not None else "")
+                for key, value in row.items()
+                if key not in {"cui", "preferred_name", "semantic_type", "tui", "sab", "code", "tty"}
+            },
+        )
+        concepts.append(concept)
+    return concepts
+
+
 def filter_by_code(entries: Iterable[TerminologyEntry], codes: Iterable[str]) -> List[TerminologyEntry]:
     wanted = set(codes)
     return [entry for entry in entries if entry.code in wanted]
@@ -178,10 +299,14 @@ def search_by_term(entries: Iterable[TerminologyEntry], term: str) -> List[Termi
 
 __all__ = [
     "TerminologyEntry",
+    "ValueSetMember",
+    "UmlsConcept",
     "load_icd10_conditions",
     "load_loinc_labs",
     "load_snomed_conditions",
     "load_rxnorm_medications",
+    "load_vsac_value_sets",
+    "load_umls_concepts",
     "filter_by_code",
     "search_by_term",
 ]

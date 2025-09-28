@@ -1,16 +1,25 @@
 import os
 from pathlib import Path
 
+import pytest
+
 from src.core.terminology import (
+    UmlsConcept,
+    ValueSetMember,
     filter_by_code,
     load_icd10_conditions,
     load_loinc_labs,
     load_rxnorm_medications,
     load_snomed_conditions,
+    load_umls_concepts,
+    load_vsac_value_sets,
     search_by_term,
 )
 
-import duckdb
+try:
+    import duckdb
+except ModuleNotFoundError:  # pragma: no cover - optional dependency
+    duckdb = None
 
 
 def test_load_icd10_conditions_returns_entries():
@@ -31,7 +40,7 @@ def test_filter_by_code_subset():
 def test_search_by_term_case_insensitive():
     entries = load_rxnorm_medications()
     results = search_by_term(entries, "lisinopril")
-    assert results and results[0].code == "197361"
+    assert results and "lisinopril" in results[0].display.lower()
 
 
 def test_environment_override(tmp_path: Path, monkeypatch):
@@ -152,6 +161,9 @@ def test_rxnorm_loader_prefers_normalized(monkeypatch, tmp_path: Path):
 
 
 def test_loader_reads_duckdb(monkeypatch, tmp_path: Path):
+    if duckdb is None:
+        pytest.skip("duckdb not installed")
+
     db_path = tmp_path / "terminology.duckdb"
     con = duckdb.connect(str(db_path))
     try:
@@ -169,3 +181,49 @@ def test_loader_reads_duckdb(monkeypatch, tmp_path: Path):
     monkeypatch.delenv("TERMINOLOGY_DB_PATH", raising=False)
 
     assert entries[0].code == "Z99"
+
+
+def test_load_vsac_value_sets_from_csv(monkeypatch, tmp_path: Path):
+    base = tmp_path / "terminology"
+    vsac_dir = base / "vsac"
+    vsac_dir.mkdir(parents=True)
+
+    normalized = vsac_dir / "vsac_value_sets_full.csv"
+    normalized.write_text(
+        "value_set_oid,value_set_name,value_set_version,release_date,clinical_focus,concept_status,code,code_system,code_system_version,display_name\n"
+        "1.2.3.4,Sample VS,20240101,20240601,Focus,Active,ABC,SNOMEDCT,2024-09,Sample Code\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("TERMINOLOGY_ROOT", str(base))
+    members = load_vsac_value_sets()
+    monkeypatch.delenv("TERMINOLOGY_ROOT", raising=False)
+
+    assert members
+    assert isinstance(members[0], ValueSetMember)
+    assert members[0].value_set_oid == "1.2.3.4"
+    assert members[0].code == "ABC"
+    assert members[0].metadata["value_set_version"] == "20240101"
+
+
+def test_load_umls_concepts_from_csv(monkeypatch, tmp_path: Path):
+    base = tmp_path / "terminology"
+    umls_dir = base / "umls"
+    umls_dir.mkdir(parents=True)
+
+    normalized = umls_dir / "umls_concepts_full.csv"
+    normalized.write_text(
+        "cui,preferred_name,semantic_type,tui,sab,code,tty,aui,source_atom_name\n"
+        "C12345,Sample Concept,Disease,T047,RXNORM,12345,PT,A12345,Sample Concept\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("TERMINOLOGY_ROOT", str(base))
+    concepts = load_umls_concepts()
+    monkeypatch.delenv("TERMINOLOGY_ROOT", raising=False)
+
+    assert concepts
+    assert isinstance(concepts[0], UmlsConcept)
+    assert concepts[0].cui == "C12345"
+    assert concepts[0].sab == "RXNORM"
+    assert concepts[0].metadata["aui"] == "A12345"

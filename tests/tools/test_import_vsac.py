@@ -6,14 +6,11 @@ import sys
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-TOOLS_ROOT = PROJECT_ROOT / "tools"
+project_str = str(PROJECT_ROOT)
+if project_str not in sys.path:
+    sys.path.insert(0, project_str)
 
-for candidate in (PROJECT_ROOT, TOOLS_ROOT):
-    candidate_str = str(candidate)
-    if candidate_str not in sys.path:
-        sys.path.insert(0, candidate_str)
-
-import import_vsac
+from tools import import_vsac
 
 
 WORKSHEET_NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
