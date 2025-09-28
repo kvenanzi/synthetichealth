@@ -60,7 +60,7 @@ from .lifecycle.generation.patient import generate_patient_profile_for_index
 from .lifecycle.loader import load_scenario_config
 from .lifecycle.orchestrator import LifecycleOrchestrator
 from .lifecycle.scenarios import list_scenarios
-from .terminology import TerminologyEntry
+from .terminology import TerminologyEntry, ValueSetMember, UmlsConcept
 from .migration_simulator import run_migration_phase
 
 # Local faker instance for legacy generator utilities
@@ -93,12 +93,72 @@ def build_default_terminology_mappings() -> Dict[str, Dict[str, Optional[str]]]:
     }
 
 
-def build_terminology_lookup(context: Optional[Dict[str, List[TerminologyEntry]]]) -> Dict[str, Dict[str, TerminologyEntry]]:
+def build_terminology_lookup(
+    context: Optional[Dict[str, object]]
+) -> Dict[str, Dict[str, TerminologyEntry]]:
+    """Normalize terminology context into dictionaries keyed by code.
+
+    Scenario terminology details can supply a mixture of :class:`TerminologyEntry`
+    instances (ICD-10, LOINC, SNOMED, RxNorm) as well as VSAC value set members
+    and UMLS concept rows. This helper coerces each payload into a
+    :class:`TerminologyEntry` so downstream exporters can consume a consistent
+    structure regardless of the upstream source.
+    """
+
     if not context:
         return {}
+
+    def _coerce(entry: object) -> TerminologyEntry:
+        if isinstance(entry, TerminologyEntry):
+            return entry
+        if isinstance(entry, ValueSetMember):
+            metadata = {**entry.metadata}
+            metadata.setdefault("value_set_oid", entry.value_set_oid)
+            metadata.setdefault("value_set_name", entry.value_set_name)
+            return TerminologyEntry(code=entry.code, display=entry.display, metadata=metadata)
+        if isinstance(entry, UmlsConcept):
+            metadata = {**entry.metadata}
+            metadata.setdefault("semantic_type", entry.semantic_type)
+            metadata.setdefault("tui", entry.tui)
+            metadata.setdefault("sab", entry.sab)
+            metadata.setdefault("code", entry.code)
+            metadata.setdefault("tty", entry.tty)
+            return TerminologyEntry(code=entry.cui, display=entry.preferred_name, metadata=metadata)
+        raise TypeError(f"Unsupported terminology entry type: {type(entry)!r}")
+
+    def _flatten(value: object) -> List[object]:
+        if isinstance(value, list):
+            return value
+        if isinstance(value, dict):
+            items: List[object] = []
+            for nested in value.values():
+                items.extend(_flatten(nested))
+            return items
+        if value is None:
+            return []
+        return [value]
+
     lookup: Dict[str, Dict[str, TerminologyEntry]] = {}
-    for system, entries in context.items():
-        lookup[system] = {entry.code: entry for entry in entries}
+    for system, raw_entries in context.items():
+        flattened = _flatten(raw_entries)
+        if not flattened:
+            continue
+        system_lookup: Dict[str, TerminologyEntry] = {}
+        for raw_entry in flattened:
+            try:
+                entry = _coerce(raw_entry)
+            except TypeError:
+                continue
+            key = entry.code or entry.metadata.get("code") or entry.metadata.get("value_set_oid")
+            if not key:
+                continue
+            if system == "vsac":
+                value_set_oid = entry.metadata.get("value_set_oid")
+                if value_set_oid:
+                    key = f"{value_set_oid}|{entry.code}"
+            system_lookup[str(key)] = entry
+        if system_lookup:
+            lookup[system] = system_lookup
     return lookup
 
 
@@ -111,6 +171,20 @@ class FHIRFormatter:
 
     def __init__(self, terminology_lookup: Optional[Dict[str, Dict[str, TerminologyEntry]]] = None):
         self.terminology_lookup = terminology_lookup or {}
+        vsac_entries = self.terminology_lookup.get("vsac", {})
+        self.vsac_by_code: Dict[str, List[TerminologyEntry]] = {}
+        for entry in vsac_entries.values():
+            self.vsac_by_code.setdefault(entry.code, []).append(entry)
+
+        umls_entries = self.terminology_lookup.get("umls", {})
+        self.umls_by_source: Dict[Tuple[str, str], List[TerminologyEntry]] = {}
+        for entry in umls_entries.values():
+            sab = entry.metadata.get("sab")
+            source_code = entry.metadata.get("code")
+            if not sab or not source_code:
+                continue
+            key = (sab.upper(), source_code)
+            self.umls_by_source.setdefault(key, []).append(entry)
 
     def create_patient_resource(self, patient_record: Union[PatientRecord, LifecyclePatient]) -> Dict[str, Any]:
         """Create basic FHIR R4 Patient resource"""
@@ -263,6 +337,13 @@ class FHIRFormatter:
         elif "snomed" in system:
             lookup_key = "snomed"
 
+        def _system_to_sab(value: str) -> Optional[str]:
+            if "icd-10" in value:
+                return "ICD10CM"
+            if "snomed" in value:
+                return "SNOMEDCT_US"
+            return None
+
         if lookup_key and code in self.terminology_lookup.get(lookup_key, {}):
             entry = self.terminology_lookup[lookup_key][code]
             ncbi_url = entry.metadata.get("ncbi_url")
@@ -273,7 +354,110 @@ class FHIRFormatter:
                         "valueUri": ncbi_url,
                     }
                 )
+
+        sab = _system_to_sab(system)
+        if sab:
+            for concept in self.umls_by_source.get((sab, code), []):
+                extensions = coding_entry.setdefault("extension", [])
+                extensions.append(
+                    {
+                        "url": "http://example.org/fhir/StructureDefinition/umls-concept",
+                        "extension": [
+                            {"url": "cui", "valueCode": concept.code},
+                            {"url": "preferredName", "valueString": concept.display},
+                            {
+                                "url": "semanticType",
+                                "valueString": concept.metadata.get("semantic_type", ""),
+                            },
+                        ],
+                    }
+                )
         return coding_entry
+
+    def create_observation_resource(
+        self,
+        patient_id: str,
+        observation: LifecycleObservation,
+    ) -> Dict[str, Any]:
+        observation_id = observation.observation_id or str(uuid.uuid4())
+        status = observation.status.lower() if observation.status else "final"
+        if status not in {"registered", "preliminary", "final", "amended", "cancelled", "entered-in-error", "unknown"}:
+            status = "final"
+
+        loinc_code = observation.metadata.get("loinc_code") or observation.metadata.get("loinc")
+        loinc_lookup = self.terminology_lookup.get("loinc", {})
+        loinc_entry = loinc_lookup.get(loinc_code) if loinc_code else None
+        display = loinc_entry.display if loinc_entry else observation.name
+
+        coding = {
+            "system": "http://loinc.org" if loinc_code else "http://terminology.hl7.org/CodeSystem/data-absent-reason",
+            "code": loinc_code or "unknown",
+            "display": display,
+        }
+
+        if loinc_entry and loinc_entry.metadata.get("ncbi_url"):
+            coding.setdefault("extension", []).append(
+                {
+                    "url": "https://www.ncbi.nlm.nih.gov/",
+                    "valueUri": loinc_entry.metadata["ncbi_url"],
+                }
+            )
+
+        observation_resource: Dict[str, Any] = {
+            "resourceType": "Observation",
+            "id": observation_id,
+            "status": status,
+            "code": {"coding": [coding]},
+            "subject": {"reference": f"Patient/{patient_id}"},
+        }
+
+        if observation.effective_datetime:
+            observation_resource["effectiveDateTime"] = observation.effective_datetime.isoformat()
+
+        value_numeric = observation.metadata.get("value_numeric")
+        if value_numeric is not None:
+            try:
+                numeric_value = float(value_numeric)
+                value_payload: Dict[str, Any] = {"value": numeric_value}
+                if observation.unit:
+                    value_payload["unit"] = observation.unit
+                    value_payload["system"] = "http://unitsofmeasure.org"
+                observation_resource["valueQuantity"] = value_payload
+            except (TypeError, ValueError):
+                observation_resource["valueString"] = str(observation.value)
+        elif observation.value is not None:
+            observation_resource["valueString"] = str(observation.value)
+
+        if observation.interpretation:
+            observation_resource["interpretation"] = [
+                {
+                    "coding": [
+                        {
+                            "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation",
+                            "code": observation.interpretation,
+                        }
+                    ]
+                }
+            ]
+
+        if observation.reference_range:
+            observation_resource["referenceRange"] = [observation.reference_range]
+
+        if loinc_code and loinc_code in self.vsac_by_code:
+            for member in self.vsac_by_code[loinc_code]:
+                value_set_oid = member.metadata.get("value_set_oid")
+                canonical = f"urn:oid:{value_set_oid}" if value_set_oid else None
+                extensions = observation_resource.setdefault("extension", [])
+                extension_payload = {
+                    "url": "http://hl7.org/fhir/StructureDefinition/valueset-reference",
+                }
+                if canonical:
+                    extension_payload["valueCanonical"] = canonical
+                else:
+                    extension_payload["valueString"] = member.metadata.get("value_set_name", "")
+                extensions.append(extension_payload)
+
+        return observation_resource
 
 class HL7v2Formatter:
     """HL7 v2.x message formatter for Phase 2"""
@@ -1208,6 +1392,16 @@ def main():
                     patient.patient_id, condition
                 )
                 bundle_entries.append({"resource": condition_resource})
+
+        # Add Observation resources when lifecycle data is available
+        for patient in tqdm(patients_list, desc="Creating FHIR Observation resources", unit="patients"):
+            if not isinstance(patient, LifecyclePatient):
+                continue
+            for observation in patient.observations:
+                observation_resource = fhir_formatter.create_observation_resource(
+                    patient.patient_id, observation
+                )
+                bundle_entries.append({"resource": observation_resource})
 
         # Create FHIR Bundle
         fhir_bundle = {

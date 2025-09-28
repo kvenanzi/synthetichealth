@@ -73,8 +73,10 @@ python3 tools/import_vsac.py \
 ```
 
 The utility scans the VSAC Excel workbooks and writes one row per concept
-membership using the column layout below. Additional columns are preserved in
-the CSV and ignored by the DuckDB warehouse builder when present.
+membership using the column layout below. A small development seed
+(`vsac/vsac_value_sets.csv`) ships with the repository so local runs and tests
+have immediate coverage. Additional columns are preserved in the CSV and
+ignored by the DuckDB warehouse builder when present.
 
 The DuckDB builder expects the following columns (additional metadata is safe to include and will be ignored):
 
@@ -106,8 +108,9 @@ python3 tools/import_umls.py \
 ```
 
 Use `--languages ALL` to include every locale or omit `--sab` to keep all source
-vocabularies. A smaller `umls/umls_concepts.csv` seed file can be used for ad hoc
-experimentation when the full release is not staged locally.
+vocabularies. A smaller `umls/umls_concepts.csv` seed file (bundled for
+development) can be used for ad hoc experimentation when the full release is not
+staged locally.
 
 | Column | Description |
 |--------|-------------|

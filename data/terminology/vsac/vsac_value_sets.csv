@@ -1,0 +1,2 @@
+value_set_oid,value_set_name,value_set_version,release_date,clinical_focus,concept_status,code,code_system,code_system_version,display_name
+2.16.840.1.113883.3.526.3.1567,Adolescent Depression Medications,20210220,20250508,Concepts representing medications and labs relevant to adolescent depression care,Active,2951-2,LOINC,2025-01,Sodium [Moles/volume] in Serum or Plasma

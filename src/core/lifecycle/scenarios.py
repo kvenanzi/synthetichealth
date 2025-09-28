@@ -21,6 +21,8 @@ DEFAULT_SCENARIOS: Dict[str, Dict[str, object]] = {
             "icd10_codes": ["E11.9", "I10", "J45.909"],
             "loinc_codes": ["2345-7", "2951-2", "718-7"],
             "rxnorm_cuis": ["860975", "197361", "617320"],
+            "value_set_oids": ["2.16.840.1.113883.3.526.3.1567"],
+            "umls_cuis": ["C0020538"],
         },
     },
     "cardiometabolic": {
@@ -40,6 +42,8 @@ DEFAULT_SCENARIOS: Dict[str, Dict[str, object]] = {
             "icd10_codes": ["E11.9", "I10"],
             "loinc_codes": ["2345-7", "2951-2"],
             "rxnorm_cuis": ["860975", "197361"],
+            "value_set_oids": ["2.16.840.1.113883.3.526.3.1567"],
+            "umls_cuis": ["C0020538"],
         },
     },
     "pediatric": {
@@ -58,6 +62,8 @@ DEFAULT_SCENARIOS: Dict[str, Dict[str, object]] = {
             "icd10_codes": ["J45.909"],
             "loinc_codes": ["718-7"],
             "rxnorm_cuis": ["617320"],
+            "value_set_oids": ["2.16.840.1.113883.3.526.3.1567"],
+            "umls_cuis": ["C0020538"],
         },
     },
 }

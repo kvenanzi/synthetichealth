@@ -14,6 +14,8 @@ from ..terminology import (
     load_loinc_labs,
     load_rxnorm_medications,
     load_snomed_conditions,
+    load_umls_concepts,
+    load_vsac_value_sets,
 )
 
 
@@ -41,6 +43,28 @@ def _attach_terminology_payload(scenario: Dict[str, object]) -> Dict[str, object
     rxnorm_cuis = terminology.get("rxnorm_cuis")
     if rxnorm_cuis:
         payload["rxnorm"] = filter_by_code(load_rxnorm_medications(root_override), rxnorm_cuis)
+
+    value_set_oids = terminology.get("value_set_oids")
+    if value_set_oids:
+        members = load_vsac_value_sets(root_override)
+        if members:
+            grouped = {}
+            wanted = set(value_set_oids)
+            for member in members:
+                if member.value_set_oid not in wanted:
+                    continue
+                grouped.setdefault(member.value_set_oid, []).append(member)
+            if grouped:
+                payload["vsac"] = grouped
+
+    umls_cuis = terminology.get("umls_cuis")
+    if umls_cuis:
+        concepts = load_umls_concepts(root_override)
+        if concepts:
+            lookup = {concept.cui: concept for concept in concepts if concept.cui}
+            selected = [lookup[cui] for cui in umls_cuis if cui in lookup]
+            if selected:
+                payload["umls"] = selected
 
     scenario["terminology_details"] = payload
     return scenario

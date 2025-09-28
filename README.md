@@ -5,9 +5,9 @@ A lifecycle-focused synthetic healthcare simulator that produces richly coded pa
 ## Features
 
 - **Scenario-driven lifecycle engine** – demographic distributions, SDOH configuration, and orchestrated care pathways live under `src/core/lifecycle/`, enabling nuanced longitudinal cohorts.
-- **Authoritative terminology datasets** – normalized ICD-10-CM, LOINC, SNOMED CT, and RxNorm tables (with hooks for VSAC value sets and the UMLS release) power terminology-aware generation and exports.
+- **Authoritative terminology datasets** – normalized ICD-10-CM, LOINC, SNOMED CT, RxNorm, VSAC value sets, and UMLS concept snapshots power terminology-aware generation and exports.
 - **DuckDB-backed lookups** – build a shared `terminology.duckdb` warehouse for fast joins and larger vocabularies while keeping CSV seeds for lightweight usage.
-- **Multi-format exports** – FHIR R4 bundles (with NCBI reference extensions), HL7 v2 ADT/ORU messages, VistA MUMPS globals, CSV, and Parquet outputs are emitted from the same patient records.
+- **Multi-format exports** – FHIR R4 bundles (now with VSAC value set and UMLS concept extensions alongside NCBI references), HL7 v2 ADT/ORU messages, VistA MUMPS globals, CSV, and Parquet outputs are emitted from the same patient records.
 - **Parallel performance** – generation uses `concurrent.futures` and Polars pipelines to scale to tens of thousands of synthetic patients.
 - **Referential integrity** – patient identifiers stay consistent across every export format.
 - **Optional migration toolchain** – legacy migration simulators, analytics, and demos remain available for teams rehearsing data conversions but are no longer the primary focus of the project.
@@ -143,7 +143,7 @@ synthetichealth/
 ## Generated data formats
 
 ### Healthcare interoperability standards
-- **FHIR R4**: US Core compliant Patient and Condition resources (with optional NCBI reference extensions)
+- **FHIR R4**: US Core compliant Patient, Condition, and Observation resources with NCBI, VSAC, and UMLS extensions when terminology metadata is available
 - **HL7 v2.x**: ADT (Admit/Discharge/Transfer) and ORU (Observation Result) messages
 - **VistA MUMPS**: Production-accurate VA FileMan global structures
 
@@ -201,4 +201,3 @@ python3 demos/migration_demo.py
 python3 demos/enhanced_migration_demo.py
 python3 demos/migration_analytics_demo.py
 ```
-
