@@ -2,10 +2,10 @@
 
 ```mermaid
 flowchart LR
-    A[Scenario Config<br/>YAML or built-in] --> B[load_scenario_config]
+    A["Scenario Config (YAML or built-in)"] --> B[load_scenario_config]
     B --> C[LifecycleOrchestrator]
     C --> D[generate_patient_profile_for_index]
-    D --> E[Lifecycle Modules<br/>(conditions, encounters, meds, observations)]
+    D --> E["Lifecycle Modules\n(conditions, encounters, meds, observations)"]
     E --> F[FHIRFormatter / HL7v2Formatter]
     E --> G[CSV / Parquet Writers]
     F --> H[(FHIR Bundle)]
@@ -22,4 +22,3 @@ flowchart LR
     style I fill:#fff3e0,stroke:#f57c00
     style J fill:#fff3e0,stroke:#f57c00
 ```
-
