@@ -64,7 +64,19 @@ python3 tools/import_rxnorm.py \
 
 ### Normalizing VSAC Value Sets
 
-Value set exports should be flattened into `vsac/vsac_value_sets_full.csv` with one row per concept membership. The DuckDB builder expects the following columns (additional metadata is safe to include and will be ignored):
+Normalize CMS eCQM exports into `vsac/vsac_value_sets_full.csv` by running:
+
+```bash
+python3 tools/import_vsac.py \
+  --raw-dir data/terminology/vsac/raw \
+  --output data/terminology/vsac/vsac_value_sets_full.csv
+```
+
+The utility scans the VSAC Excel workbooks and writes one row per concept
+membership using the column layout below. Additional columns are preserved in
+the CSV and ignored by the DuckDB warehouse builder when present.
+
+The DuckDB builder expects the following columns (additional metadata is safe to include and will be ignored):
 
 | Column | Description |
 |--------|-------------|
@@ -83,7 +95,19 @@ When a normalized export is unavailable, `vsac/vsac_value_sets.csv` can hold a r
 
 ### Normalizing UMLS Concepts
 
-Flatten UMLS concept extracts into `umls/umls_concepts_full.csv` with the columns below. A smaller `umls/umls_concepts.csv` seed file can be used for ad hoc experimentation when the full release is not staged locally.
+Flatten UMLS concept extracts into `umls/umls_concepts_full.csv` with the columns below:
+
+```bash
+python3 tools/import_umls.py \
+  --raw-dir data/terminology/umls/raw \
+  --output data/terminology/umls/umls_concepts_full.csv \
+  --languages ENG \
+  --sab RXNORM SNOMEDCT_US LOINC
+```
+
+Use `--languages ALL` to include every locale or omit `--sab` to keep all source
+vocabularies. A smaller `umls/umls_concepts.csv` seed file can be used for ad hoc
+experimentation when the full release is not staged locally.
 
 | Column | Description |
 |--------|-------------|
