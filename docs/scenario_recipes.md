@@ -53,6 +53,7 @@ The following clinically curated scenarios extend the current simulator catalog.
 - **Medications**: Tamoxifen (RxNorm 4179), Aromatase inhibitors (RxNorm 310362).
 - **VSAC**: Breast cancer surveillance 2.16.840.1.113883.3.526.3.1029.
 - **Care Plan**: Annual mammography, semiannual oncology visits, lymphedema monitoring.
+- **Implementation**: Modeled in `modules/oncology_survivorship.yaml` with recurrence workup branching.
 
 ## 7. Mental Health Integrated Care
 - **Population**: 18–65, mixed urban/suburban, higher unemployment.
@@ -61,6 +62,7 @@ The following clinically curated scenarios extend the current simulator catalog.
 - **Medications**: SSRIs (RxNorm 312961), SNRIs (724366), adjunctive therapy (RxNorm 211190).
 - **VSAC**: Behavioral health assessment OID 2.16.840.1.113762.1.4.1222.180.
 - **Integration**: Capture telehealth visits, collaborative care billing codes (CPT 99492).
+- **Implementation**: Modeled in `modules/mental_health_integrated_care.yaml` with telehealth and crisis pathways.
 
 ## 8. Chronic Kidney Disease with Dialysis Planning
 - **Population**: 45–75, high prevalence of diabetes and hypertension, underserved areas.
@@ -69,6 +71,7 @@ The following clinically curated scenarios extend the current simulator catalog.
 - **Medications**: Erythropoiesis-stimulating agents (RxNorm 111419), Phosphate binders (RxNorm 310798), ACE inhibitors.
 - **VSAC**: CKD management OID 2.16.840.1.113883.3.464.1003.118.12.1035.
 - **Events**: vascular access placement procedures, transplant evaluation referrals.
+- **Implementation**: Modeled in `modules/ckd_dialysis_planning.yaml` covering vascular access and dialysis education.
 
 ## 9. COPD with Home Oxygen Therapy
 - **Population**: 60–80, former smokers, rural and industrial backgrounds.
@@ -77,6 +80,7 @@ The following clinically curated scenarios extend the current simulator catalog.
 - **Medications**: Inhaled corticosteroid/LABA combos (RxNorm 896443), anticholinergics (RxNorm 197361), rescue albuterol.
 - **VSAC**: COPD exacerbation management 2.16.840.1.113883.3.117.1.7.1.276.
 - **Workflow**: Pulmonary rehab sessions, home health visits, influenza/pneumococcal vaccines tracking.
+- **Implementation**: Modeled in `modules/copd_home_oxygen.yaml` with exacerbation rescue loop.
 
 ## 10. Sepsis Survivorship & Readmission Prevention
 - **Population**: 30–70, recent inpatient sepsis (ICD-10 A41.9) discharged within 30 days.

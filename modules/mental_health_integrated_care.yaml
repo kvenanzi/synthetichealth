@@ -1,0 +1,188 @@
+name: mental_health_integrated_care
+description: Collaborative care pathway for major depressive disorder with anxiety and telehealth touchpoints.
+categories:
+  encounters: replace
+  conditions: replace
+  medications: replace
+  observations: augment
+  procedures: augment
+  care_plans: augment
+states:
+  start:
+    type: start
+    transitions:
+      - to: intake_visit
+
+  intake_visit:
+    type: encounter
+    encounter_type: "Behavioral Health Intake"
+    reason: "Depression and anxiety evaluation"
+    provider_role: "Psychiatric Nurse Practitioner"
+    location: "Integrated Care Clinic"
+    transitions:
+      - to: mental_health_conditions
+
+  mental_health_conditions:
+    type: condition_onset
+    attach_to_last_encounter: true
+    conditions:
+      - name: "Major Depressive Disorder"
+        icd10: "F33.1"
+        snomed: "371632003"
+        category: "behavioral_health"
+      - name: "Generalized Anxiety Disorder"
+        icd10: "F41.1"
+        snomed: "21897009"
+        category: "behavioral_health"
+    transitions:
+      - to: collaborative_care_plan
+
+  collaborative_care_plan:
+    type: care_plan
+    care_plans:
+      - name: "Collaborative Care Plan"
+        category: "behavioral_health"
+        goal: "Achieve PHQ-9 score < 5 within 6 months"
+        activities:
+          - "Weekly case review with psychiatric consultant"
+          - "Monthly telehealth follow-up"
+          - "SBIRT screening for substance use"
+    transitions:
+      - to: baseline_assessments
+
+  baseline_assessments:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "44261-6"
+        name: "PHQ-9 Total Score"
+        units: "score"
+        value_range:
+          min: 15
+          max: 22
+      - loinc: "69730-0"
+        name: "GAD-7 Total Score"
+        units: "score"
+        value_range:
+          min: 12
+          max: 19
+    transitions:
+      - to: initial_medication
+
+  initial_medication:
+    type: medication_start
+    attach_to_last_encounter: true
+    medications:
+      - name: "Sertraline"
+        rxnorm: "312961"
+        dose: "50 mg daily"
+        therapy_category: "ssri"
+      - name: "Hydroxyzine"
+        rxnorm: "310798"
+        dose: "25 mg at bedtime as needed"
+        therapy_category: "adjunct_anxiolytic"
+    transitions:
+      - to: follow_up_delay
+
+  follow_up_delay:
+    type: delay
+    duration_days: 60
+    transitions:
+      - to: follow_up_decision
+
+  follow_up_decision:
+    type: decision
+    branches:
+      - probability: 0.60
+        to: telehealth_follow_up
+      - probability: 0.25
+        to: in_person_follow_up
+      - probability: 0.15
+        to: crisis_intervention
+
+  telehealth_follow_up:
+    type: encounter
+    encounter_type: "Telehealth Visit"
+    reason: "Collaborative care follow-up"
+    provider_role: "Care Manager"
+    location: "Virtual"
+    transitions:
+      - to: telehealth_assessments
+
+  telehealth_assessments:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "44261-6"
+        name: "PHQ-9 Total Score"
+        units: "score"
+        value_range:
+          min: 8
+          max: 14
+    transitions:
+      - to: follow_up_delay
+
+  in_person_follow_up:
+    type: encounter
+    encounter_type: "Behavioral Health Follow-up"
+    reason: "Medication management"
+    provider_role: "Psychiatric Nurse Practitioner"
+    location: "Integrated Care Clinic"
+    transitions:
+      - to: in_person_assessments
+
+  in_person_assessments:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "44261-6"
+        name: "PHQ-9 Total Score"
+        units: "score"
+        value_range:
+          min: 6
+          max: 12
+      - loinc: "69730-0"
+        name: "GAD-7 Total Score"
+        units: "score"
+        value_range:
+          min: 7
+          max: 14
+    transitions:
+      - to: follow_up_delay
+
+  crisis_intervention:
+    type: encounter
+    encounter_type: "Urgent Behavioral Health Visit"
+    reason: "Suicidal ideation risk assessment"
+    provider_role: "Psychiatrist"
+    location: "Emergency Behavioral Health"
+    transitions:
+      - to: crisis_procedures
+
+  crisis_procedures:
+    type: procedure
+    attach_to_last_encounter: true
+    procedures:
+      - name: "Collaborative Care Management"
+        code: "99492"
+        system: "CPT"
+        reason: "Behavioral health integration"
+        status: "completed"
+    transitions:
+      - to: safety_plan
+
+  safety_plan:
+    type: care_plan
+    care_plans:
+      - name: "Safety Planning Intervention"
+        category: "behavioral_health"
+        goal: "Reduce acute suicide risk"
+        activities:
+          - "Document coping strategies"
+          - "Schedule follow-up within 7 days"
+          - "Contact crisis hotline if symptoms escalate"
+    transitions:
+      - to: follow_up_delay
+
+  end:
+    type: terminal

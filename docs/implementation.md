@@ -36,11 +36,17 @@ This document captures the current state and near-term priorities for the simula
 - 🔄 Author additional modules using the documented schema (`docs/scenario_recipes.md`, `modules/*.yaml`), expanding beyond cardiometabolic cohorts.
   - ✅ Pediatric asthma & immunization pathway (`modules/pediatric_asthma_management.yaml`).
   - ✅ Prenatal care with gestational diabetes management (`modules/prenatal_care_management.yaml`).
-  - 🔜 Oncology survivorship, CKD, COPD, and mental health scenarios from the backlog.
+  - ✅ Oncology survivorship (`modules/oncology_survivorship.yaml`).
+  - ✅ CKD dialysis planning (`modules/ckd_dialysis_planning.yaml`).
+  - ✅ COPD home oxygen therapy (`modules/copd_home_oxygen.yaml`).
+  - ✅ Mental health integrated care (`modules/mental_health_integrated_care.yaml`).
+  - 🔜 Remaining backlog modules (geriatrics, sepsis survivorship, HIV management).
 - 🔄 Rebuild validation to cover schema, terminology, and temporal consistency; ensure new tests run in CI.
   - ✅ Structural validator (`validate_module_definition`) now blocks invalid transitions.
+  - ✅ CLI linter (`tools/module_linter.py`) enforces code bindings across modules.
   - 🔜 Temporal/terminology cross-checks and Monte Carlo regression tests.
 - 🔄 Add performance/snapshot tests to protect export stability and generator throughput.
+  - ✅ Baseline multi-module run recorded (200 patients, oncology + CKD + mental health) ~17s into `output/perf_baseline/`.
 
 ### Phase 4 – Docs, Tooling, and Release Prep
 - Rewrite README and docs to focus on the simulator; link to the migration branch for legacy usage.
@@ -54,7 +60,7 @@ This document captures the current state and near-term priorities for the simula
 
 ## Immediate Next Steps
 1. **Extend module catalogue**
-   - Prioritize oncology survivorship, CKD dialysis planning, COPD home oxygen, and mental health integrated care recipes.
+   - Implement remaining backlog scenarios (geriatrics, sepsis survivorship, HIV/PrEP) using the established authoring pattern.
    - Add scenario wiring plus regression tests mirroring `tests/test_module_engine.py` for every new module.
 2. **Broaden validation coverage**
    - Build a module linter CLI (under `tools/`) that wraps `validate_module_definition` and checks terminology bindings.

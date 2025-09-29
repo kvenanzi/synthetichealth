@@ -1,0 +1,176 @@
+name: ckd_dialysis_planning
+description: Chronic kidney disease stage IV–V management with dialysis readiness workflow.
+categories:
+  encounters: replace
+  conditions: replace
+  medications: replace
+  observations: augment
+  procedures: augment
+  care_plans: augment
+states:
+  start:
+    type: start
+    transitions:
+      - to: nephrology_intake
+
+  nephrology_intake:
+    type: encounter
+    encounter_type: "Nephrology Consultation"
+    reason: "CKD evaluation"
+    provider_role: "Nephrologist"
+    location: "Renal Clinic"
+    transitions:
+      - to: ckd_conditions
+
+  ckd_conditions:
+    type: condition_onset
+    attach_to_last_encounter: true
+    conditions:
+      - name: "Chronic Kidney Disease Stage 4"
+        icd10: "N18.4"
+        snomed: "431855005"
+        category: "renal"
+      - name: "Anemia of Chronic Disease"
+        icd10: "D63.1"
+        snomed: "44054006"
+        category: "renal"
+    transitions:
+      - to: ckd_care_plan
+
+  ckd_care_plan:
+    type: care_plan
+    care_plans:
+      - name: "CKD Dialysis Preparation Plan"
+        category: "renal_management"
+        goal: "Delay progression and prepare for renal replacement therapy"
+        activities:
+          - "Quarterly nephrology follow-up"
+          - "Vascular access education"
+          - "Nutrition counseling for low sodium and low phosphate diet"
+    transitions:
+      - to: baseline_labs
+
+  baseline_labs:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "33914-3"
+        name: "Estimated GFR"
+        units: "mL/min/1.73m2"
+        value_range:
+          min: 16
+          max: 25
+      - loinc: "2160-0"
+        name: "Serum Creatinine"
+        units: "mg/dL"
+        value_range:
+          min: 2.1
+          max: 4.3
+      - loinc: "718-7"
+        name: "Hemoglobin"
+        units: "g/dL"
+        value_range:
+          min: 9.5
+          max: 11.5
+    transitions:
+      - to: ckd_medications
+
+  ckd_medications:
+    type: medication_start
+    attach_to_last_encounter: true
+    medications:
+      - name: "Epoetin Alfa"
+        rxnorm: "111419"
+        dose: "4000 units subcutaneous weekly"
+        therapy_category: "anemia_management"
+      - name: "Sevelamer"
+        rxnorm: "861007"
+        dose: "800 mg three times daily with meals"
+        therapy_category: "phosphate_binder"
+    transitions:
+      - to: follow_up_delay
+
+  follow_up_delay:
+    type: delay
+    duration_days: 120
+    transitions:
+      - to: follow_up_visit
+
+  follow_up_visit:
+    type: encounter
+    encounter_type: "CKD Follow-up"
+    reason: "Monitor renal function"
+    provider_role: "Nephrologist"
+    location: "Renal Clinic"
+    transitions:
+      - to: follow_up_observations
+
+  follow_up_observations:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "33914-3"
+        name: "Estimated GFR"
+        units: "mL/min/1.73m2"
+        value_range:
+          min: 12
+          max: 22
+      - loinc: "77145-4"
+        name: "Dialysis Adequacy Assessment"
+        units: "ratio"
+        value_range:
+          min: 1.2
+          max: 1.8
+    transitions:
+      - to: dialysis_decision
+
+  dialysis_decision:
+    type: decision
+    branches:
+      - probability: 0.70
+        to: follow_up_delay
+      - probability: 0.30
+        to: dialysis_preparation
+
+  dialysis_preparation:
+    type: procedure
+    attach_to_last_encounter: true
+    procedures:
+      - name: "Arteriovenous Fistula Creation"
+        code: "36821"
+        system: "CPT"
+        reason: "Dialysis access"
+        status: "completed"
+    transitions:
+      - to: dialysis_training
+
+  dialysis_training:
+    type: encounter
+    encounter_type: "Dialysis Education Session"
+    reason: "Initiate dialysis planning"
+    provider_role: "Dialysis Nurse"
+    location: "Dialysis Center"
+    transitions:
+      - to: dialysis_follow_up
+
+  dialysis_follow_up:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "2951-2"
+        name: "Urea Nitrogen"
+        units: "mg/dL"
+        value_range:
+          min: 38
+          max: 65
+    transitions:
+      - to: dialysis_delay
+
+  dialysis_delay:
+    type: delay
+    duration_days: 60
+    transitions:
+      - to: follow_up_visit
+
+  end:
+    type: terminal

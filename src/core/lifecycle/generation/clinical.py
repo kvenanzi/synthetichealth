@@ -1995,7 +1995,11 @@ def generate_family_history(patient, min_fam=0, max_fam=3):
     # Phase 3: incorporate genetic marker driven family history
     genetic_markers = patient.get("genetic_markers", [])
     for marker in genetic_markers:
-        marker_config = GENETIC_RISK_FACTORS.get(marker["name"], {})
+        if isinstance(marker, dict):
+            marker_name = marker.get("name")
+        else:
+            marker_name = str(marker)
+        marker_config = GENETIC_RISK_FACTORS.get(marker_name, {})
         family_conditions = marker_config.get("family_history_conditions", [])
         if not family_conditions:
             continue
@@ -2006,7 +2010,6 @@ def generate_family_history(patient, min_fam=0, max_fam=3):
                 "patient_id": patient["patient_id"],
                 "relation": random.choice(typical_relations),
                 "condition": condition,
-                "genetic_marker": marker["name"]
+                "genetic_marker": marker_name,
             })
     return family
-

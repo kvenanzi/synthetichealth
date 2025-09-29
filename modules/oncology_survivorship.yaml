@@ -1,0 +1,140 @@
+name: oncology_survivorship
+description: Breast cancer survivorship follow-up with endocrine therapy and recurrence surveillance.
+categories:
+  encounters: replace
+  conditions: replace
+  medications: replace
+  observations: augment
+  procedures: augment
+  care_plans: augment
+states:
+  start:
+    type: start
+    transitions:
+      - to: intake_visit
+
+  intake_visit:
+    type: encounter
+    encounter_type: "Oncology Survivorship Visit"
+    reason: "Post-treatment surveillance"
+    provider_role: "Medical Oncologist"
+    location: "Cancer Center"
+    transitions:
+      - to: oncology_conditions
+
+  oncology_conditions:
+    type: condition_onset
+    attach_to_last_encounter: true
+    conditions:
+      - name: "History of Breast Cancer"
+        icd10: "Z85.3"
+        snomed: "429053008"
+        category: "oncology"
+      - name: "Endocrine Therapy Monitoring"
+        icd10: "Z51.81"
+        snomed: "702561005"
+        category: "oncology"
+    transitions:
+      - to: survivorship_plan
+
+  survivorship_plan:
+    type: care_plan
+    care_plans:
+      - name: "Breast Cancer Survivorship Plan"
+        category: "oncology_follow_up"
+        goal: "Maintain remission with guideline-based surveillance"
+        activities:
+          - "Annual mammography"
+          - "Semiannual endocrine therapy adherence check"
+          - "Lymphedema symptom monitoring"
+    transitions:
+      - to: endocrine_therapy
+
+  endocrine_therapy:
+    type: medication_start
+    attach_to_last_encounter: true
+    medications:
+      - name: "Tamoxifen"
+        rxnorm: "4179"
+        dose: "20 mg daily"
+        therapy_category: "endocrine"
+      - name: "Letrozole"
+        rxnorm: "310362"
+        dose: "2.5 mg daily"
+        therapy_category: "endocrine"
+    transitions:
+      - to: surveillance_delay
+
+  surveillance_delay:
+    type: delay
+    duration_days: 180
+    transitions:
+      - to: surveillance_visit
+
+  surveillance_visit:
+    type: encounter
+    encounter_type: "Oncology Follow-up"
+    reason: "Surveillance exam"
+    provider_role: "Medical Oncologist"
+    location: "Cancer Center"
+    transitions:
+      - to: surveillance_observations
+
+  surveillance_observations:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "33717-0"
+        name: "Cancer Antigen 15-3"
+        units: "U/mL"
+        value_range:
+          min: 15
+          max: 42
+      - loinc: "24627-2"
+        name: "Bone Mineral Density"
+        units: "g/cm2"
+        value_range:
+          min: 0.7
+          max: 1.1
+    transitions:
+      - to: surveillance_decision
+
+  surveillance_decision:
+    type: decision
+    branches:
+      - probability: 0.80
+        to: surveillance_delay
+      - probability: 0.15
+        to: recurrence_workup
+      - probability: 0.05
+        to: end
+
+  recurrence_workup:
+    type: procedure
+    attach_to_last_encounter: true
+    procedures:
+      - name: "Diagnostic PET/CT"
+        code: "78815"
+        system: "CPT"
+        reason: "Evaluate suspected recurrence"
+        status: "completed"
+    transitions:
+      - to: recurrence_medications
+
+  recurrence_medications:
+    type: medication_start
+    attach_to_last_encounter: true
+    medications:
+      - name: "Capecitabine"
+        rxnorm: "310940"
+        dose: "1250 mg/m2 twice daily"
+        therapy_category: "salvage_chemo"
+      - name: "Goserelin"
+        rxnorm: "197943"
+        dose: "3.6 mg subcutaneous monthly"
+        therapy_category: "ovarian_suppression"
+    transitions:
+      - to: surveillance_delay
+
+  end:
+    type: terminal

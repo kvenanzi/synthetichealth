@@ -1486,6 +1486,10 @@ def main():
                 care_plans = module_result.care_plans
             else:
                 care_plans.extend(module_result.care_plans)
+        for plan in care_plans:
+            activities = plan.get("activities")
+            if isinstance(activities, list):
+                plan["activities"] = ", ".join(activities)
         all_care_plans.extend(care_plans)
         death = generate_death(patient_dict, conditions)
         if death:

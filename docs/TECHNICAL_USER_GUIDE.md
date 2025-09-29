@@ -27,7 +27,7 @@ All commands below assume the virtual environment is active. Raw vocabularies sh
 ## 5. Module-Based Clinical Workflows
 - **Module schema** – YAML files under `modules/` describe state machines with supported types (`start`, `delay`, `encounter`, `condition_onset`, `medication_start`, `observation`, `procedure`, `immunization`, `care_plan`, `decision`, `terminal`). Each state carries normalized terminology, timing, and branching metadata.
 - **Execution** – `ModuleEngine` loads modules listed in a scenario (for example, `modules: ["cardiometabolic_intensive"]`) or supplied via `--module pediatric_asthma_management`. Categories marked as `replace` override lifecycle defaults; `augment` adds supplemental events.
-- **Catalogue** – Built-in modules include `cardiometabolic_intensive`, `pediatric_asthma_management`, and `prenatal_care_management`. Use `--list-modules` to inspect the local catalogue.
+- **Catalogue** – Built-in modules include `cardiometabolic_intensive`, `pediatric_asthma_management`, `prenatal_care_management`, `oncology_survivorship`, `ckd_dialysis_planning`, `copd_home_oxygen`, and `mental_health_integrated_care`. Use `--list-modules` to inspect the local catalogue.
 - **Authoring pattern** – Start from an existing YAML (see `modules/pediatric_asthma_management.yaml` or `modules/prenatal_care_management.yaml`). Capture guideline sources in `docs/synthea_integration_research.md`, reference codes (ICD-10, SNOMED, RxNorm, LOINC, VSAC), and encode realistic branching probabilities. Run `pytest tests/test_module_engine.py` after creating or editing modules to ensure validation passes.
 
 ## 6. Running the Simulator
@@ -58,5 +58,6 @@ Set `TERMINOLOGY_DB_PATH=$(pwd)/data/terminology/terminology.duckdb` for high-vo
 ## 8. Validation & Troubleshooting
 - `pytest tests/tools` ensures all terminology importers still parse staged samples.
 - `pytest tests/test_fhir_formatter.py tests/test_terminology_loaders.py` validates exporter metadata wiring.
+- `python tools/module_linter.py --all` performs structural and terminology linting on every clinical module before release.
 - If terminology lookups return empty results, re-run `refresh_terminology.py` and confirm `TERMINOLOGY_DB_PATH` points to the regenerated DuckDB file.
 - Use `--dry-run` (to be implemented) or small `--num-records` values when iterating on scenario logic to shorten feedback loops.

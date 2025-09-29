@@ -14,9 +14,13 @@ if root_str not in sys.path:
 from src.core.lifecycle.modules import ModuleEngine, ModuleValidationError
 
 
+def run_module(module_name: str, patient: dict, seed: int = 1):
+    random.seed(seed)
+    engine = ModuleEngine([module_name], modules_root=Path("modules"))
+    return engine.execute(patient)
+
+
 def test_module_engine_generates_structured_events():
-    random.seed(0)
-    engine = ModuleEngine(["cardiometabolic_intensive"], modules_root=Path("modules"))
     patient = {
         "patient_id": "test-patient",
         "birthdate": "1970-01-01",
@@ -24,7 +28,7 @@ def test_module_engine_generates_structured_events():
         "gender": "male",
         "race": "White",
     }
-    result = engine.execute(patient)
+    result = run_module("cardiometabolic_intensive", patient, seed=0)
 
     assert "encounters" in result.replacements
     assert "conditions" in result.replacements
@@ -48,8 +52,6 @@ def test_module_engine_generates_structured_events():
 
 
 def test_pediatric_module_covers_immunizations_and_procedures():
-    random.seed(1)
-    engine = ModuleEngine(["pediatric_asthma_management"], modules_root=Path("modules"))
     patient = {
         "patient_id": "child-1",
         "birthdate": "2010-03-15",
@@ -57,7 +59,7 @@ def test_pediatric_module_covers_immunizations_and_procedures():
         "gender": "female",
         "race": "Black",
     }
-    result = engine.execute(patient)
+    result = run_module("pediatric_asthma_management", patient, seed=1)
 
     assert result.immunizations, "module should track immunizations"
     assert any(immun["cvx_code"] == "140" for immun in result.immunizations)
@@ -70,8 +72,6 @@ def test_pediatric_module_covers_immunizations_and_procedures():
 
 
 def test_prenatal_module_handles_risk_branching():
-    random.seed(1)
-    engine = ModuleEngine(["prenatal_care_management"], modules_root=Path("modules"))
     patient = {
         "patient_id": "prenatal-1",
         "birthdate": "1995-08-01",
@@ -79,7 +79,7 @@ def test_prenatal_module_handles_risk_branching():
         "gender": "female",
         "race": "Hispanic",
     }
-    result = engine.execute(patient)
+    result = run_module("prenatal_care_management", patient, seed=1)
 
     condition_names = {cond["name"] for cond in result.conditions}
     assert "Normal Pregnancy" in condition_names
@@ -115,3 +115,73 @@ states:
 
     with pytest.raises(ModuleValidationError):
         ModuleEngine(["invalid_module"], modules_root=tmp_path)
+
+
+def test_oncology_survivorship_module_generates_surveillance_plan():
+    patient = {
+        "patient_id": "onc-1",
+        "birthdate": "1978-06-01",
+        "age": 46,
+        "gender": "female",
+        "race": "White",
+    }
+    result = run_module("oncology_survivorship", patient, seed=1)
+
+    condition_names = {cond["name"] for cond in result.conditions}
+    assert {"History of Breast Cancer", "Endocrine Therapy Monitoring"}.issubset(condition_names)
+
+    medication_names = {med["name"] for med in result.medications}
+    assert {"Tamoxifen", "Letrozole"}.issubset(medication_names)
+
+    assert any(plan["name"] == "Breast Cancer Survivorship Plan" for plan in result.care_plans)
+    assert any(proc["code"] == "78815" for proc in result.procedures)
+
+
+def test_ckd_module_creates_dialysis_access_procedure():
+    patient = {
+        "patient_id": "ckd-1",
+        "birthdate": "1965-02-11",
+        "age": 59,
+        "gender": "male",
+        "race": "Black",
+    }
+    result = run_module("ckd_dialysis_planning", patient, seed=1)
+
+    assert any(cond["icd10_code"] == "N18.4" for cond in result.conditions)
+    assert any(proc["code"] == "36821" for proc in result.procedures)
+    assert any(obs["loinc_code"] == "33914-3" for obs in result.observations)
+
+
+def test_copd_module_adds_immunizations_and_rescue_medications():
+    patient = {
+        "patient_id": "copd-1",
+        "birthdate": "1956-09-20",
+        "age": 68,
+        "gender": "male",
+        "race": "White",
+    }
+    result = run_module("copd_home_oxygen", patient, seed=1)
+
+    condition_names = {cond["name"] for cond in result.conditions}
+    assert "Severe COPD" in condition_names
+
+    immunization_codes = {imm["cvx_code"] for imm in result.immunizations}
+    assert {"140", "33"}.issubset(immunization_codes)
+
+    medication_names = {med["name"] for med in result.medications}
+    assert {"Fluticasone/Salmeterol", "Tiotropium"}.issubset(medication_names)
+
+
+def test_mental_health_module_captures_care_plan_and_procedure():
+    patient = {
+        "patient_id": "mh-1",
+        "birthdate": "1990-04-04",
+        "age": 34,
+        "gender": "female",
+        "race": "Hispanic",
+    }
+    result = run_module("mental_health_integrated_care", patient, seed=1)
+
+    assert any(plan["name"] == "Collaborative Care Plan" for plan in result.care_plans)
+    assert any(obs["loinc_code"] == "44261-6" for obs in result.observations)
+    assert any(proc["code"] == "99492" for proc in result.procedures)

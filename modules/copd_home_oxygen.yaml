@@ -1,0 +1,179 @@
+name: copd_home_oxygen
+description: Severe COPD management with home oxygen support and exacerbation handling.
+categories:
+  encounters: replace
+  conditions: replace
+  medications: replace
+  observations: augment
+  procedures: augment
+  immunizations: augment
+states:
+  start:
+    type: start
+    transitions:
+      - to: baseline_visit
+
+  baseline_visit:
+    type: encounter
+    encounter_type: "Pulmonology Visit"
+    reason: "COPD management"
+    provider_role: "Pulmonologist"
+    location: "Pulmonary Clinic"
+    transitions:
+      - to: copd_conditions
+
+  copd_conditions:
+    type: condition_onset
+    attach_to_last_encounter: true
+    conditions:
+      - name: "Severe COPD"
+        icd10: "J44.1"
+        snomed: "13645005"
+        category: "respiratory"
+      - name: "Home Oxygen Dependence"
+        icd10: "Z99.81"
+        snomed: "25710003"
+        category: "respiratory"
+    transitions:
+      - to: maintenance_medications
+
+  maintenance_medications:
+    type: medication_start
+    attach_to_last_encounter: true
+    medications:
+      - name: "Fluticasone/Salmeterol"
+        rxnorm: "896443"
+        dose: "250/50 mcg inhaled twice daily"
+        therapy_category: "maintenance"
+      - name: "Tiotropium"
+        rxnorm: "197361"
+        dose: "18 mcg inhaled daily"
+        therapy_category: "anticholinergic"
+      - name: "Albuterol"
+        rxnorm: "435"
+        dose: "Pro re nata for dyspnea"
+        therapy_category: "rescue"
+    transitions:
+      - to: baseline_immunizations
+
+  baseline_immunizations:
+    type: immunization
+    attach_to_last_encounter: true
+    immunizations:
+      - name: "Influenza"
+        cvx: "140"
+        dose_number: 1
+      - name: "Pneumococcal 23-valent"
+        cvx: "33"
+        dose_number: 1
+    transitions:
+      - to: baseline_observations
+
+  baseline_observations:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "19868-9"
+        name: "Pulse Oximetry"
+        units: "%"
+        value_range:
+          min: 88
+          max: 94
+      - loinc: "8277-6"
+        name: "Arterial Blood Gas"
+        units: "mm[Hg]"
+        value_range:
+          min: 45
+          max: 65
+    transitions:
+      - to: maintenance_delay
+
+  maintenance_delay:
+    type: delay
+    duration_days: 90
+    transitions:
+      - to: status_decision
+
+  status_decision:
+    type: decision
+    branches:
+      - probability: 0.75
+        to: maintenance_visit
+      - probability: 0.20
+        to: exacerbation_visit
+      - probability: 0.05
+        to: end
+
+  maintenance_visit:
+    type: encounter
+    encounter_type: "Pulmonology Follow-up"
+    reason: "Stable COPD review"
+    provider_role: "Pulmonologist"
+    location: "Pulmonary Clinic"
+    transitions:
+      - to: maintenance_observations
+
+  maintenance_observations:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "19868-9"
+        name: "Pulse Oximetry"
+        units: "%"
+        value_range:
+          min: 90
+          max: 95
+    transitions:
+      - to: maintenance_delay
+
+  exacerbation_visit:
+    type: encounter
+    encounter_type: "Emergency Department"
+    reason: "COPD exacerbation"
+    provider_role: "Emergency Medicine"
+    location: "Emergency Department"
+    transitions:
+      - to: exacerbation_treatment
+
+  exacerbation_treatment:
+    type: medication_start
+    attach_to_last_encounter: true
+    medications:
+      - name: "Prednisone"
+        rxnorm: "865098"
+        dose: "40 mg daily for 5 days"
+        therapy_category: "systemic_steroid"
+      - name: "Azithromycin"
+        rxnorm: "18600"
+        dose: "500 mg day 1, then 250 mg daily for 4 days"
+        therapy_category: "antibiotic"
+    transitions:
+      - to: oxygen_titration
+
+  oxygen_titration:
+    type: procedure
+    attach_to_last_encounter: true
+    procedures:
+      - name: "Home Oxygen Titration"
+        code: "94760"
+        system: "CPT"
+        reason: "Adjust oxygen flow rate"
+        status: "completed"
+    transitions:
+      - to: exacerbation_observations
+
+  exacerbation_observations:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "2708-6"
+        name: "Oxygen Flow Rate"
+        units: "L/min"
+        value_range:
+          min: 2
+          max: 6
+    transitions:
+      - to: maintenance_delay
+
+  end:
+    type: terminal
