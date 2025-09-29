@@ -185,3 +185,26 @@ def test_mental_health_module_captures_care_plan_and_procedure():
     assert any(plan["name"] == "Collaborative Care Plan" for plan in result.care_plans)
     assert any(obs["loinc_code"] == "44261-6" for obs in result.observations)
     assert any(proc["code"] == "99492" for proc in result.procedures)
+
+
+def test_geriatric_module_models_polypharmacy():
+    patient = {
+        "patient_id": "ger-1",
+        "birthdate": "1942-11-15",
+        "age": 82,
+        "gender": "female",
+        "race": "White",
+    }
+    result = run_module("geriatric_polypharmacy", patient, seed=1)
+
+    condition_codes = {cond["icd10_code"] for cond in result.conditions}
+    assert {"I50.32", "N18.30", "M17.11"}.issubset(condition_codes)
+
+    medication_names = {med["name"] for med in result.medications}
+    assert {"Furosemide", "Metoprolol"}.issubset(medication_names)
+
+    observation_codes = {obs["loinc_code"] for obs in result.observations}
+    assert {"718-7", "2160-0", "10998-3"}.issubset(observation_codes)
+
+    procedure_codes = {proc["code"] for proc in result.procedures}
+    assert "73502" in procedure_codes

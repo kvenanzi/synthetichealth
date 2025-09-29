@@ -195,6 +195,27 @@ DEFAULT_SCENARIOS: Dict[str, Dict[str, object]] = {
         },
         "modules": ["mental_health_integrated_care"],
     },
+    "geriatric_polypharmacy": {
+        "metadata": {"description": "Geriatric multimorbidity cohort with fall risk management"},
+        "age_dist": {"0-18": 0.0, "19-40": 0.05, "41-65": 0.2, "66-120": 0.75},
+        "gender_dist": {"male": 0.35, "female": 0.63, "other": 0.02},
+        "race_dist": {
+            "White": 0.62,
+            "Black": 0.2,
+            "Asian": 0.05,
+            "Hispanic": 0.1,
+            "Native American": 0.01,
+            "Other": 0.02,
+        },
+        "terminology": {
+            "icd10_codes": ["I50.32", "N18.30", "M17.11"],
+            "loinc_codes": ["718-7", "2160-0", "10998-3"],
+            "rxnorm_cuis": ["200371", "856874", "7052"],
+            "value_set_oids": ["2.16.840.1.113762.1.4.1047.18"],
+            "umls_cuis": ["C0018802"],
+        },
+        "modules": ["geriatric_polypharmacy"],
+    },
 }
 
 

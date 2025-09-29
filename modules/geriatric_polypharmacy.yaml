@@ -1,0 +1,217 @@
+name: geriatric_polypharmacy
+description: Geriatric multimorbidity management with fall risk mitigation and deprescribing reviews.
+categories:
+  encounters: replace
+  conditions: replace
+  medications: replace
+  observations: augment
+  procedures: augment
+  care_plans: augment
+states:
+  start:
+    type: start
+    transitions:
+      - to: intake_visit
+
+  intake_visit:
+    type: encounter
+    encounter_type: "Geriatric Assessment"
+    reason: "Chronic disease management"
+    provider_role: "Geriatrician"
+    location: "Skilled Nursing Facility"
+    transitions:
+      - to: chronic_conditions
+
+  chronic_conditions:
+    type: condition_onset
+    attach_to_last_encounter: true
+    conditions:
+      - name: "Chronic Heart Failure"
+        icd10: "I50.32"
+        snomed: "48447003"
+        category: "cardiac"
+      - name: "Chronic Kidney Disease Stage 3"
+        icd10: "N18.30"
+        snomed: "700379004"
+        category: "renal"
+      - name: "Osteoarthritis of Knee"
+        icd10: "M17.11"
+        snomed: "239873007"
+        category: "musculoskeletal"
+    transitions:
+      - to: polypharmacy_care_plan
+
+  polypharmacy_care_plan:
+    type: care_plan
+    care_plans:
+      - name: "Polypharmacy Review"
+        category: "geriatric"
+        goal: "Reduce fall risk and optimize medication burden"
+        activities:
+          - "Quarterly medication reconciliation"
+          - "Physical therapy balance training"
+          - "Vitamin D supplementation adherence"
+    transitions:
+      - to: baseline_medications
+
+  baseline_medications:
+    type: medication_start
+    attach_to_last_encounter: true
+    medications:
+      - name: "Furosemide"
+        rxnorm: "200371"
+        dose: "40 mg daily"
+        therapy_category: "loop_diuretic"
+      - name: "Metoprolol"
+        rxnorm: "856874"
+        dose: "50 mg twice daily"
+        therapy_category: "beta_blocker"
+      - name: "Oxycodone"
+        rxnorm: "7052"
+        dose: "5 mg every 6 hours as needed"
+        therapy_category: "opioid"
+    transitions:
+      - to: baseline_observations
+
+  baseline_observations:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "718-7"
+        name: "Hemoglobin"
+        units: "g/dL"
+        value_range:
+          min: 10.2
+          max: 12.5
+      - loinc: "2160-0"
+        name: "Serum Creatinine"
+        units: "mg/dL"
+        value_range:
+          min: 1.5
+          max: 2.1
+      - loinc: "10998-3"
+        name: "Vitamin D"
+        units: "ng/mL"
+        value_range:
+          min: 18
+          max: 32
+    transitions:
+      - to: follow_up_delay
+
+  follow_up_delay:
+    type: delay
+    duration_days: 90
+    transitions:
+      - to: review_visit
+
+  review_visit:
+    type: encounter
+    encounter_type: "Medication Review"
+    reason: "Quarterly polypharmacy check"
+    provider_role: "Clinical Pharmacist"
+    location: "Skilled Nursing Facility"
+    transitions:
+      - to: review_observations
+
+  review_observations:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "718-7"
+        name: "Hemoglobin"
+        units: "g/dL"
+        value_range:
+          min: 10.0
+          max: 12.8
+      - loinc: "2160-0"
+        name: "Serum Creatinine"
+        units: "mg/dL"
+        value_range:
+          min: 1.6
+          max: 2.3
+    transitions:
+      - to: review_decision
+
+  review_decision:
+    type: decision
+    branches:
+      - probability: 0.55
+        to: follow_up_delay
+      - probability: 0.25
+        to: deprescribing_encounter
+      - probability: 0.15
+        to: fall_event
+      - probability: 0.05
+        to: end
+
+  deprescribing_encounter:
+    type: encounter
+    encounter_type: "Deprescribing Consultation"
+    reason: "Adjust high-risk medications"
+    provider_role: "Geriatrician"
+    location: "Clinic"
+    transitions:
+      - to: deprescribing_changes
+
+  deprescribing_changes:
+    type: medication_start
+    attach_to_last_encounter: true
+    medications:
+      - name: "Acetaminophen"
+        rxnorm: "161"
+        dose: "650 mg every 6 hours as needed"
+        therapy_category: "analgesic"
+      - name: "Buprenorphine Patch"
+        rxnorm: "1234546"
+        dose: "5 mcg/hr transdermal weekly"
+        therapy_category: "opioid_sparing"
+    transitions:
+      - to: follow_up_delay
+
+  fall_event:
+    type: encounter
+    encounter_type: "Emergency Department"
+    reason: "Fall with injury"
+    provider_role: "Emergency Medicine"
+    location: "Emergency Department"
+    transitions:
+      - to: fall_procedures
+
+  fall_procedures:
+    type: procedure
+    attach_to_last_encounter: true
+    procedures:
+      - name: "Hip Radiograph"
+        code: "73502"
+        system: "CPT"
+        reason: "Evaluate fall injury"
+        status: "completed"
+      - name: "Physical Therapy Referral"
+        code: "97110"
+        system: "CPT"
+        reason: "Strength and balance training"
+        status: "ordered"
+    transitions:
+      - to: fall_follow_up
+
+  fall_follow_up:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "4544-3"
+        name: "Calcium"
+        units: "mg/dL"
+        value_range:
+          min: 8.4
+          max: 9.8
+      - loinc: "19868-9"
+        name: "Oxygen Saturation"
+        units: "%"
+        value_range:
+          min: 90
+          max: 97
+    transitions:
+      - to: follow_up_delay
+
+  end:
+    type: terminal

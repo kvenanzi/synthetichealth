@@ -45,6 +45,7 @@ The following clinically curated scenarios extend the current simulator catalog.
 - **VSAC**: Potentially inappropriate medications OID 2.16.840.1.113762.1.4.1047.18.
 - **UMLS**: C0018802 (Heart failure), semantic type T047.
 - **Workflow**: Quarterly medication review, PT referrals, fall assessment observations.
+- **Implementation**: Modeled in `modules/geriatric_polypharmacy.yaml` with deprescribing and fall-event loops.
 
 ## 6. Oncology Survivorship – Breast Cancer
 - **Population**: Female 45–70, post-treatment surveillance.
