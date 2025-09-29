@@ -1,0 +1,201 @@
+name: prenatal_care_management
+description: Prenatal care pathway with gestational diabetes screening and risk-based branching.
+categories:
+  encounters: replace
+  conditions: replace
+  medications: replace
+  observations: augment
+  procedures: augment
+  care_plans: augment
+states:
+  start:
+    type: start
+    transitions:
+      - to: intake_visit
+
+  intake_visit:
+    type: encounter
+    encounter_type: "Prenatal Intake"
+    reason: "Initial prenatal assessment"
+    provider_role: "Obstetrician"
+    location: "Prenatal Clinic"
+    transitions:
+      - to: prenatal_conditions
+
+  prenatal_conditions:
+    type: condition_onset
+    attach_to_last_encounter: true
+    conditions:
+      - name: "Normal Pregnancy"
+        icd10: "Z34.03"
+        snomed: "169413002"
+        category: "obstetrics"
+    transitions:
+      - to: prenatal_care_plan
+
+  prenatal_care_plan:
+    type: care_plan
+    care_plans:
+      - name: "Prenatal Care Plan"
+        category: "prenatal"
+        goal: "Deliver term infant with minimal complications"
+        activities:
+          - "Schedule monthly prenatal visits"
+          - "Enroll in WIC and transportation support"
+          - "Provide gestational diabetes education"
+    transitions:
+      - to: baseline_labs
+
+  baseline_labs:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "14771-0"
+        name: "Prenatal Panel"
+        units: "panel"
+        value: "Normal"
+      - loinc: "35094-2"
+        name: "Blood Type"
+        units: ""
+        value: "O positive"
+      - loinc: "4544-3"
+        name: "Rubella IgG"
+        units: "index"
+        value_range:
+          min: 1.1
+          max: 3.2
+    transitions:
+      - to: first_trimester_ultrasound
+
+  first_trimester_ultrasound:
+    type: procedure
+    attach_to_last_encounter: true
+    procedures:
+      - name: "First Trimester Ultrasound"
+        code: "76801"
+        system: "CPT"
+        reason: "Viability assessment"
+        status: "completed"
+    transitions:
+      - to: follow_up_interval
+
+  follow_up_interval:
+    type: delay
+    duration_days: 30
+    transitions:
+      - to: follow_up_visit
+
+  follow_up_visit:
+    type: encounter
+    encounter_type: "Prenatal Follow-up"
+    reason: "Routine prenatal care"
+    provider_role: "Obstetrician"
+    location: "Prenatal Clinic"
+    transitions:
+      - to: follow_up_observations
+
+  follow_up_observations:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "8480-6"
+        name: "Systolic Blood Pressure"
+        units: "mm[Hg]"
+        value_range:
+          min: 105
+          max: 130
+      - loinc: "56052-8"
+        name: "Fetal Heart Rate"
+        units: "beats/min"
+        value_range:
+          min: 135
+          max: 160
+      - loinc: "14959-1"
+        name: "Fundal Height"
+        units: "cm"
+        value_range:
+          min: 16
+          max: 32
+    transitions:
+      - to: screening_decision
+
+  screening_decision:
+    type: decision
+    branches:
+      - probability: 0.70
+        to: follow_up_interval
+      - probability: 0.20
+        to: gdm_screening
+      - probability: 0.10
+        to: end
+
+  gdm_screening:
+    type: procedure
+    attach_to_last_encounter: true
+    procedures:
+      - name: "Oral Glucose Tolerance Test"
+        code: "82950"
+        system: "CPT"
+        reason: "Gestational diabetes screening"
+        status: "completed"
+    transitions:
+      - to: gdm_result
+
+  gdm_result:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "14779-1"
+        name: "Glucose [Mass/volume] 1 hour post 50g glucose"
+        units: "mg/dL"
+        value_range:
+          min: 135
+          max: 210
+    transitions:
+      - to: gdm_decision
+
+  gdm_decision:
+    type: decision
+    branches:
+      - probability: 0.6
+        to: follow_up_interval
+      - probability: 0.4
+        to: gdm_management
+
+  gdm_management:
+    type: encounter
+    encounter_type: "High Risk Prenatal"
+    reason: "Gestational diabetes management"
+    provider_role: "Maternal Fetal Medicine"
+    location: "High Risk Obstetrics"
+    transitions:
+      - to: gdm_condition
+
+  gdm_condition:
+    type: condition_onset
+    attach_to_last_encounter: true
+    conditions:
+      - name: "Gestational Diabetes"
+        icd10: "O24.419"
+        snomed: "11687002"
+        category: "obstetrics"
+    transitions:
+      - to: gdm_medications
+
+  gdm_medications:
+    type: medication_start
+    attach_to_last_encounter: true
+    medications:
+      - name: "Insulin NPH"
+        rxnorm: "7052"
+        dose: "10 units subcutaneous nightly"
+        therapy_category: "glycemic_control"
+      - name: "Prenatal Vitamin"
+        rxnorm: "316048"
+        dose: "One tablet daily"
+        therapy_category: "supplement"
+    transitions:
+      - to: follow_up_interval
+
+  end:
+    type: terminal

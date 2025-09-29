@@ -9,6 +9,8 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Set
 
 import yaml
 
+from .validation import ModuleValidationError, validate_module_definition
+
 
 MODULES_ROOT = Path("modules")
 
@@ -48,14 +50,28 @@ class ModuleDefinition:
             state_type = state_payload.get("type")
             if not state_type:
                 raise ValueError(f"State '{state_name}' in module '{name}' is missing a type")
-            transitions = state_payload.get("transitions", [])
+            transitions = cls._normalize_transitions(state_payload)
             states[state_name] = ModuleState(
                 name=state_name,
                 type=state_type,
-                data={k: v for k, v in state_payload.items() if k not in {"type", "transitions"}},
+                data={
+                    k: v
+                    for k, v in state_payload.items()
+                    if k not in {"type", "transitions", "branches"}
+                },
                 transitions=transitions,
             )
         return cls(name=name, description=description, categories=categories, states=states)
+
+    @staticmethod
+    def _normalize_transitions(state_payload: Dict[str, Any]) -> List[Dict[str, Any]]:
+        transitions = state_payload.get("transitions")
+        if transitions is not None:
+            return list(transitions)
+        branches = state_payload.get("branches")
+        if branches is not None:
+            return list(branches)
+        return []
 
 
 @dataclass
@@ -93,6 +109,9 @@ class ModuleEngine:
         self.definitions: List[ModuleDefinition] = []
         for module_name in module_names:
             definition = self._load_module(module_name)
+            issues = validate_module_definition(definition)
+            if issues:
+                raise ModuleValidationError(module_name, issues)
             self.definitions.append(definition)
         self.replace_categories: Dict[str, Set[str]] = {}
         for definition in self.definitions:
@@ -200,11 +219,7 @@ class _ModuleRunner:
         }
         self.output.encounters.append(entry)
         self.last_encounter_id = encounter_id
-        advance = state.data.get("advance_days")
-        if advance:
-            self.current_time += timedelta(days=int(advance))
-        else:
-            self.current_time += timedelta(days=1)
+        self._advance_time(state.data.get("advance_days"), default_days=1)
 
     def _handle_condition_onset(self, state: ModuleState) -> None:
         attach = bool(state.data.get("attach_to_last_encounter", False))
@@ -221,6 +236,7 @@ class _ModuleRunner:
                 "condition_category": condition.get("category"),
             }
             self.output.conditions.append(entry)
+        self._advance_time(state.data.get("advance_days"))
 
     def _handle_medication_start(self, state: ModuleState) -> None:
         attach = bool(state.data.get("attach_to_last_encounter", False))
@@ -242,6 +258,63 @@ class _ModuleRunner:
             if dose := medication.get("dose"):
                 entry["dose"] = dose
             self.output.medications.append(entry)
+        self._advance_time(state.data.get("advance_days"))
+
+    def _handle_procedure(self, state: ModuleState) -> None:
+        attach = bool(state.data.get("attach_to_last_encounter", False))
+        for procedure in state.data.get("procedures", []):
+            entry = {
+                "procedure_id": str(uuid.uuid4()),
+                "patient_id": self.patient["patient_id"],
+                "encounter_id": self.last_encounter_id if attach else None,
+                "name": procedure.get("name", "Procedure"),
+                "code": procedure.get("code"),
+                "coding_system": procedure.get("system"),
+                "reason": procedure.get("reason"),
+                "date": self.current_time.date().isoformat(),
+                "status": procedure.get("status", "completed"),
+            }
+            self.output.procedures.append(entry)
+        self._advance_time(state.data.get("advance_days"))
+
+    def _handle_immunization(self, state: ModuleState) -> None:
+        attach = bool(state.data.get("attach_to_last_encounter", False))
+        for immunization in state.data.get("immunizations", []):
+            entry = {
+                "immunization_id": str(uuid.uuid4()),
+                "patient_id": self.patient["patient_id"],
+                "encounter_id": self.last_encounter_id if attach else None,
+                "vaccine": immunization.get("name", "Immunization"),
+                "cvx_code": immunization.get("cvx"),
+                "date": self.current_time.date().isoformat(),
+                "status": immunization.get("status", "completed"),
+                "dose_number": immunization.get("dose_number"),
+            }
+            if lot := immunization.get("lot_number"):
+                entry["lot_number"] = lot
+            if manufacturer := immunization.get("manufacturer"):
+                entry["manufacturer"] = manufacturer
+            self.output.immunizations.append(entry)
+        self._advance_time(state.data.get("advance_days"))
+
+    def _handle_care_plan(self, state: ModuleState) -> None:
+        for plan in state.data.get("care_plans", []):
+            entry = {
+                "care_plan_id": str(uuid.uuid4()),
+                "patient_id": self.patient["patient_id"],
+                "name": plan.get("name", "Care Plan"),
+                "category": plan.get("category"),
+                "start_date": self.current_time.date().isoformat(),
+                "goal": plan.get("goal"),
+                "activities": plan.get("activities", []),
+            }
+            self.output.care_plans.append(entry)
+        self._advance_time(state.data.get("advance_days"))
+
+    def _advance_time(self, advance_days: Optional[int], default_days: int = 0) -> None:
+        days = advance_days if advance_days is not None else default_days
+        if days:
+            self.current_time += timedelta(days=int(days))
 
     def _handle_observation(self, state: ModuleState) -> None:
         attach = bool(state.data.get("attach_to_last_encounter", False))
@@ -267,6 +340,7 @@ class _ModuleRunner:
                 "panel": observation.get("panel"),
             }
             self.output.observations.append(entry)
+        self._advance_time(state.data.get("advance_days"))
 
     def _handle_decision(self, state: ModuleState) -> None:
         # decision nodes handled directly in _choose_transition
@@ -301,4 +375,3 @@ class _ModuleRunner:
         if target == "end":
             return None
         return target
-

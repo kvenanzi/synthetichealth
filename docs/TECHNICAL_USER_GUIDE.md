@@ -18,17 +18,17 @@ All commands below assume the virtual environment is active. Raw vocabularies sh
 4. **Runtime Loading** – `src/core/terminology/loaders.py` prefers DuckDB, falling back to `_full.csv` or the committed seeds. `build_terminology_lookup` converts scenario-selected concepts into fast lookups for exporters.
 
 ## 4. Generation Flow (Mermaid: `docs/diagrams/synthetic_patient_generator_flow.md`)
-1. **Scenario Selection** – CLI flags and optional YAML overrides pick a baseline cohort (`--scenario cardiometabolic`).
+1. **Scenario Selection** – CLI flags and optional YAML overrides pick a baseline cohort (`--scenario cardiometabolic`, `--scenario pediatric_asthma`, `--scenario prenatal_care`). Use `--list-scenarios` to view all built-ins.
 2. **load_scenario_config** – Merges overrides, resolves terminology details, and attaches filtered ICD-10/LOINC/RxNorm/VSAC/UMLS entries.
 3. **LifecycleOrchestrator** – Seeds demographics, SDOH factors, and visit cadence; delegates to `generate_patient_profile_for_index` for parallel execution.
 4. **Lifecycle Modules** – `generate_conditions`, `generate_encounters`, `generate_medications`, and `generate_observations` populate clinical events while embedding normalized codes.
 5. **Export Stage** – `FHIRFormatter`/`HL7v2Formatter` build rich resources (MedicationStatements now include RxNorm + UMLS extensions; Observations embed VSAC references) while CSV/Parquet writers create analytic tables.
 
 ## 5. Module-Based Clinical Workflows
-- **Module schema** – YAML files under `modules/` specify state machines (`start`, `encounter`, `condition_onset`, `medication_start`, `observation`, `delay`, `decision`, `terminal`) with normalized terminology, probabilities, and timing.
-- **Execution** – `ModuleEngine` loads modules listed in a scenario (for example, `modules: ["cardiometabolic_intensive"]`) and replaces/augments default encounters, conditions, medications, and observations.
-- **Authoring pattern** – Use `modules/cardiometabolic_intensive.yaml` as a template. Document guideline sources in `docs/synthea_integration_research.md`, include code references (ICD-10, SNOMED, RxNorm, LOINC, VSAC), and encode realistic branching probabilities.
-- **Expansion workflow** – Add YAML to `modules/`, reference the module in `docs/scenario_recipes.md`, update the scenario’s `modules` list, then run `pytest tests/test_module_engine.py` to validate execution.
+- **Module schema** – YAML files under `modules/` describe state machines with supported types (`start`, `delay`, `encounter`, `condition_onset`, `medication_start`, `observation`, `procedure`, `immunization`, `care_plan`, `decision`, `terminal`). Each state carries normalized terminology, timing, and branching metadata.
+- **Execution** – `ModuleEngine` loads modules listed in a scenario (for example, `modules: ["cardiometabolic_intensive"]`) or supplied via `--module pediatric_asthma_management`. Categories marked as `replace` override lifecycle defaults; `augment` adds supplemental events.
+- **Catalogue** – Built-in modules include `cardiometabolic_intensive`, `pediatric_asthma_management`, and `prenatal_care_management`. Use `--list-modules` to inspect the local catalogue.
+- **Authoring pattern** – Start from an existing YAML (see `modules/pediatric_asthma_management.yaml` or `modules/prenatal_care_management.yaml`). Capture guideline sources in `docs/synthea_integration_research.md`, reference codes (ICD-10, SNOMED, RxNorm, LOINC, VSAC), and encode realistic branching probabilities. Run `pytest tests/test_module_engine.py` after creating or editing modules to ensure validation passes.
 
 ## 6. Running the Simulator
 ```bash
@@ -38,6 +38,11 @@ python tools/refresh_terminology.py --root data/terminology --rebuild-db
 # Generate 500 patients with the cardiometabolic scenario
 python -m src.core.synthetic_patient_generator --num-records 500 \
     --scenario cardiometabolic --output-dir output/demo
+
+# Generate a prenatal cohort and explicitly add the cardiometabolic module
+python -m src.core.synthetic_patient_generator --num-records 250 \
+    --scenario prenatal_care --module cardiometabolic_intensive \
+    --output-dir output/prenatal_plus
 
 # CSV-only run for quick analytics
 python -m src.core.synthetic_patient_generator --num-records 100 --csv --output-dir output/csv_only

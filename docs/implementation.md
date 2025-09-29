@@ -34,7 +34,12 @@ This document captures the current state and near-term priorities for the simula
 ### Phase 3 – Clinical Realism & Validation
 - ✅ Introduce module-driven workflow engine (`ModuleEngine`) and initial cardiometabolic intensive management module.
 - 🔄 Author additional modules using the documented schema (`docs/scenario_recipes.md`, `modules/*.yaml`), expanding beyond cardiometabolic cohorts.
+  - ✅ Pediatric asthma & immunization pathway (`modules/pediatric_asthma_management.yaml`).
+  - ✅ Prenatal care with gestational diabetes management (`modules/prenatal_care_management.yaml`).
+  - 🔜 Oncology survivorship, CKD, COPD, and mental health scenarios from the backlog.
 - 🔄 Rebuild validation to cover schema, terminology, and temporal consistency; ensure new tests run in CI.
+  - ✅ Structural validator (`validate_module_definition`) now blocks invalid transitions.
+  - 🔜 Temporal/terminology cross-checks and Monte Carlo regression tests.
 - 🔄 Add performance/snapshot tests to protect export stability and generator throughput.
 
 ### Phase 4 – Docs, Tooling, and Release Prep
@@ -48,12 +53,14 @@ This document captures the current state and near-term priorities for the simula
 - Plan beta milestones or internal releases once each phase reaches testing parity.
 
 ## Immediate Next Steps
-1. **Initiate Phase 3 clinical realism**
-   - Design probabilistic workflow engines (referrals, lab cycles, care plan adherence) that leverage the enriched terminology services.
-   - Outline clinical rules that ensure realistic condition, medication, and lab pairings (contraindications, age-appropriate screenings, etc.).
-2. **Expand validation and performance coverage**
-   - Rebuild validation suites to cover schema, terminology, and temporal consistency while exercising VSAC/UMLS paths in CI.
-   - Add performance/snapshot tests to protect export stability and generator throughput before advancing to Phase 4 deliverables.
+1. **Extend module catalogue**
+   - Prioritize oncology survivorship, CKD dialysis planning, COPD home oxygen, and mental health integrated care recipes.
+   - Add scenario wiring plus regression tests mirroring `tests/test_module_engine.py` for every new module.
+2. **Broaden validation coverage**
+   - Build a module linter CLI (under `tools/`) that wraps `validate_module_definition` and checks terminology bindings.
+   - Add Monte Carlo outcome assertions and exporter parity tests once multiple modules coexist.
+3. **Baseline performance safeguards**
+   - Capture generator runtime metrics with ≥3 modules enabled and persist results for regression comparison.
 
 ## Reminders
 - Keep this document updated whenever milestones land; it is the authoritative checklist for the pivot.

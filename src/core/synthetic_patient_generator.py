@@ -11,6 +11,7 @@ from datetime import date, datetime, timedelta
 import uuid
 from collections import defaultdict, Counter
 from functools import partial
+from pathlib import Path
 from typing import List, Dict, Optional, Any, Tuple, Union, Iterable
 from tqdm import tqdm
 
@@ -99,6 +100,15 @@ def build_default_terminology_mappings() -> Dict[str, Dict[str, Optional[str]]]:
             for name, data in IMMUNIZATION_CATALOG.items()
         }
     }
+
+
+def list_available_modules(modules_root: Optional[Union[str, Path]] = None) -> List[str]:
+    """Return available module filenames (without extension)."""
+
+    root = Path(modules_root) if modules_root else Path("modules")
+    if not root.exists():
+        return []
+    return sorted(p.stem for p in root.glob("*.yaml"))
 
 
 def build_terminology_lookup(
@@ -1240,12 +1250,30 @@ def main():
     parser.add_argument("--scenario", type=str, default=None, help="Name of lifecycle scenario to apply")
     parser.add_argument("--scenario-file", type=str, default=None, help="Path to scenario overrides YAML")
     parser.add_argument("--list-scenarios", action="store_true", help="List available scenarios and exit")
+    parser.add_argument(
+        "--module",
+        action="append",
+        dest="modules",
+        default=None,
+        help="Add a clinical workflow module (repeat to add multiple)",
+    )
+    parser.add_argument(
+        "--list-modules",
+        action="store_true",
+        help="List available modules under the modules/ directory and exit",
+    )
 
     args, unknown = parser.parse_known_args()
 
     if getattr(args, "list_scenarios", False):
         print("Available scenarios:")
         for name in list_scenarios():
+            print(f"  - {name}")
+        return
+
+    if getattr(args, "list_modules", False):
+        print("Available modules:")
+        for name in list_available_modules():
             print(f"  - {name}")
         return
 
@@ -1265,7 +1293,18 @@ def main():
     terminology_details = scenario_config.get('terminology_details') if scenario_config else None
     terminology_root_override = scenario_config.get('terminology_root') if scenario_config else None
     terminology_lookup = build_terminology_lookup(terminology_details, terminology_root_override)
-    module_names = scenario_config.get('modules', []) if scenario_config else []
+    module_names: List[str] = []
+    if scenario_config:
+        module_names.extend(scenario_config.get('modules', []))
+    if config.get('modules'):
+        configured = config['modules']
+        if isinstance(configured, str):
+            module_names.append(configured)
+        else:
+            module_names.extend(configured)
+    if getattr(args, 'modules', None):
+        module_names.extend(args.modules)
+    module_names = [name for name in dict.fromkeys([m for m in module_names if m])]
     module_engine = ModuleEngine(module_names) if module_names else None
 
     def get_config(key, default=None):

@@ -1,0 +1,201 @@
+name: pediatric_asthma_management
+description: Longitudinal pediatric asthma care with immunization catch-up and exacerbation loops.
+categories:
+  encounters: replace
+  conditions: replace
+  medications: replace
+  observations: augment
+  immunizations: augment
+  procedures: augment
+states:
+  start:
+    type: start
+    transitions:
+      - to: baseline_well_visit
+
+  baseline_well_visit:
+    type: encounter
+    encounter_type: "Pediatric Well Visit"
+    reason: "Asthma management and preventive care"
+    provider_role: "Pediatrician"
+    location: "Community Pediatrics"
+    transitions:
+      - to: asthma_diagnosis
+
+  asthma_diagnosis:
+    type: condition_onset
+    attach_to_last_encounter: true
+    conditions:
+      - name: "Persistent Asthma"
+        icd10: "J45.40"
+        snomed: "195967001"
+        category: "respiratory"
+    transitions:
+      - to: baseline_care_plan
+
+  baseline_care_plan:
+    type: care_plan
+    care_plans:
+      - name: "Asthma Action Plan"
+        category: "self_management"
+        goal: "Maintain symptom control and minimize exacerbations"
+        activities:
+          - "Daily controller inhaler adherence tracking"
+          - "Trigger avoidance education"
+    transitions:
+      - to: controller_medications
+
+  controller_medications:
+    type: medication_start
+    attach_to_last_encounter: true
+    medications:
+      - name: "Budesonide/Formoterol"
+        rxnorm: "859038"
+        dose: "80/4.5 mcg two inhalations twice daily"
+        therapy_category: "controller"
+      - name: "Montelukast"
+        rxnorm: "856641"
+        dose: "5 mg nightly"
+        therapy_category: "controller"
+    transitions:
+      - to: immunization_review
+
+  immunization_review:
+    type: immunization
+    attach_to_last_encounter: true
+    immunizations:
+      - name: "Influenza"
+        cvx: "140"
+        dose_number: 1
+      - name: "Inactivated Poliovirus"
+        cvx: "10"
+        dose_number: 4
+    transitions:
+      - to: baseline_observations
+
+  baseline_observations:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "2019-8"
+        name: "Peak Expiratory Flow"
+        units: "L/min"
+        value_range:
+          min: 220
+          max: 350
+      - loinc: "44261-6"
+        name: "Asthma Control Test"
+        units: "score"
+        value_range:
+          min: 10
+          max: 18
+      - loinc: "11557-6"
+        name: "Influenza Antibody"
+        units: "titer"
+        value_range:
+          min: 1.1
+          max: 2.4
+    transitions:
+      - to: follow_up_interval
+
+  follow_up_interval:
+    type: delay
+    duration_days: 90
+    transitions:
+      - to: exacerbation_decision
+
+  exacerbation_decision:
+    type: decision
+    branches:
+      - probability: 0.75
+        to: routine_follow_up
+      - probability: 0.2
+        to: ed_exacerbation
+      - probability: 0.05
+        to: end
+
+  routine_follow_up:
+    type: encounter
+    encounter_type: "Asthma Follow-up"
+    reason: "Evaluate symptom control"
+    provider_role: "Pediatrician"
+    location: "Community Pediatrics"
+    transitions:
+      - to: follow_up_observations
+
+  follow_up_observations:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "2019-8"
+        name: "Peak Expiratory Flow"
+        units: "L/min"
+        value_range:
+          min: 250
+          max: 370
+      - loinc: "44261-6"
+        name: "Asthma Control Test"
+        units: "score"
+        value_range:
+          min: 14
+          max: 22
+    transitions:
+      - to: follow_up_interval
+
+  ed_exacerbation:
+    type: encounter
+    encounter_type: "Emergency Department"
+    reason: "Acute asthma exacerbation"
+    provider_role: "Emergency Medicine"
+    location: "Emergency Department"
+    transitions:
+      - to: rescue_medications
+
+  rescue_medications:
+    type: medication_start
+    attach_to_last_encounter: true
+    medications:
+      - name: "Albuterol"
+        rxnorm: "435"
+        dose: "2.5 mg nebulized every 4 hours as needed"
+        therapy_category: "rescue"
+      - name: "Oral Prednisolone"
+        rxnorm: "312615"
+        dose: "1 mg/kg daily for 5 days"
+        therapy_category: "systemic_steroid"
+    transitions:
+      - to: ed_procedure
+
+  ed_procedure:
+    type: procedure
+    attach_to_last_encounter: true
+    procedures:
+      - name: "Nebulizer Treatment"
+        code: "94640"
+        system: "CPT"
+        reason: "Acute exacerbation"
+        status: "completed"
+    transitions:
+      - to: ed_observations
+
+  ed_observations:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "19868-9"
+        name: "Oxygen Saturation"
+        units: "%"
+        value_range:
+          min: 88
+          max: 96
+      - loinc: "8478-0"
+        name: "Heart Rate"
+        units: "beats/min"
+        value_range:
+          min: 90
+          max: 130
+    transitions:
+      - to: follow_up_interval
+
+  end:
+    type: terminal

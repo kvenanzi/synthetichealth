@@ -17,6 +17,7 @@ The following clinically curated scenarios extend the current simulator catalog.
 - **Medications**: Metformin (RxNorm 860975), Lisinopril (617314), Atorvastatin (83367), GLP-1 agonist (237197). VSAC: Diabetes monitoring OID 2.16.840.1.113883.3.464.1003.104.12.1011.
 - **Workflow**: Quarterly visits, retinal screening, nephropathy labs (LOINC 14958-3 microalbumin).
 - **Risks**: Medication reconciliation mismatches, microalbumin unit conversions.
+- **Implementation**: Modeled in `modules/cardiometabolic_intensive.yaml` (Phase 3 baseline module).
 
 ## 3. Pediatric Asthma & Immunization Cohort
 - **Population**: 6–16 years, majority urban, higher exposure to environmental triggers.
@@ -25,6 +26,7 @@ The following clinically curated scenarios extend the current simulator catalog.
 - **Medications**: Albuterol (RxNorm 435), Budesonide/Formoterol (859038), Leukotriene inhibitors (856641).
 - **VSAC**: Asthma medication management OID 2.16.840.1.113762.1.4.1170.3.
 - **Notes**: Include ED visits for exacerbations; track school absenteeism in SDOH metadata.
+- **Implementation**: Covered by `modules/pediatric_asthma_management.yaml` with decision-driven exacerbation loops.
 
 ## 4. Maternal-Fetal Prenatal Care
 - **Population**: Pregnant individuals 18–40 years, mix of commercial and Medicaid coverage.
@@ -33,6 +35,7 @@ The following clinically curated scenarios extend the current simulator catalog.
 - **Medications**: Prenatal vitamins (RxNorm 316048), insulin NPH (7052) for gestational diabetes.
 - **VSAC**: Prenatal visit value set 2.16.840.1.113762.1.4.1096.53.
 - **SDOH**: transportation access, WIC enrollment; include missed-appointment patterns.
+- **Implementation**: Covered by `modules/prenatal_care_management.yaml` including gestational diabetes management branch.
 
 ## 5. Geriatric Polypharmacy & Fall Risk
 - **Population**: >75 years, long-term care residents, high fall risk scores.
