@@ -56,6 +56,21 @@ python -m src.core.synthetic_patient_generator \
   - Inspect CSV counts with Polars or DuckDB.
   - Validate FHIR bundle via the quickstart primer (`primers/fhir_bundle_quickstart.md`).
   - Use `hl7_validation_playbook.md` snippets against ADT/ORU outputs.
+- Monte Carlo variance/code check (example):
+  ```bash
+  python tools/module_monte_carlo_check.py \\
+      --scenario sepsis_survivorship \\
+      --num-records 25 \\
+      --iterations 5 \\
+      --required-loinc 6690-2 --required-loinc 1975-2 \\
+      --required-icd10 A41.9
+  ```
+  Adjust the scenario/module and code lists as needed for other cohorts.
+- Full sweep shortcut for CI/local use:
+  ```bash
+  python tools/run_phase3_validation.py
+  ```
+  Runs the module linter plus curated Monte Carlo checks (sepsis and HIV/PrEP).
 
 ## 5. Capture Performance Baselines
 - Record `num-records`, modules, runtime, and artifact counts (example baseline: 200 patients with oncology + CKD + mental health ~17s, saved to `output/perf_baseline/`).

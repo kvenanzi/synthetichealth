@@ -1300,14 +1300,15 @@ def generate_medications(patient, encounters, conditions=None, min_med=0, max_me
         if precision_markers:
             markers_by_condition = defaultdict(list)
             for marker in precision_markers:
-                markers_by_condition[marker["condition"]].append(marker)
+                if isinstance(marker, dict) and marker.get("condition"):
+                    markers_by_condition[marker["condition"]].append(marker)
 
             for cond in conditions:
-                for marker in markers_by_condition.get(cond["name"], []):
+                for marker in markers_by_condition.get(cond.get("name"), []):
                     targeted_therapy = marker.get("targeted_therapy")
                     if targeted_therapy:
                         precision_med = create_medication_record(patient, cond, encounters, targeted_therapy, "precision_targeted")
-                        precision_med["precision_marker"] = marker["marker"]
+                        precision_med["precision_marker"] = marker.get("marker")
                         precision_med["targeted_therapy"] = True
                         medications.append(precision_med)
 

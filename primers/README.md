@@ -12,4 +12,4 @@ Use these focused guides to work with the simulator’s outputs, clinical module
 | `hl7_validation_playbook.md` | Layered HL7 validation (syntax → datatype → business rules). |
 | `vista_mumps_quickstart.md` | Navigate the VistA MUMPS globals emitted for migration rehearsals. |
 
-All examples assume the virtual environment (`.venv`) is active and outputs are generated under `output/` (git-ignored). The primers complement the technical references in `docs/` and the scenario backlog in `docs/scenario_recipes.md`.
+All examples assume the virtual environment (`.venv`) is active and outputs are generated under `output/` (git-ignored). The primers complement the technical references in `docs/` and the scenario backlog in `docs/scenario_recipes.md`. For probabilistic QA, see the Monte Carlo command in `data_generation_workflow.md`.

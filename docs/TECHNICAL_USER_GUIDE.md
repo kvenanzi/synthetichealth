@@ -59,5 +59,7 @@ Set `TERMINOLOGY_DB_PATH=$(pwd)/data/terminology/terminology.duckdb` for high-vo
 - `pytest tests/tools` ensures all terminology importers still parse staged samples.
 - `pytest tests/test_fhir_formatter.py tests/test_terminology_loaders.py` validates exporter metadata wiring.
 - `python tools/module_linter.py --all` performs structural and terminology linting on every clinical module before release.
+- `python tools/module_monte_carlo_check.py --scenario sepsis_survivorship --num-records 10 --iterations 3 --required-loinc 6690-2 --required-icd10 A41.9` (example) runs a Monte Carlo sweep and enforces code presence / variance thresholds.
+- `python tools/run_phase3_validation.py` executes the module linter plus curated Monte Carlo sweeps (sepsis and HIV/PrEP cohorts) — ideal for CI or pre-commit checks.
 - If terminology lookups return empty results, re-run `refresh_terminology.py` and confirm `TERMINOLOGY_DB_PATH` points to the regenerated DuckDB file.
 - Use `--dry-run` (to be implemented) or small `--num-records` values when iterating on scenario logic to shorten feedback loops.

@@ -46,7 +46,7 @@ This document captures the current state and near-term priorities for the simula
 - 🔄 Rebuild validation to cover schema, terminology, and temporal consistency; ensure new tests run in CI.
   - ✅ Structural validator (`validate_module_definition`) now blocks invalid transitions.
   - ✅ CLI linter (`tools/module_linter.py`) enforces code bindings across modules.
-  - 🔜 Temporal/terminology cross-checks and Monte Carlo regression tests.
+  - ✅ Monte Carlo regression script (`tools/module_monte_carlo_check.py`) and composite harness (`tools/run_phase3_validation.py`) capture variance and required-code checks for representative module cohorts.
 - 🔄 Add performance/snapshot tests to protect export stability and generator throughput.
   - ✅ Baseline multi-module run recorded (200 patients, oncology + CKD + mental health) ~17s into `output/perf_baseline/`.
 
