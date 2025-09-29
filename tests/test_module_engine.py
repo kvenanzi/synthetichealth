@@ -208,3 +208,46 @@ def test_geriatric_module_models_polypharmacy():
 
     procedure_codes = {proc["code"] for proc in result.procedures}
     assert "73502" in procedure_codes
+
+
+def test_sepsis_module_covers_follow_up_paths():
+    patient = {
+        "patient_id": "sep-1",
+        "birthdate": "1980-05-20",
+        "age": 44,
+        "gender": "male",
+        "race": "Black",
+    }
+    result = run_module("sepsis_survivorship", patient, seed=1)
+
+    condition_codes = {cond["icd10_code"] for cond in result.conditions}
+    assert "A41.9" in condition_codes
+
+    observation_codes = {obs["loinc_code"] for obs in result.observations}
+    assert {"6690-2", "1975-2", "8302-2"}.issubset(observation_codes)
+
+    encounter_types = {enc["type"] for enc in result.encounters}
+    assert {"Telehealth", "Post-Sepsis Clinic"} & encounter_types
+
+    # ED branch is probabilistic; ensure lactate observation exists regardless
+    assert "1975-2" in observation_codes
+
+
+def test_hiv_prep_module_supports_both_cohorts():
+    patient = {
+        "patient_id": "hiv-1",
+        "birthdate": "1992-03-10",
+        "age": 32,
+        "gender": "male",
+        "race": "Hispanic",
+    }
+    result = run_module("hiv_prep_management", patient, seed=1)
+
+    condition_codes = {cond.get("icd10_code") for cond in result.conditions}
+    assert ("B20" in condition_codes) or ("Z20.6" in condition_codes)
+
+    medication_names = {med["name"] for med in result.medications}
+    assert {"Bictegravir/Emtricitabine/Tenofovir", "Emtricitabine/Tenofovir"} & medication_names
+
+    observation_codes = {obs["loinc_code"] for obs in result.observations}
+    assert "25836-8" in observation_codes

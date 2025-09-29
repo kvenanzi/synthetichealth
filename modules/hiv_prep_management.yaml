@@ -1,0 +1,209 @@
+name: hiv_prep_management
+description: Chronic HIV management alongside a PrEP prevention arm with adherence monitoring.
+categories:
+  encounters: replace
+  conditions: replace
+  medications: replace
+  observations: augment
+  care_plans: augment
+states:
+  start:
+    type: start
+    transitions:
+      - to: initial_intake
+
+  initial_intake:
+    type: encounter
+    encounter_type: "Infectious Disease Intake"
+    reason: "HIV care and prevention"
+    provider_role: "Infectious Disease Specialist"
+    location: "Community Health Clinic"
+    transitions:
+      - to: cohort_assignment
+
+  cohort_assignment:
+    type: decision
+    branches:
+      - probability: 0.55
+        to: hiv_management
+      - probability: 0.45
+        to: prep_management
+
+  hiv_management:
+    type: condition_onset
+    attach_to_last_encounter: true
+    conditions:
+      - name: "HIV Infection"
+        icd10: "B20"
+        snomed: "86406008"
+        category: "infectious"
+    transitions:
+      - to: hiv_care_plan
+
+  hiv_care_plan:
+    type: care_plan
+    care_plans:
+      - name: "HIV Viral Suppression Plan"
+        category: "hiv_care"
+        goal: "Maintain viral load suppression and CD4 > 500"
+        activities:
+          - "Quarterly viral load and CD4 monitoring"
+          - "Adherence counseling"
+          - "Case management check-ins"
+    transitions:
+      - to: hiv_medications
+
+  hiv_medications:
+    type: medication_start
+    attach_to_last_encounter: true
+    medications:
+      - name: "Bictegravir/Emtricitabine/Tenofovir"
+        rxnorm: "1996631"
+        dose: "50/200/25 mg daily"
+        therapy_category: "antiretroviral"
+      - name: "Trimethoprim/Sulfamethoxazole"
+        rxnorm: "818054"
+        dose: "160/800 mg daily"
+        therapy_category: "opportunistic_prophylaxis"
+    transitions:
+      - to: hiv_baseline_observations
+
+  hiv_baseline_observations:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "25836-8"
+        name: "HIV RNA"
+        units: "copies/mL"
+        value_range:
+          min: 150
+          max: 5000
+      - loinc: "56888-1"
+        name: "CD4 Count"
+        units: "cells/uL"
+        value_range:
+          min: 280
+          max: 480
+    transitions:
+      - to: hiv_follow_up_delay
+
+  hiv_follow_up_delay:
+    type: delay
+    duration_days: 90
+    transitions:
+      - to: hiv_follow_up
+
+  hiv_follow_up:
+    type: encounter
+    encounter_type: "HIV Follow-up"
+    reason: "Viral load monitoring"
+    provider_role: "Infectious Disease Specialist"
+    location: "Community Health Clinic"
+    transitions:
+      - to: hiv_follow_up_observations
+
+  hiv_follow_up_observations:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "25836-8"
+        name: "HIV RNA"
+        units: "copies/mL"
+        value_range:
+          min: 20
+          max: 200
+      - loinc: "56888-1"
+        name: "CD4 Count"
+        units: "cells/uL"
+        value_range:
+          min: 450
+          max: 700
+    transitions:
+      - to: hiv_follow_up_delay
+
+  prep_management:
+    type: condition_onset
+    attach_to_last_encounter: true
+    conditions:
+      - name: "HIV Exposure Risk"
+        icd10: "Z20.6"
+        snomed: "160968000"
+        category: "prevention"
+    transitions:
+      - to: prep_care_plan
+
+  prep_care_plan:
+    type: care_plan
+    care_plans:
+      - name: "PrEP Adherence Plan"
+        category: "prep"
+        goal: "Maintain >90% adherence and quarterly screening"
+        activities:
+          - "Quarterly HIV/renal screening"
+          - "Monthly pharmacy refill check"
+          - "Risk reduction counseling"
+    transitions:
+      - to: prep_medications
+
+  prep_medications:
+    type: medication_start
+    attach_to_last_encounter: true
+    medications:
+      - name: "Emtricitabine/Tenofovir"
+        rxnorm: "213293"
+        dose: "200/300 mg daily"
+        therapy_category: "prep"
+    transitions:
+      - to: prep_baseline_observations
+
+  prep_baseline_observations:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "25836-8"
+        name: "HIV RNA"
+        units: "copies/mL"
+        value: 0
+      - loinc: "14682-9"
+        name: "Creatinine"
+        units: "mg/dL"
+        value_range:
+          min: 0.7
+          max: 1.1
+    transitions:
+      - to: prep_follow_up_delay
+
+  prep_follow_up_delay:
+    type: delay
+    duration_days: 90
+    transitions:
+      - to: prep_follow_up
+
+  prep_follow_up:
+    type: encounter
+    encounter_type: "PrEP Follow-up"
+    reason: "Quarterly screening"
+    provider_role: "Primary Care"
+    location: "Community Health Clinic"
+    transitions:
+      - to: prep_follow_up_observations
+
+  prep_follow_up_observations:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "25836-8"
+        name: "HIV RNA"
+        units: "copies/mL"
+        value: 0
+      - loinc: "14682-9"
+        name: "Creatinine"
+        units: "mg/dL"
+        value_range:
+          min: 0.6
+          max: 1.2
+    transitions:
+      - to: prep_follow_up_delay
+
+  end:
+    type: terminal

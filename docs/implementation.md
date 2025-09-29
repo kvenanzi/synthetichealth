@@ -41,7 +41,8 @@ This document captures the current state and near-term priorities for the simula
   - ✅ COPD home oxygen therapy (`modules/copd_home_oxygen.yaml`).
   - ✅ Mental health integrated care (`modules/mental_health_integrated_care.yaml`).
   - ✅ Geriatric polypharmacy & fall mitigation (`modules/geriatric_polypharmacy.yaml`).
-  - 🔜 Remaining backlog modules (sepsis survivorship, HIV/PrEP management).
+  - ✅ Sepsis survivorship recovery (`modules/sepsis_survivorship.yaml`).
+  - ✅ HIV + PrEP management (`modules/hiv_prep_management.yaml`).
 - 🔄 Rebuild validation to cover schema, terminology, and temporal consistency; ensure new tests run in CI.
   - ✅ Structural validator (`validate_module_definition`) now blocks invalid transitions.
   - ✅ CLI linter (`tools/module_linter.py`) enforces code bindings across modules.

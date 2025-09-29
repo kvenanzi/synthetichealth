@@ -1,0 +1,211 @@
+name: sepsis_survivorship
+description: Post-sepsis recovery management with readmission prevention and organ dysfunction monitoring.
+categories:
+  encounters: replace
+  conditions: replace
+  medications: augment
+  observations: replace
+  procedures: augment
+  care_plans: augment
+states:
+  start:
+    type: start
+    transitions:
+      - to: discharge_follow_up
+
+  discharge_follow_up:
+    type: encounter
+    encounter_type: "Post-Sepsis Follow-up"
+    reason: "30-day sepsis survivorship visit"
+    provider_role: "Hospitalist"
+    location: "Outpatient Clinic"
+    transitions:
+      - to: sepsis_conditions
+
+  sepsis_conditions:
+    type: condition_onset
+    attach_to_last_encounter: true
+    conditions:
+      - name: "Sepsis"
+        icd10: "A41.9"
+        snomed: "91302008"
+        category: "infectious"
+      - name: "Post-Sepsis Syndrome"
+        icd10: "G93.3"
+        snomed: "51615001"
+        category: "post_sepsis"
+    transitions:
+      - to: survivorship_care_plan
+
+  survivorship_care_plan:
+    type: care_plan
+    care_plans:
+      - name: "Sepsis Survivorship Plan"
+        category: "post_sepsis"
+        goal: "Prevent readmission and monitor organ recovery"
+        activities:
+          - "7-day telehealth check-in"
+          - "Physical therapy referral"
+          - "Nutrition counseling"
+    transitions:
+      - to: baseline_observations
+
+  baseline_observations:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "6690-2"
+        name: "Leukocytes [#/volume] in Blood"
+        units: "10^3/uL"
+        value_range:
+          min: 9
+          max: 14
+      - loinc: "1975-2"
+        name: "Lactate"
+        units: "mmol/L"
+        value_range:
+          min: 1.3
+          max: 2.6
+      - loinc: "2160-0"
+        name: "Serum Creatinine"
+        units: "mg/dL"
+        value_range:
+          min: 1.0
+          max: 1.8
+    transitions:
+      - to: telehealth_delay
+
+  telehealth_delay:
+    type: delay
+    duration_days: 7
+    transitions:
+      - to: telehealth_visit
+
+  telehealth_visit:
+    type: encounter
+    encounter_type: "Telehealth"
+    reason: "Post-sepsis symptom check"
+    provider_role: "Care Coordinator"
+    location: "Virtual"
+    transitions:
+      - to: telehealth_observations
+
+  telehealth_observations:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "9279-1"
+        name: "Fatigue Severity Scale"
+        units: "score"
+        value_range:
+          min: 4
+          max: 7
+      - loinc: "8302-2"
+        name: "Weight"
+        units: "kg"
+        value_range:
+          min: 65
+          max: 85
+    transitions:
+      - to: follow_up_decision
+
+  follow_up_decision:
+    type: decision
+    branches:
+      - probability: 0.6
+        to: clinic_follow_up
+      - probability: 0.3
+        to: ed_visit
+      - probability: 0.1
+        to: end
+
+  clinic_follow_up:
+    type: encounter
+    encounter_type: "Post-Sepsis Clinic"
+    reason: "Evaluate recovery"
+    provider_role: "Infectious Disease"
+    location: "Outpatient Clinic"
+    transitions:
+      - to: clinic_observations
+
+  clinic_observations:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "6690-2"
+        name: "Leukocytes [#/volume] in Blood"
+        units: "10^3/uL"
+        value_range:
+          min: 6
+          max: 10
+      - loinc: "33762-6"
+        name: "SOFA Score"
+        units: "score"
+        value_range:
+          min: 2
+          max: 6
+    transitions:
+      - to: follow_up_decision
+
+  ed_visit:
+    type: encounter
+    encounter_type: "Emergency Department"
+    reason: "Sepsis readmission evaluation"
+    provider_role: "Emergency Medicine"
+    location: "Emergency Department"
+    transitions:
+      - to: ed_observations
+
+  ed_observations:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "1975-2"
+        name: "Lactate"
+        units: "mmol/L"
+        value_range:
+          min: 2.5
+          max: 4.5
+      - loinc: "1988-5"
+        name: "Oxygen saturation in Arterial blood"
+        units: "%"
+        value_range:
+          min: 88
+          max: 95
+    transitions:
+      - to: ed_procedures
+
+  ed_procedures:
+    type: procedure
+    attach_to_last_encounter: true
+    procedures:
+      - name: "Blood Culture"
+        code: "87040"
+        system: "CPT"
+        reason: "Rule out recurrent infection"
+        status: "completed"
+      - name: "Sepsis Care Bundle"
+        code: "G8780"
+        system: "CPT"
+        reason: "Sepsis management compliance"
+        status: "completed"
+    transitions:
+      - to: ed_medications
+
+  ed_medications:
+    type: medication_start
+    attach_to_last_encounter: true
+    medications:
+      - name: "Cefepime"
+        rxnorm: "245155"
+        dose: "2 g intravenously every 8 hours"
+        therapy_category: "antibiotic"
+      - name: "Norepinephrine"
+        rxnorm: "727367"
+        dose: "0.05 mcg/kg/min infusion"
+        therapy_category: "vasopressor"
+    transitions:
+      - to: follow_up_decision
+
+  end:
+    type: terminal

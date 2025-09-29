@@ -89,6 +89,7 @@ The following clinically curated scenarios extend the current simulator catalog.
 - **Medications**: Broad-spectrum antibiotics (RxNorm 308135), beta blockers or ACE inhibitors for cardiac sequelae.
 - **VSAC**: Sepsis early management 2.16.840.1.113762.1.4.1046.63.
 - **SDOH**: Food insecurity, limited access to follow-up care; include care coordination notes and 7-day telehealth check-ins.
+- **Implementation**: Modeled in `modules/sepsis_survivorship.yaml` with telehealth, clinic, and ED readmission branches.
 
 ## 11. Pregnancy Loss & Mental Health Support
 - **Population**: 20–40, recent miscarriage or stillbirth.
@@ -103,6 +104,7 @@ The following clinically curated scenarios extend the current simulator catalog.
 - **Terminology**: ICD-10 B20, Z20.6; LOINC 25836-8 (HIV RNA PCR), 56888-1 (CD4 count). PrEP medication RxNorm 213293 (Emtricitabine/Tenofovir).
 - **VSAC**: HIV viral load monitoring 2.16.840.1.113883.3.464.1003.110.12.1078; PrEP follow-up 2.16.840.1.113883.3.464.1003.110.12.1079.
 - **SDOH**: stigma indicators, housing instability, access to case management; incorporate quarterly labs and pharmacy refill adherence metrics.
+- **Implementation**: Modeled in `modules/hiv_prep_management.yaml` with cohort split for chronic care vs. prevention.
 
 ---
 
