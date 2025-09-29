@@ -8,6 +8,7 @@ A lifecycle-focused synthetic healthcare simulator that produces richly coded pa
 - **Authoritative terminology datasets** – normalized ICD-10-CM, LOINC, SNOMED CT, RxNorm, VSAC value sets, and UMLS concept snapshots power terminology-aware generation and exports.
 - **DuckDB-backed lookups** – build a shared `terminology.duckdb` warehouse for fast joins and larger vocabularies while keeping CSV seeds for lightweight usage.
 - **Multi-format exports** – FHIR R4 bundles (now with VSAC value set and UMLS concept extensions alongside NCBI references), HL7 v2 ADT/ORU messages, VistA MUMPS globals, CSV, and Parquet outputs are emitted from the same patient records.
+- **Module-driven clinical workflows** – Scenario-specific YAML modules (e.g., `cardiometabolic_intensive`) model encounters, labs, and medications using a state-machine interpreter for high-fidelity cohorts.
 - **Parallel performance** – generation uses `concurrent.futures` and Polars pipelines to scale to tens of thousands of synthetic patients.
 - **Referential integrity** – patient identifiers stay consistent across every export format.
 - **Optional migration toolchain** – legacy migration simulators, analytics, and demos remain available for teams rehearsing data conversions but are no longer the primary focus of the project.
@@ -91,6 +92,9 @@ python3 -m src.core.synthetic_patient_generator --num-records 250 --output-dir o
    echo "TERMINOLOGY_DB_PATH=$(pwd)/data/terminology/terminology.duckdb" >> .env
    ```
    Loaders automatically fall back to CSV seeds when the DuckDB path is not available, but setting `TERMINOLOGY_DB_PATH` unlocks faster joins for high-volume simulation runs.
+5. **Author scenario modules (optional)**
+   - Compose YAML workflows under `modules/` (see `modules/cardiometabolic_intensive.yaml`).
+   - Reference the module in a scenario via `modules: ["module_name"]` and run `pytest tests/test_module_engine.py` to validate execution.
 
 ## Clinical terminology datasets
 

@@ -24,7 +24,13 @@ All commands below assume the virtual environment is active. Raw vocabularies sh
 4. **Lifecycle Modules** – `generate_conditions`, `generate_encounters`, `generate_medications`, and `generate_observations` populate clinical events while embedding normalized codes.
 5. **Export Stage** – `FHIRFormatter`/`HL7v2Formatter` build rich resources (MedicationStatements now include RxNorm + UMLS extensions; Observations embed VSAC references) while CSV/Parquet writers create analytic tables.
 
-## 5. Running the Simulator
+## 5. Module-Based Clinical Workflows
+- **Module schema** – YAML files under `modules/` specify state machines (`start`, `encounter`, `condition_onset`, `medication_start`, `observation`, `delay`, `decision`, `terminal`) with normalized terminology, probabilities, and timing.
+- **Execution** – `ModuleEngine` loads modules listed in a scenario (for example, `modules: ["cardiometabolic_intensive"]`) and replaces/augments default encounters, conditions, medications, and observations.
+- **Authoring pattern** – Use `modules/cardiometabolic_intensive.yaml` as a template. Document guideline sources in `docs/synthea_integration_research.md`, include code references (ICD-10, SNOMED, RxNorm, LOINC, VSAC), and encode realistic branching probabilities.
+- **Expansion workflow** – Add YAML to `modules/`, reference the module in `docs/scenario_recipes.md`, update the scenario’s `modules` list, then run `pytest tests/test_module_engine.py` to validate execution.
+
+## 6. Running the Simulator
 ```bash
 # Refresh terminology (optional but recommended when raw sources change)
 python tools/refresh_terminology.py --root data/terminology --rebuild-db
@@ -38,13 +44,13 @@ python -m src.core.synthetic_patient_generator --num-records 100 --csv --output-
 ```
 Set `TERMINOLOGY_DB_PATH=$(pwd)/data/terminology/terminology.duckdb` for high-volume runs; the generator will fall back to seeds when the database is absent.
 
-## 6. Outputs & File Layout
+## 7. Outputs & File Layout
 - `output/<run>/patients.csv` (plus encounters, conditions, medications, observations, etc.) – normalized tables keyed by `patient_id`.
 - `output/<run>/fhir_bundle.json` – Bundle containing Patient, Condition, MedicationStatement, Observation resources with VSAC/NCBI/UMLS extensions.
 - `output/<run>/hl7_messages/*.hl7` – ADT and ORU messages referencing LOINC and RxNorm codes.
 - `output/<run>/vista_globals.txt` – Optional VistA MUMPS globals for migration rehearsals.
 
-## 7. Validation & Troubleshooting
+## 8. Validation & Troubleshooting
 - `pytest tests/tools` ensures all terminology importers still parse staged samples.
 - `pytest tests/test_fhir_formatter.py tests/test_terminology_loaders.py` validates exporter metadata wiring.
 - If terminology lookups return empty results, re-run `refresh_terminology.py` and confirm `TERMINOLOGY_DB_PATH` points to the regenerated DuckDB file.

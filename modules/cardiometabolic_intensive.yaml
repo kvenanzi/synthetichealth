@@ -1,0 +1,156 @@
+name: cardiometabolic_intensive
+description: Intensive management pathway for type 2 diabetes with hypertension and dyslipidemia.
+categories:
+  encounters: replace
+  conditions: replace
+  medications: replace
+  observations: augment
+states:
+  start:
+    type: start
+    transitions:
+      - to: baseline_visit
+
+  baseline_visit:
+    type: encounter
+    encounter_type: "Primary Care"
+    reason: "Chronic disease management"
+    provider_role: "Internal Medicine"
+    location: "Community Clinic"
+    transitions:
+      - to: diagnoses
+
+  diagnoses:
+    type: condition_onset
+    attach_to_last_encounter: true
+    conditions:
+      - name: "Diabetes"
+        icd10: "E11.9"
+        snomed: "44054006"
+        category: "cardiometabolic"
+      - name: "Hypertension"
+        icd10: "I10"
+        snomed: "38341003"
+        category: "cardiometabolic"
+      - name: "Hyperlipidemia"
+        icd10: "E78.5"
+        snomed: "55822004"
+        category: "cardiometabolic"
+    transitions:
+      - to: baseline_labs
+
+  baseline_labs:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "2339-0"
+        name: "Hemoglobin A1c"
+        units: "%"
+        value_range:
+          min: 7.5
+          max: 9.5
+      - loinc: "13457-7"
+        name: "Non-HDL Cholesterol"
+        units: "mg/dL"
+        value_range:
+          min: 160
+          max: 210
+      - loinc: "8480-6"
+        name: "Systolic Blood Pressure"
+        units: "mm[Hg]"
+        value_range:
+          min: 145
+          max: 175
+    transitions:
+      - to: initial_medications
+
+  initial_medications:
+    type: medication_start
+    attach_to_last_encounter: true
+    medications:
+      - name: "Metformin"
+        rxnorm: "860975"
+        dose: "500 mg twice daily"
+        therapy_category: "first_line"
+      - name: "Lisinopril"
+        rxnorm: "617314"
+        dose: "10 mg daily"
+        therapy_category: "first_line"
+      - name: "Atorvastatin"
+        rxnorm: "83367"
+        dose: "40 mg nightly"
+        therapy_category: "lipid_lowering"
+    transitions:
+      - to: lifestyle_counseling
+
+  lifestyle_counseling:
+    type: encounter
+    encounter_type: "Nutrition Counseling"
+    reason: "Diabetes education"
+    provider_role: "Dietitian"
+    location: "Outpatient"
+    advance_days: 14
+    transitions:
+      - to: follow_up_delay
+
+  follow_up_delay:
+    type: delay
+    duration_days: 90
+    transitions:
+      - to: follow_up_visit
+
+  follow_up_visit:
+    type: encounter
+    encounter_type: "Primary Care"
+    reason: "Glycemic control follow-up"
+    provider_role: "Internal Medicine"
+    location: "Community Clinic"
+    transitions:
+      - to: follow_up_labs
+
+  follow_up_labs:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "2339-0"
+        name: "Hemoglobin A1c"
+        units: "%"
+        value_range:
+          min: 6.8
+          max: 8.2
+      - loinc: "14563-1"
+        name: "Microalbumin/Creatinine ratio"
+        units: "mg/g"
+        value_range:
+          min: 15
+          max: 45
+    transitions:
+      - to: decision_intensify
+
+  decision_intensify:
+    type: decision
+    branches:
+      - probability: 0.65
+        to: follow_up_delay
+      - probability: 0.25
+        to: intensify_medication
+      - probability: 0.10
+        to: end
+
+  intensify_medication:
+    type: medication_start
+    medications:
+      - name: "Empagliflozin"
+        rxnorm: "1551306"
+        dose: "10 mg daily"
+        therapy_category: "add_on"
+      - name: "Sertraline"
+        rxnorm: "312941"
+        dose: "50 mg daily"
+        therapy_category: "mental_health_support"
+        condition: "Depression"
+    transitions:
+      - to: follow_up_delay
+
+  end:
+    type: terminal

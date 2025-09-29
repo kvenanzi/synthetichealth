@@ -68,6 +68,7 @@ from .terminology import (
     load_loinc_labs,
     load_rxnorm_medications,
 )
+from .lifecycle.modules import ModuleEngine, ModuleExecutionResult
 from .migration_simulator import run_migration_phase
 
 # Local faker instance for legacy generator utilities
@@ -1264,6 +1265,8 @@ def main():
     terminology_details = scenario_config.get('terminology_details') if scenario_config else None
     terminology_root_override = scenario_config.get('terminology_root') if scenario_config else None
     terminology_lookup = build_terminology_lookup(terminology_details, terminology_root_override)
+    module_names = scenario_config.get('modules', []) if scenario_config else []
+    module_engine = ModuleEngine(module_names) if module_names else None
 
     def get_config(key, default=None):
         # CLI flag overrides config file
@@ -1370,16 +1373,44 @@ def main():
     for patient in tqdm(patients, desc="Generating healthcare data", unit="patients"):
         # Convert PatientRecord to dict for backward compatibility with existing functions
         patient_dict = patient.to_dict()
-        
-        conditions = generate_conditions(patient_dict, [], min_cond=1, max_cond=5)
-        encounters = generate_encounters(patient_dict, conditions)
+        module_result = module_engine.execute(patient_dict) if module_engine else ModuleExecutionResult()
+        replaced = module_result.replacements
+
+        encounters = []
+        if "encounters" in replaced:
+            encounters = module_result.encounters
+        else:
+            encounters = generate_encounters(patient_dict, module_result.encounters or None)
+            if module_result.encounters:
+                encounters.extend(module_result.encounters)
         all_encounters.extend(encounters)
+
+        conditions = []
+        if "conditions" in replaced:
+            conditions = module_result.conditions
+        else:
+            conditions = generate_conditions(patient_dict, encounters, min_cond=1, max_cond=5)
+            if module_result.conditions:
+                conditions.extend(module_result.conditions)
+
+        # Update condition encounter references when missing
         for cond in conditions:
-            enc = random.choice(encounters) if encounters else None
-            cond["encounter_id"] = enc["encounter_id"] if enc else None
-            cond["onset_date"] = enc["date"] if enc else patient_dict["birthdate"]
+            if not cond.get("encounter_id"):
+                enc = random.choice(encounters) if encounters else None
+                cond["encounter_id"] = enc["encounter_id"] if enc else None
+            if not cond.get("onset_date"):
+                enc = next((e for e in encounters if e.get("encounter_id") == cond.get("encounter_id")), None)
+                onset = enc["date"] if enc else patient_dict["birthdate"]
+                cond["onset_date"] = onset
+        patient_dict["condition_profile"] = [c.get("name") for c in conditions]
         all_conditions.extend(conditions)
-        medications = generate_medications(patient_dict, encounters, conditions)
+
+        if "medications" in replaced:
+            medications = module_result.medications
+        else:
+            medications = generate_medications(patient_dict, encounters, conditions)
+            if module_result.medications:
+                medications.extend(module_result.medications)
         all_medications.extend(medications)
 
         for condition in conditions:
@@ -1390,12 +1421,32 @@ def main():
         allergies = generate_allergies(patient_dict)
         all_allergies.extend(allergies)
         procedures = generate_procedures(patient_dict, encounters, conditions)
+        if module_result.procedures:
+            if "procedures" in replaced:
+                procedures = module_result.procedures
+            else:
+                procedures.extend(module_result.procedures)
         all_procedures.extend(procedures)
         immunizations = generate_immunizations(patient_dict, encounters)
+        if module_result.immunizations:
+            if "immunizations" in replaced:
+                immunizations = module_result.immunizations
+            else:
+                immunizations.extend(module_result.immunizations)
         all_immunizations.extend(immunizations)
         observations = generate_observations(patient_dict, encounters, conditions)
+        if module_result.observations:
+            if "observations" in replaced:
+                observations = module_result.observations
+            else:
+                observations.extend(module_result.observations)
         all_observations.extend(observations)
         care_plans = generate_care_plans(patient_dict, conditions, encounters)
+        if module_result.care_plans:
+            if "care_plans" in replaced:
+                care_plans = module_result.care_plans
+            else:
+                care_plans.extend(module_result.care_plans)
         all_care_plans.extend(care_plans)
         death = generate_death(patient_dict, conditions)
         if death:

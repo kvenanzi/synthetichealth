@@ -32,9 +32,10 @@ This document captures the current state and near-term priorities for the simula
 - ✅ Expand FHIR/CSV exporters to consume the new terminology services (Condition, Medication, and Observation resources now emit VSAC/UMLS context).
 
 ### Phase 3 – Clinical Realism & Validation
-- Model workflow engines (referrals, lab cycles, care plan adherence) using probabilistic state machines.
-- Rebuild validation to cover schema, terminology, and temporal consistency; ensure new tests run in CI.
-- Add performance/snapshot tests to protect export stability and generator throughput.
+- ✅ Introduce module-driven workflow engine (`ModuleEngine`) and initial cardiometabolic intensive management module.
+- 🔄 Author additional modules using the documented schema (`docs/scenario_recipes.md`, `modules/*.yaml`), expanding beyond cardiometabolic cohorts.
+- 🔄 Rebuild validation to cover schema, terminology, and temporal consistency; ensure new tests run in CI.
+- 🔄 Add performance/snapshot tests to protect export stability and generator throughput.
 
 ### Phase 4 – Docs, Tooling, and Release Prep
 - Rewrite README and docs to focus on the simulator; link to the migration branch for legacy usage.

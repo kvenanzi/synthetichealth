@@ -17,6 +17,7 @@ def test_load_default_scenario_general():
     assert scenario["gender_dist"]["male"] > 0
     terminology = scenario.get("terminology_details")
     assert terminology and "icd10" in terminology
+    assert "modules" in scenario
     icd_codes = {entry.code for entry in terminology["icd10"]}
     assert "I10" in icd_codes  # normalized ICD-10 starts at chapter A; scenario falls back to essential hypertension
     assert "vsac" in terminology

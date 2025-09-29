@@ -67,6 +67,7 @@ def _attach_terminology_payload(scenario: Dict[str, object]) -> Dict[str, object
                 payload["umls"] = selected
 
     scenario["terminology_details"] = payload
+    scenario.setdefault("modules", scenario.get("modules", []))
     return scenario
 
 

@@ -24,6 +24,7 @@ DEFAULT_SCENARIOS: Dict[str, Dict[str, object]] = {
             "value_set_oids": ["2.16.840.1.113883.3.526.3.1567"],
             "umls_cuis": ["C0020538"],
         },
+        "modules": [],
     },
     "cardiometabolic": {
         "metadata": {"description": "Older population with cardiometabolic burden"},
@@ -45,6 +46,7 @@ DEFAULT_SCENARIOS: Dict[str, Dict[str, object]] = {
             "value_set_oids": ["2.16.840.1.113883.3.526.3.1567"],
             "umls_cuis": ["C0020538"],
         },
+        "modules": ["cardiometabolic_intensive"],
     },
     "pediatric": {
         "metadata": {"description": "Pediatric-focused clinic population"},
@@ -65,6 +67,7 @@ DEFAULT_SCENARIOS: Dict[str, Dict[str, object]] = {
             "value_set_oids": ["2.16.840.1.113883.3.526.3.1567"],
             "umls_cuis": ["C0020538"],
         },
+        "modules": [],
     },
 }
 
