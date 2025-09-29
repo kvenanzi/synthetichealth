@@ -7,8 +7,15 @@ rebuilds the DuckDB warehouse in a single command.
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
 from typing import Dict, Iterable, Optional, Sequence
+
+# Allow running the script via ``python tools/refresh_terminology.py`` by ensuring
+# the project root is available on sys.path.
+if __package__ is None or __package__ == "":
+    PROJECT_ROOT = Path(__file__).resolve().parents[1]
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 from tools import import_icd10, import_rxnorm, import_snomed, import_umls, import_vsac
 
