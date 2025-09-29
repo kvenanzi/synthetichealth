@@ -6,7 +6,7 @@
 - Safely traverse references and extract coded data
 - Convert to tabular (CSV) or validate with a library
 
-Repo sample: `fhir_bundle.json`
+Repo sample: `fhir_bundle.json` (produced by the Phase 3 generator with module-driven workflows and terminology enrichments such as VSAC/UMLS extensions).
 
 ## Core Concepts
 - Resource basics: every object has `resourceType`, optional `id`, `meta`, and resource‑specific fields.
@@ -49,7 +49,7 @@ for p in patients[:5]:
     print(p.get('id'), patient_name(p), p.get('gender'), p.get('birthDate'))
 ```
 
-- Conditions per Patient
+- Conditions per Patient (module-enabled cohorts emit cardiometabolic, oncology, CKD, COPD, and behavioral pathways)
 ```python
 def resolve_ref_text(ref):
     # returns ('ResourceType', 'id') or (None, None)
@@ -133,4 +133,3 @@ print('Validated entries:', len(b.entry or []))
 - Prefer `.get()` and defaults; real data is often sparse.
 - Keep original IDs and references intact for traceability.
 - Code systems vary; fall back to `.text` when codings are missing.
-
