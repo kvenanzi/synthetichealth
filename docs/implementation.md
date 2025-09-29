@@ -60,6 +60,9 @@ This document captures the current state and near-term priorities for the simula
 - Capture design decisions in this implementation journal for transparency across phases.
 - Plan beta milestones or internal releases once each phase reaches testing parity.
 
+## Phase 3B – Synthea‑Level Realism (Plan)
+See `docs/phase_3b_synthea_parity_plan.md` for the full end‑to‑end plan to extend the DSL, engine, provenance, and validation to match Synthea’s module detail (attributes, conditional transitions, submodules, symptom modeling, and evidence‑backed parameters).
+
 ## Immediate Next Steps
 1. **Extend module catalogue**
    - Implement remaining backlog scenarios (geriatrics, sepsis survivorship, HIV/PrEP) using the established authoring pattern.
