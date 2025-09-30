@@ -74,3 +74,5 @@ AGENTS.md
 generated_reports/
 report_templates/
 dashboard_state.db
+data/terminology/umls/umls_concepts_full.csv
+data/terminology/vsac/vsac_value_sets_full.csv
