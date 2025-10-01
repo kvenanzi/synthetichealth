@@ -1119,7 +1119,7 @@ class VistaFormatter:
             return "M"
         if normalized in {"female", "f"}:
             return "F"
-        return "U"
+        return "F"
 
     @staticmethod
     def create_dpt_global(patient_record: PatientRecord) -> Dict[str, str]:
