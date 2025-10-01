@@ -53,7 +53,7 @@ Set `TERMINOLOGY_DB_PATH=$(pwd)/data/terminology/terminology.duckdb` for high-vo
 - `output/<run>/patients.csv` (plus encounters, conditions, medications, observations, etc.) – normalized tables keyed by `patient_id`.
 - `output/<run>/fhir_bundle.json` – Bundle containing Patient, Condition, MedicationStatement, Observation resources with VSAC/NCBI/UMLS extensions.
 - `output/<run>/hl7_messages/*.hl7` – ADT and ORU messages referencing LOINC and RxNorm codes.
-- `output/<run>/vista_globals.txt` – Optional VistA MUMPS globals for migration rehearsals.
+- `output/<run>/vista_globals.mumps` – VistA MUMPS globals (default: FileMan-internal pointers). Use `--vista-mode legacy` to emit legacy text-encoded globals.
 
 ## 8. Validation & Troubleshooting
 - `pytest tests/tools` ensures all terminology importers still parse staged samples.

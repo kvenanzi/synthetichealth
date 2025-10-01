@@ -154,6 +154,30 @@ synthetichealth/
 - **HL7 v2.x**: ADT (Admit/Discharge/Transfer) and ORU (Observation Result) messages
 - **VistA MUMPS**: Production-accurate VA FileMan global structures
 
+#### VistA export modes
+- Default (`--vista-mode fileman_internal`) emits FileMan-internal pointers:
+  - ICD diagnoses under `^ICD9(IEN,0)="<ICD-10-CM code>"` (File 80 root is `^ICD9` in stock builds)
+  - Clinic Stops `^DIC(40.7,code,0)="code^<description>"`
+  - Locations `^AUTTLOC(IEN,0)="<name>"`
+  - Patient state pointers in `^DPT(DFN,.11)` piece 3 point to `^DIC(5)` IENs
+  - Phones are quoted strings in `^DPT(DFN,.13)`
+  - Visit GUIDs stored safely as `^AUPNVSIT("GUID",VisitIEN)="<uuid>"`
+- Legacy (`--vista-mode legacy`) preserves earlier text-oriented encoding (not pointer-clean). Use only to reproduce historical artifacts.
+
+Example:
+```bash
+python -m src.core.synthetic_patient_generator \
+  --num-records 100 \
+  --output-dir output/run1 \
+  --vista-mode fileman_internal
+```
+
+#### VistA Quick Tips
+- Primer with parsing and date helpers: `primers/vista_mumps_quickstart.md`
+- FileMan dates use YYYMMDD with YYY = year−1700; visits use `YYYMMDD.HHMMSS`.
+- Globals are written as `S ^GLOBAL(...)=<value>`; strip the leading `S` and surrounding quotes when parsing.
+- Patient state in `^DPT(DFN,.11)` is a pointer to `^DIC(5)`; phones in `.13` are quoted strings.
+
 ### Analytics formats
 - **CSV/Parquet**: Normalized relational tables for research and analytics workflows
 

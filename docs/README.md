@@ -82,7 +82,11 @@ You will be prompted for the number of synthetic patient records to generate (e.
 - `fhir_bundle.json` - FHIR R4 Bundle with Patient/Condition resources
 - `hl7_messages_adt.hl7` - HL7 v2 Admit/Discharge/Transfer messages
 - `hl7_messages_oru.hl7` - HL7 v2 Observation Result messages  
-- `vista_globals.mumps` - VistA FileMan global structures
+- `vista_globals.mumps` - VistA FileMan global structures (default: FileMan-internal pointers)
+
+VistA export modes:
+- `--vista-mode fileman_internal` (default): emits pointer-clean globals with ICD pointers under `^ICD9`, Clinic Stops under `^DIC(40.7)`, and quoted phone numbers; visit GUIDs are stored as `^AUPNVSIT("GUID",IEN)`.
+- `--vista-mode legacy`: retains earlier text-based encoding for compatibility.
 
 All tables linked by `patient_id` with referential integrity maintained across formats.
 
