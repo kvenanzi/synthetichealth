@@ -879,6 +879,7 @@ class HL7v2Formatter:
 class VistaReferenceRegistry:
     """Minimal in-memory registry for FileMan pointer lookups."""
 
+    DEFAULT_STATE = "MA"
     STATE_IEN_MAP: Dict[str, int] = {
         "AL": 1,
         "AK": 2,
@@ -953,9 +954,10 @@ class VistaReferenceRegistry:
         return str(value)
 
     def get_state_ien(self, state: Optional[str]) -> str:
-        if not state:
-            return ""
-        return str(self.STATE_IEN_MAP.get(state.upper(), ""))
+        key = (state or self.DEFAULT_STATE).upper()
+        if key not in self.STATE_IEN_MAP:
+            key = self.DEFAULT_STATE
+        return str(self.STATE_IEN_MAP.get(key, ""))
 
     def get_icd10_ien(self, code: Optional[str]) -> str:
         if not code:
@@ -1019,6 +1021,13 @@ class VistaFormatter:
 
     LEGACY_MODE = "legacy"
     FILEMAN_INTERNAL_MODE = "fileman_internal"
+
+    ICD_FALLBACKS: Dict[str, str] = {
+        "Stroke": "I63.9",
+        "Cerebrovascular Accident": "I63.9",
+        "Heart Attack": "I21.3",
+        "Myocardial Infarction": "I21.3",
+    }
     
     @staticmethod
     def vista_date_format(date_str: str) -> str:
@@ -1071,12 +1080,24 @@ class VistaFormatter:
         """Sanitize string for MUMPS global storage - handle special characters"""
         if not text:
             return ""
-        
+
         # Remove or replace characters that would break MUMPS syntax
         sanitized = str(text).replace("^", " ").replace('"', "'").replace("\r", "").replace("\n", " ")
         # Limit length for FileMan fields
         return sanitized[:30] if len(sanitized) > 30 else sanitized
-    
+
+    @staticmethod
+    def format_phone_number(text: Optional[str]) -> str:
+        if not text:
+            return ""
+        digits = re.sub(r"\D", "", str(text))
+        formatted = str(text)
+        if len(digits) == 10:
+            formatted = f"{digits[:3]}-{digits[3:6]}-{digits[6:]}"
+        elif len(digits) == 11:
+            formatted = f"+{digits[0]}-{digits[1:4]}-{digits[4:7]}-{digits[7:]}"
+        return VistaFormatter.sanitize_mumps_string(formatted)
+
     @staticmethod
     def generate_vista_ien() -> str:
         """Generate VistA Internal Entry Number (IEN)"""
@@ -1176,7 +1197,7 @@ class VistaFormatter:
         
         # Phone number - ^DPT(IEN,.13)
         if patient_record.phone:
-            globals_dict[f"^DPT({vista_ien},.13)"] = VistaFormatter.sanitize_mumps_string(patient_record.phone)
+            globals_dict[f"^DPT({vista_ien},.13)"] = VistaFormatter.format_phone_number(patient_record.phone)
         
         # Cross-reference: "B" index for name lookup
         globals_dict[f'^DPT("B","{full_name}",{vista_ien})'] = ""
@@ -1420,7 +1441,7 @@ class VistaFormatter:
                 all_globals[f"^DPT({vista_ien},.11)"] = address_node
 
             if patient.phone:
-                all_globals[f"^DPT({vista_ien},.13)"] = VistaFormatter.sanitize_mumps_string(patient.phone)
+                all_globals[f"^DPT({vista_ien},.13)"] = VistaFormatter.format_phone_number(patient.phone)
 
             all_globals[f'^DPT("B","{full_name}",{vista_ien})'] = ""
             if vista_ssn:
@@ -1500,6 +1521,8 @@ class VistaFormatter:
                     or condition.get('icd10')
                     or TERMINOLOGY_MAPPINGS.get('conditions', {}).get(condition_name, {}).get('icd10', '')
                 )
+                if not icd_code:
+                    icd_code = VistaFormatter.ICD_FALLBACKS.get(condition_name, "R69")
 
                 narrative_ien = registry.get_narrative_ien(condition_name)
                 icd_ien = registry.get_icd10_ien(icd_code)
