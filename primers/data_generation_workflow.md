@@ -48,6 +48,7 @@ python -m src.core.synthetic_patient_generator \
 ```
 - Combine scenario-default modules with extra `--module` flags; duplicates are deduplicated automatically.
 - Use `--output-format csv|parquet|both` (default `both`). All artifacts land under the target directory with CSV/Parquet, `fhir_bundle.json`, HL7 ADT/ORU dumps, and optional VistA globals.
+- VistA exports default to FileMan-internal encodings; supply `--vista-mode legacy` if you need the older text-based output for compatibility.
 
 ## 4. Validate Before Commit
 - Structural checks: `python tools/module_linter.py --all`

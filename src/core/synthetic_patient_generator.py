@@ -12,7 +12,7 @@ import uuid
 from collections import defaultdict, Counter
 from functools import partial
 from pathlib import Path
-from typing import List, Dict, Optional, Any, Tuple, Union, Iterable
+from typing import List, Dict, Optional, Any, Tuple, Union, Iterable, Callable, Set
 from tqdm import tqdm
 
 from .terminology_catalogs import LAB_CODES
@@ -874,8 +874,134 @@ class HL7v2Formatter:
         }
         return units_mapping.get(observation_type, "")
 
+
+class VistaReferenceRegistry:
+    """Minimal in-memory registry for FileMan pointer lookups."""
+
+    STATE_IEN_MAP: Dict[str, int] = {
+        "AL": 1,
+        "AK": 2,
+        "AZ": 3,
+        "AR": 4,
+        "CA": 5,
+        "CO": 6,
+        "CT": 7,
+        "DE": 8,
+        "DC": 9,
+        "FL": 10,
+        "GA": 11,
+        "HI": 12,
+        "ID": 13,
+        "IL": 14,
+        "IN": 15,
+        "IA": 16,
+        "KS": 17,
+        "KY": 18,
+        "LA": 19,
+        "ME": 20,
+        "MD": 21,
+        "MA": 22,
+        "MI": 23,
+        "MN": 24,
+        "MS": 25,
+        "MO": 26,
+        "MT": 27,
+        "NE": 28,
+        "NV": 29,
+        "NH": 30,
+        "NJ": 31,
+        "NM": 32,
+        "NY": 33,
+        "NC": 34,
+        "ND": 35,
+        "OH": 36,
+        "OK": 37,
+        "OR": 38,
+        "PA": 39,
+        "RI": 40,
+        "SC": 41,
+        "SD": 42,
+        "TN": 43,
+        "TX": 44,
+        "UT": 45,
+        "VT": 46,
+        "VA": 47,
+        "WA": 48,
+        "WV": 49,
+        "WI": 50,
+        "WY": 51,
+        "PR": 52,
+        "VI": 53,
+        "GU": 54,
+        "AS": 55,
+        "MP": 56,
+    }
+
+    def __init__(self) -> None:
+        self.icd10_lookup: Dict[str, str] = {}
+        self.narrative_lookup: Dict[str, str] = {}
+        self.location_lookup: Dict[str, str] = {}
+        self._icd_counter = 400000
+        self._narrative_counter = 500000
+        self._location_counter = 600000
+
+    def _allocate(self, counter_attr: str) -> str:
+        value = getattr(self, counter_attr)
+        setattr(self, counter_attr, value + 1)
+        return str(value)
+
+    def get_state_ien(self, state: Optional[str]) -> str:
+        if not state:
+            return ""
+        return str(self.STATE_IEN_MAP.get(state.upper(), ""))
+
+    def get_icd10_ien(self, code: Optional[str]) -> str:
+        if not code:
+            return ""
+        if code not in self.icd10_lookup:
+            self.icd10_lookup[code] = self._allocate("_icd_counter")
+        return self.icd10_lookup[code]
+
+    def get_narrative_ien(self, narrative: Optional[str]) -> str:
+        if not narrative:
+            return ""
+        if narrative not in self.narrative_lookup:
+            self.narrative_lookup[narrative] = self._allocate("_narrative_counter")
+        return self.narrative_lookup[narrative]
+
+    def get_location_ien(self, name: Optional[str]) -> str:
+        if not name:
+            return ""
+        if name not in self.location_lookup:
+            self.location_lookup[name] = self._allocate("_location_counter")
+        return self.location_lookup[name]
+
+    def build_reference_globals(self, sanitize: Callable[[str], str]) -> Dict[str, str]:
+        globals_dict: Dict[str, str] = {}
+        for code, ien in self.icd10_lookup.items():
+            globals_dict[f"^ICD10({ien},0)"] = code
+        for narrative, ien in self.narrative_lookup.items():
+            globals_dict[f"^AUTNPOV({ien},0)"] = sanitize(narrative)
+        for name, ien in self.location_lookup.items():
+            globals_dict[f"^AUTTLOC({ien},0)"] = sanitize(name)
+        return globals_dict
+
+    def header_entries(self, fm_date: str) -> Dict[str, str]:
+        headers: Dict[str, str] = {}
+        if self.icd10_lookup:
+            headers["^ICD10(0)"] = f"ICD DIAGNOSIS^80^{max(int(v) for v in self.icd10_lookup.values())}^{fm_date}"
+        if self.narrative_lookup:
+            headers["^AUTNPOV(0)"] = f"PROVIDER NARRATIVE^9999999.27^{max(int(v) for v in self.narrative_lookup.values())}^{fm_date}"
+        if self.location_lookup:
+            headers["^AUTTLOC(0)"] = f"LOCATION^9999999.06^{max(int(v) for v in self.location_lookup.values())}^{fm_date}"
+        return headers
+
+
 class VistaFormatter:
     """VistA MUMPS global formatter for Phase 3 - Production accurate VA migration simulation"""
+
+    LEGACY_MODE = "legacy"
+    FILEMAN_INTERNAL_MODE = "fileman_internal"
     
     @staticmethod
     def vista_date_format(date_str: str) -> str:
@@ -938,7 +1064,46 @@ class VistaFormatter:
     def generate_vista_ien() -> str:
         """Generate VistA Internal Entry Number (IEN)"""
         return str(random.randint(1, 999999))
-    
+
+    @staticmethod
+    def fileman_date_format(date_str: Optional[str]) -> str:
+        if not date_str:
+            return ""
+        try:
+            if isinstance(date_str, str):
+                dt = datetime.strptime(date_str, "%Y-%m-%d").date()
+            else:
+                dt = date_str
+            years = dt.year - 1700
+            return f"{years}{dt.month:02d}{dt.day:02d}"
+        except Exception:
+            return ""
+
+    @staticmethod
+    def fileman_datetime_format(date_str: Optional[str], time_str: Optional[str] = None) -> str:
+        if not date_str:
+            return ""
+        try:
+            if isinstance(date_str, str):
+                dt = datetime.strptime(date_str, "%Y-%m-%d").date()
+            else:
+                dt = date_str
+            years = dt.year - 1700
+            digits = time_str.replace(":", "") if time_str else "120000"
+            digits = (digits + "000000")[:6]
+            return f"{years}{dt.month:02d}{dt.day:02d}.{digits}"
+        except Exception:
+            return ""
+
+    @staticmethod
+    def _normalize_sex(value: Optional[str]) -> str:
+        normalized = (value or "").strip().lower()
+        if normalized in {"male", "m"}:
+            return "M"
+        if normalized in {"female", "f"}:
+            return "F"
+        return "U"
+
     @staticmethod
     def create_dpt_global(patient_record: PatientRecord) -> Dict[str, str]:
         """Create ^DPT Patient File #2 global structure"""
@@ -1103,8 +1268,8 @@ class VistaFormatter:
         return globals_dict
     
     @staticmethod
-    def export_vista_globals(patients: List[PatientRecord], encounters: List[Dict], conditions: List[Dict], output_file: str):
-        """Export all VistA globals to MUMPS format file"""
+    def _export_legacy(patients: List[PatientRecord], encounters: List[Dict], conditions: List[Dict], output_file: str):
+        """Legacy export using string pointers for cross-system compatibility."""
         all_globals = {}
         
         print(f"Generating VistA MUMPS globals for {len(patients)} patients...")
@@ -1172,6 +1337,214 @@ class VistaFormatter:
             "problem_records": problem_count,
             "cross_references": len(all_globals) - dpt_count - visit_count - problem_count
         }
+
+    @staticmethod
+    def _export_fileman_internal(
+        patients: List[PatientRecord],
+        encounters: List[Dict],
+        conditions: List[Dict],
+        output_file: str,
+    ) -> Dict[str, int]:
+        print(f"Generating VistA MUMPS globals for {len(patients)} patients (FileMan mode)...")
+
+        registry = VistaReferenceRegistry()
+        all_globals: Dict[str, str] = {}
+
+        patient_iens: Set[int] = set()
+        visit_iens: Set[int] = set()
+        problem_iens: Set[int] = set()
+        visit_map: Dict[str, str] = {}
+        problem_map: Dict[str, str] = {}
+
+        def _ensure_unique_ien(target_set: Set[int]) -> str:
+            candidate = VistaFormatter.generate_vista_ien()
+            while int(candidate) in target_set:
+                candidate = VistaFormatter.generate_vista_ien()
+            target_set.add(int(candidate))
+            return candidate
+
+        # Patient structures
+        for patient in tqdm(patients, desc="Creating VistA patient globals", unit="patients"):
+            vista_ien = patient.generate_vista_id()
+            try:
+                patient_iens.add(int(vista_ien))
+            except ValueError:
+                pass
+
+            full_name = f"{patient.last_name.upper()},{patient.first_name.upper()}"
+            if patient.middle_name:
+                full_name += f" {patient.middle_name.upper()}"
+            full_name = VistaFormatter.sanitize_mumps_string(full_name)
+
+            vista_sex = VistaFormatter._normalize_sex(patient.gender)
+            vista_dob = VistaFormatter.fileman_date_format(patient.birthdate)
+            vista_ssn = patient.ssn.replace("-", "") if patient.ssn else ""
+
+            race_mapping = {
+                "White": "5",
+                "Black": "3",
+                "Asian": "6",
+                "Hispanic": "7",
+                "Native American": "1",
+                "Other": "8",
+            }
+            vista_race = race_mapping.get(patient.race, "8")
+
+            zero_node = f"{full_name}^{vista_sex}^{vista_dob}^^^{vista_race}^^{vista_ssn}"
+            all_globals[f"^DPT({vista_ien},0)"] = zero_node
+
+            if patient.address:
+                state_piece = registry.get_state_ien(patient.state)
+                address_node = (
+                    f"{VistaFormatter.sanitize_mumps_string(patient.address)}^"
+                    f"{VistaFormatter.sanitize_mumps_string(patient.city)}^"
+                    f"{state_piece}^{patient.zip}"
+                )
+                all_globals[f"^DPT({vista_ien},.11)"] = address_node
+
+            if patient.phone:
+                all_globals[f"^DPT({vista_ien},.13)"] = VistaFormatter.sanitize_mumps_string(patient.phone)
+
+            all_globals[f'^DPT("B","{full_name}",{vista_ien})'] = ""
+            if vista_ssn:
+                all_globals[f'^DPT("SSN","{vista_ssn}",{vista_ien})'] = ""
+            if vista_dob:
+                all_globals[f'^DPT("DOB",{vista_dob},{vista_ien})'] = ""
+
+        # Index encounters by patient
+        encounter_map: Dict[str, List[Dict[str, Any]]] = {}
+        for encounter in encounters:
+            encounter_map.setdefault(encounter.get('patient_id'), []).append(encounter)
+
+        for patient in tqdm(patients, desc="Creating VistA encounter globals", unit="patients"):
+            vista_ien = patient.vista_id or patient.generate_vista_id()
+            patient_encounters = encounter_map.get(patient.patient_id, [])
+            for encounter in patient_encounters:
+                encounter_key = encounter.get('encounter_id') or str(id(encounter))
+                visit_ien = visit_map.setdefault(encounter_key, _ensure_unique_ien(visit_iens))
+
+                visit_datetime = VistaFormatter.fileman_datetime_format(encounter.get('date', ''), encounter.get('time'))
+                stop_code_mapping = {
+                    "Wellness Visit": "323",
+                    "Emergency": "130",
+                    "Follow-up": "323",
+                    "Specialist": "301",
+                    "Lab": "175",
+                    "Surgery": "162",
+                }
+                stop_code = stop_code_mapping.get(encounter.get('type', ''), "323")
+
+                service_category = "A"
+                if encounter.get('type') == "Emergency":
+                    service_category = "E"
+                elif encounter.get('type') == "Surgery":
+                    service_category = "I"
+
+                zero_node = f"{vista_ien}^{visit_datetime}^{service_category}^{stop_code}^"
+                all_globals[f"^AUPNVSIT({visit_ien},0)"] = zero_node
+
+                location_value = encounter.get('location')
+                if location_value:
+                    loc_ien = registry.get_location_ien(location_value)
+                    if loc_ien:
+                        all_globals[f"^AUPNVSIT({visit_ien},.06)"] = loc_ien
+
+                all_globals[f'^AUPNVSIT("B",{vista_ien},{visit_datetime},{visit_ien})'] = ""
+                all_globals[f'^AUPNVSIT("D",{visit_datetime},{visit_ien})'] = ""
+
+                if encounter.get('encounter_id'):
+                    all_globals[f"^AUPNVSIT({visit_ien},.99)"] = encounter['encounter_id']
+
+        # Index conditions by patient
+        condition_map: Dict[str, List[Dict[str, Any]]] = {}
+        for condition in conditions:
+            condition_map.setdefault(condition.get('patient_id'), []).append(condition)
+
+        for patient in tqdm(patients, desc="Creating VistA condition globals", unit="patients"):
+            vista_ien = patient.vista_id or patient.generate_vista_id()
+            patient_conditions = condition_map.get(patient.patient_id, [])
+            for condition in patient_conditions:
+                condition_key = condition.get('condition_id') or condition.get('id') or f"{condition.get('name')}-{condition.get('onset_date')}"
+                problem_ien = problem_map.setdefault(condition_key, _ensure_unique_ien(problem_iens))
+
+                onset_date = VistaFormatter.fileman_date_format(condition.get('onset_date', ''))
+                status_mapping = {
+                    "active": "A",
+                    "resolved": "I",
+                    "remission": "A",
+                }
+                problem_status = status_mapping.get(condition.get('status', 'active'), "A")
+
+                condition_name = condition.get('name', '')
+                icd_code = ""
+                if condition_name in TERMINOLOGY_MAPPINGS.get('conditions', {}):
+                    icd_code = TERMINOLOGY_MAPPINGS['conditions'][condition_name].get('icd10', '') or ""
+
+                narrative_ien = registry.get_narrative_ien(condition_name)
+                icd_ien = registry.get_icd10_ien(icd_code)
+
+                zero_node = f"{vista_ien}^{narrative_ien}^{problem_status}^{onset_date}^{icd_ien}"
+                all_globals[f"^AUPNPROB({problem_ien},0)"] = zero_node
+                if narrative_ien:
+                    all_globals[f"^AUPNPROB({problem_ien},.05)"] = narrative_ien
+
+                all_globals[f'^AUPNPROB("B",{vista_ien},{problem_ien})'] = ""
+                all_globals[f'^AUPNPROB("S","{problem_status}",{vista_ien},{problem_ien})'] = ""
+                if icd_ien:
+                    all_globals[f'^AUPNPROB("ICD",{icd_ien},{vista_ien},{problem_ien})'] = ""
+
+        all_globals.update(registry.build_reference_globals(VistaFormatter.sanitize_mumps_string))
+
+        fileman_date_today = VistaFormatter.fileman_date_format(date.today().isoformat())
+        if patient_iens:
+            all_globals["^DPT(0)"] = f"PATIENT^2^{max(patient_iens)}^{fileman_date_today}"
+        if visit_iens:
+            all_globals["^AUPNVSIT(0)"] = f"VISIT^9000010^{max(visit_iens)}^{fileman_date_today}"
+        if problem_iens:
+            all_globals["^AUPNPROB(0)"] = f"PROBLEM^9000011^{max(problem_iens)}^{fileman_date_today}"
+        all_globals.update(registry.header_entries(fileman_date_today))
+
+        with open(output_file, 'w') as handle:
+            handle.write(";; VistA MUMPS Global Export for Synthetic Patient Data\n")
+            handle.write(f";; Generated on {datetime.now().isoformat()}\n")
+            handle.write(f";; Total global nodes: {len(all_globals)}\n")
+            handle.write(";;\n")
+
+            for global_ref, value in sorted(all_globals.items()):
+                if value == "":
+                    handle.write(f'S {global_ref}=""\n')
+                elif value.replace('.', '').isdigit():
+                    handle.write(f"S {global_ref}={value}\n")
+                else:
+                    handle.write(f'S {global_ref}="{value}"\n')
+
+        print(f"VistA MUMPS globals exported to {output_file} ({len(all_globals)} global nodes)")
+
+        dpt_count = sum(1 for k in all_globals if k.startswith("^DPT(") and ",0)" in k)
+        visit_count = sum(1 for k in all_globals if k.startswith("^AUPNVSIT(") and ",0)" in k)
+        problem_count = sum(1 for k in all_globals if k.startswith("^AUPNPROB(") and ",0)" in k)
+        return {
+            "total_globals": len(all_globals),
+            "patient_records": dpt_count,
+            "visit_records": visit_count,
+            "problem_records": problem_count,
+            "cross_references": len(all_globals) - dpt_count - visit_count - problem_count,
+        }
+
+    @staticmethod
+    def export_vista_globals(
+        patients: List[PatientRecord],
+        encounters: List[Dict],
+        conditions: List[Dict],
+        output_file: str,
+        export_mode: str = FILEMAN_INTERNAL_MODE,
+    ) -> Dict[str, int]:
+        mode = (export_mode or VistaFormatter.FILEMAN_INTERNAL_MODE).lower()
+        if mode == VistaFormatter.LEGACY_MODE:
+            return VistaFormatter._export_legacy(patients, encounters, conditions, output_file)
+        if mode == VistaFormatter.FILEMAN_INTERNAL_MODE:
+            return VistaFormatter._export_fileman_internal(patients, encounters, conditions, output_file)
+        raise ValueError(f"Unsupported VistA export mode: {export_mode}")
 
 class HL7MessageValidator:
     """Basic HL7 v2 message validation for Phase 2"""
@@ -1262,6 +1635,12 @@ def main():
         action="store_true",
         help="List available modules under the modules/ directory and exit",
     )
+    parser.add_argument(
+        "--vista-mode",
+        choices=[VistaFormatter.LEGACY_MODE, VistaFormatter.FILEMAN_INTERNAL_MODE],
+        default=VistaFormatter.FILEMAN_INTERNAL_MODE,
+        help="Control VistA export encoding (default: fileman_internal)",
+    )
 
     args, unknown = parser.parse_known_args()
 
@@ -1340,6 +1719,7 @@ def main():
     # Determine output formats
     output_csv = output_format in ["csv", "both"]
     output_parquet = output_format in ["parquet", "both"]
+    vista_mode = get_config('vista_mode', VistaFormatter.FILEMAN_INTERNAL_MODE)
 
     # Parse distributions
     age_dist = parse_distribution(age_dist, AGE_BIN_LABELS, default_dist={l: 1/len(AGE_BIN_LABELS) for l in AGE_BIN_LABELS})
@@ -1878,9 +2258,14 @@ def main():
     
     # Export VistA MUMPS globals (Phase 3: VA migration simulation)
     print("Creating VistA MUMPS globals...")
-    vista_formatter = VistaFormatter()
     vista_output_file = os.path.join(output_dir, "vista_globals.mumps")
-    vista_stats = vista_formatter.export_vista_globals(patients, all_encounters, all_conditions, vista_output_file)
+    vista_stats = VistaFormatter.export_vista_globals(
+        patients,
+        all_encounters,
+        all_conditions,
+        vista_output_file,
+        export_mode=vista_mode,
+    )
 
     print(f"Done! Files written to {output_dir}: patients, encounters, conditions, medications, allergies, procedures, immunizations, observations, deaths, family_history (CSV and/or Parquet), FHIR bundle, HL7 messages, VistA MUMPS globals")
 

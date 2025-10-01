@@ -9,39 +9,38 @@
 ## Primer
 - Globals are sparse, hierarchical key/value stores (VA VistA).
 - Common patient data: `^DPT(IEN,field,...)=value` where `0` is a caret‑delimited main record.
-- Phase 3 exporter detail: DOB values in the `0` node or `.03` node are **day offsets since 1841-01-01**, not legacy 7-digit FileMan dates.
-- Frequent fields: `.02` sex (M/F), `.03` DOB (day offsets), `.09` SSN, `.11` address (caret-delimited string), `.13` phone.
+- Default exporter detail (`--vista-mode fileman_internal`): DOB values are **FileMan dates** (`YYYMMDD` with `YYY = year-1700`), encounters use FileMan datetimes (`YYYMMDD.HHMMSS`).
+- Legacy mode (`--vista-mode legacy`) retains the earlier day-offset encoding. Use only when reproducing historical artifacts.
+- Frequent fields: `.02` sex (M/F/U), `.03` DOB (FileMan date), `.09` SSN, `.11` address (state stored as a pointer IEN), `.13` phone.
 
 ## Date Conversion Helpers
 ```python
-from datetime import datetime, date, timedelta
+from datetime import datetime, date
 
-VISTA_EPOCH = date(1841, 1, 1)
-
-def vista_days_to_date(value: str | int | None):
-    """Convert day offsets (used in ^DPT) to a `date`."""
+def fileman_date(value: str | int | None):
+    """Convert FileMan dates (YYYMMDD where YYY = year-1700) to `date`."""
     if value in (None, ""):
         return None
+    digits = str(value).split('.')[0]
+    if len(digits) != 7:
+        return None
     try:
-        days = int(str(value).split('.')[0])
+        years_since_1700 = int(digits[:3])
+        year = 1700 + years_since_1700
+        month = int(digits[3:5])
+        day = int(digits[5:7])
+        return date(year, month, day)
     except ValueError:
         return None
-    return VISTA_EPOCH + timedelta(days=days)
 
-def vista_timestamp_to_datetime(value: str | None):
-    """Convert visit timestamps (YYYMMDD.HHMMSS with Y=years since 1700) to `datetime`."""
+def fileman_timestamp(value: str | None):
+    """Convert FileMan datetimes (YYYMMDD.HHMMSS) to `datetime`."""
     if not value:
         return None
     chunk = str(value)
     date_part, _, time_part = chunk.partition('.')
-    if len(date_part) < 5:
-        return None
-    try:
-        years_since_1700 = int(date_part[:-4])
-        month = int(date_part[-4:-2])
-        day = int(date_part[-2:])
-        year = 1700 + years_since_1700
-    except ValueError:
+    base = fileman_date(date_part)
+    if not base:
         return None
     time_part = (time_part + "000000")[:6]
     try:
@@ -50,10 +49,7 @@ def vista_timestamp_to_datetime(value: str | None):
         second = int(time_part[4:6])
     except ValueError:
         hour = minute = second = 0
-    try:
-        return datetime(year, month, day, hour, minute, second)
-    except ValueError:
-        return None
+    return datetime(base.year, base.month, base.day, hour, minute, second)
 ```
 
 ## Minimal Global Parser
@@ -109,10 +105,10 @@ def parse_dpt_demographics(doc: Dict[str, Any], ien: str) -> Dict[str, Any]:
         parts = record.split('^')
         demo['name'] = parts[0] if parts else ''
         demo['sex'] = parts[1] if len(parts)>1 else ''
-        demo['dob'] = vista_days_to_date(parts[2]) if len(parts)>2 and parts[2] else None
+        demo['dob'] = fileman_date(parts[2]) if len(parts)>2 and parts[2] else None
         demo['ssn'] = parts[3] if len(parts)>3 else ''
     if '.02' in node: demo['sex'] = node['.02']
-    if '.03' in node: demo['dob'] = vista_days_to_date(node['.03'])
+    if '.03' in node: demo['dob'] = fileman_date(node['.03'])
     if '.09' in node: demo['ssn'] = node['.09']
     if '.11' in node:
         parts = (node['.11'] or '').split('^')
@@ -124,7 +120,7 @@ def parse_dpt_demographics(doc: Dict[str, Any], ien: str) -> Dict[str, Any]:
             'zip': parts[4] if len(parts) > 4 else '',
         }
     if '.13' in node and node['.13']:
-        demo['phones'] = [node['.13']]
+    demo['phones'] = [node['.13']]
     return demo
 ```
 
@@ -169,5 +165,5 @@ def vista_to_fhir_patient(ien: str, demo: Dict[str, Any]) -> Dict[str, Any]:
 ## Tips
 - Keep IENs stable for lineage during migration.
 - Expect sparsity and optional subtrees; always guard lookups.
-- Normalize day-offset DOBs and FileMan-style visit timestamps early to avoid downstream confusion.
+- Normalize FileMan DOBs and datetimes immediately; fall back to legacy day-offset helper only if you generated with `--vista-mode legacy`.
 - Use small dictionaries to map VA codes to modern vocabularies incrementally.

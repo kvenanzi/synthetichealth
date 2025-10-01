@@ -1,0 +1,114 @@
+import importlib
+import re
+import sys
+from pathlib import Path
+
+tests_dir = Path(__file__).resolve().parent
+repo_root = tests_dir.parent
+sys.path.insert(0, str(repo_root))
+
+records_module = importlib.import_module("src.core.lifecycle.records")
+generator_module = importlib.import_module("src.core.synthetic_patient_generator")
+
+PatientRecord = records_module.PatientRecord
+VistaFormatter = generator_module.VistaFormatter
+
+
+def _build_patient() -> PatientRecord:
+    patient = PatientRecord(
+        first_name="Alice",
+        last_name="Smith",
+        gender="female",
+        birthdate="1980-05-17",
+        ssn="123-45-6789",
+        address="123 Main St",
+        city="Boston",
+        state="MA",
+        zip="02118",
+        phone="555-0101",
+        marital_status="Married",
+        race="White",
+    )
+    patient.vista_id = "1001"
+    return patient
+
+
+def test_fileman_internal_generates_numeric_pointers(tmp_path):
+    patient = _build_patient()
+    encounter = {
+        "patient_id": patient.patient_id,
+        "encounter_id": "enc-1",
+        "date": "2023-11-29",
+        "type": "Wellness Visit",
+        "location": "Primary Care Clinic",
+    }
+    condition = {
+        "patient_id": patient.patient_id,
+        "condition_id": "cond-1",
+        "name": "Hypertension",
+        "status": "active",
+        "onset_date": "2023-10-01",
+    }
+
+    output_file = tmp_path / "vista_globals.mumps"
+    stats = VistaFormatter.export_vista_globals(
+        [patient],
+        [encounter],
+        [condition],
+        str(output_file),
+        export_mode=VistaFormatter.FILEMAN_INTERNAL_MODE,
+    )
+
+    assert stats["patient_records"] == 1
+    assert stats["visit_records"] == 1
+    assert stats["problem_records"] == 1
+
+    content = output_file.read_text().splitlines()
+    header_line = next(line for line in content if line.startswith("S ^DPT(0)="))
+    assert re.search(r"\^DPT\(0\)=\"PATIENT\^2\^1001", header_line)
+
+    address_line = next(line for line in content if line.startswith("S ^DPT(1001,.11)="))
+    # State field should be encoded as numeric pointer (Massachusetts=22)
+    assert "^22^" in address_line
+
+    visit_pointer_line = next(line for line in content if re.match(r"S \^AUPNVSIT\(\d+,\.06\)=", line))
+    assert re.match(r"S \^AUPNVSIT\(\d+,\.06\)=\d+$", visit_pointer_line)
+
+    narrative_line = next(line for line in content if re.match(r"S \^AUPNPROB\(\d+,\.05\)=", line))
+    assert re.match(r"S \^AUPNPROB\(\d+,\.05\)=\d+$", narrative_line)
+
+    dob_index = next(line for line in content if line.startswith('S ^DPT("DOB"'))
+    # FileMan date for 1980-05-17 -> years since 1700 = 280
+    assert ",2800517," in dob_index
+
+
+def test_legacy_mode_preserves_string_fields(tmp_path):
+    patient = _build_patient()
+    encounter = {
+        "patient_id": patient.patient_id,
+        "encounter_id": "enc-legacy",
+        "date": "2021-01-05",
+        "type": "Lab",
+        "location": "City Lab",
+    }
+    condition = {
+        "patient_id": patient.patient_id,
+        "condition_id": "cond-legacy",
+        "name": "Diabetes",
+        "status": "active",
+        "onset_date": "2020-12-01",
+    }
+
+    output_file = tmp_path / "vista_legacy.mumps"
+    VistaFormatter.export_vista_globals(
+        [patient],
+        [encounter],
+        [condition],
+        str(output_file),
+        export_mode=VistaFormatter.LEGACY_MODE,
+    )
+
+    content = output_file.read_text()
+    # Legacy mode keeps state abbreviation and ICD text values
+    assert "^DPT(1001,.11)=\"123 Main St^Boston^MA^02118\"" in content
+    assert '^AUPNPROB("ICD","' in content
