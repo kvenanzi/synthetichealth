@@ -180,11 +180,12 @@ def load_vsac_value_sets(root: Path) -> pl.DataFrame:
         "code_system_version": "",
         "display_name": "",
     }
+    csv_kwargs = {"dtypes": {"code": pl.Utf8}}
     if normalized.exists():
-        df = pl.read_csv(normalized)
+        df = pl.read_csv(normalized, **csv_kwargs)
         return _ensure_columns(df, required)
     if seed.exists():
-        df = pl.read_csv(seed)
+        df = pl.read_csv(seed, **csv_kwargs)
         return _ensure_columns(df, required)
     return _empty_frame(required)
 

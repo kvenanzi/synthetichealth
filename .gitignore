@@ -78,3 +78,4 @@ data/terminology/umls/umls_concepts_full.csv
 data/terminology/vsac/vsac_value_sets_full.csv
 output/vista_doc_test/hl7_messages_validation.json
 *hl7_messages_validation.json
+data/terminology/terminology.duckdb

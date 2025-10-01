@@ -34,18 +34,25 @@ def normalize_snomed(concept_path: Path, description_path: Path, output_path: Pa
     if not description_path.exists():
         raise FileNotFoundError(f"Description snapshot not found: {description_path}")
 
-    concepts = pl.read_csv(concept_path, separator="\t")
+    concepts = pl.read_csv(concept_path, separator="\t", quote_char=None)
     concepts = concepts.with_columns([
         pl.col("id").cast(pl.Utf8),
         pl.col("definitionStatusId").cast(pl.Utf8),
     ])
     concepts = concepts.filter((pl.col("active") == 1))
 
-    descriptions = pl.read_csv(description_path, separator="\t")
+    # The US Managed Service snapshots occasionally ship description rows with
+    # unbalanced quotes (for example a value such as "Morning after pill without
+    # the closing quote). When the parser treats the file as a quoted TSV this
+    # causes Polars to see a single row that spans the remainder of the file and
+    # emit ``CSV malformed`` errors. Disabling quote handling keeps those rows
+    # well-formed and we trim any stray quote characters afterwards.
+    descriptions = pl.read_csv(description_path, separator="\t", quote_char=None)
     descriptions = descriptions.with_columns([
         pl.col("conceptId").cast(pl.Utf8),
         pl.col("typeId").cast(pl.Utf8),
         pl.col("caseSignificanceId").cast(pl.Utf8),
+        pl.col("term").cast(pl.Utf8).str.strip_chars('"'),
     ])
     descriptions = descriptions.filter((pl.col("active") == 1))
 
