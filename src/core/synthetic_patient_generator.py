@@ -7,6 +7,7 @@ import argparse
 import os
 import yaml
 import json
+import re
 from datetime import date, datetime, timedelta
 import uuid
 from collections import defaultdict, Counter
@@ -941,6 +942,7 @@ class VistaReferenceRegistry:
         self.icd10_lookup: Dict[str, str] = {}
         self.narrative_lookup: Dict[str, str] = {}
         self.location_lookup: Dict[str, str] = {}
+        self.stop_code_lookup: Dict[str, str] = {}
         self._icd_counter = 400000
         self._narrative_counter = 500000
         self._location_counter = 600000
@@ -976,24 +978,39 @@ class VistaReferenceRegistry:
             self.location_lookup[name] = self._allocate("_location_counter")
         return self.location_lookup[name]
 
+    def register_stop_code(self, code: Optional[str], description: str) -> str:
+        if not code:
+            return ""
+        normalized = str(code)
+        if normalized not in self.stop_code_lookup:
+            self.stop_code_lookup[normalized] = description
+        return normalized
+
     def build_reference_globals(self, sanitize: Callable[[str], str]) -> Dict[str, str]:
         globals_dict: Dict[str, str] = {}
         for code, ien in self.icd10_lookup.items():
-            globals_dict[f"^ICD10({ien},0)"] = code
+            globals_dict[f"^ICD9({ien},0)"] = code
         for narrative, ien in self.narrative_lookup.items():
             globals_dict[f"^AUTNPOV({ien},0)"] = sanitize(narrative)
         for name, ien in self.location_lookup.items():
             globals_dict[f"^AUTTLOC({ien},0)"] = sanitize(name)
+        for code, description in self.stop_code_lookup.items():
+            sanitized = sanitize(description) or "Unknown Clinic"
+            globals_dict[f"^DIC(40.7,{code},0)"] = f"{code}^{sanitized}"
         return globals_dict
 
     def header_entries(self, fm_date: str) -> Dict[str, str]:
         headers: Dict[str, str] = {}
         if self.icd10_lookup:
-            headers["^ICD10(0)"] = f"ICD DIAGNOSIS^80^{max(int(v) for v in self.icd10_lookup.values())}^{fm_date}"
+            headers["^ICD9(0)"] = f"ICD DIAGNOSIS^80^{max(int(v) for v in self.icd10_lookup.values())}^{fm_date}"
         if self.narrative_lookup:
             headers["^AUTNPOV(0)"] = f"PROVIDER NARRATIVE^9999999.27^{max(int(v) for v in self.narrative_lookup.values())}^{fm_date}"
         if self.location_lookup:
             headers["^AUTTLOC(0)"] = f"LOCATION^9999999.06^{max(int(v) for v in self.location_lookup.values())}^{fm_date}"
+        if self.stop_code_lookup:
+            numeric_codes = [int(code) for code in self.stop_code_lookup.keys() if str(code).isdigit()]
+            if numeric_codes:
+                headers["^DIC(40.7,0)"] = f"CLINIC STOP^40.7^{max(numeric_codes)}^{fm_date}"
         return headers
 
 
@@ -1432,7 +1449,8 @@ class VistaFormatter:
                     "Lab": "175",
                     "Surgery": "162",
                 }
-                stop_code = stop_code_mapping.get(encounter.get('type', ''), "323")
+                stop_code_value = stop_code_mapping.get(encounter.get('type', ''), "323")
+                stop_code = registry.register_stop_code(stop_code_value, encounter.get('type', 'Unknown'))
 
                 service_category = "A"
                 if encounter.get('type') == "Emergency":
@@ -1452,8 +1470,9 @@ class VistaFormatter:
                 all_globals[f'^AUPNVSIT("B",{vista_ien},{visit_datetime},{visit_ien})'] = ""
                 all_globals[f'^AUPNVSIT("D",{visit_datetime},{visit_ien})'] = ""
 
+                # Preserve GUID cross-reference under custom node to avoid DD conflicts
                 if encounter.get('encounter_id'):
-                    all_globals[f"^AUPNVSIT({visit_ien},.99)"] = encounter['encounter_id']
+                    all_globals[f'^AUPNVSIT("GUID",{visit_ien})'] = encounter['encounter_id']
 
         # Index conditions by patient
         condition_map: Dict[str, List[Dict[str, Any]]] = {}
@@ -1476,9 +1495,11 @@ class VistaFormatter:
                 problem_status = status_mapping.get(condition.get('status', 'active'), "A")
 
                 condition_name = condition.get('name', '')
-                icd_code = ""
-                if condition_name in TERMINOLOGY_MAPPINGS.get('conditions', {}):
-                    icd_code = TERMINOLOGY_MAPPINGS['conditions'][condition_name].get('icd10', '') or ""
+                icd_code = (
+                    condition.get('icd10_code')
+                    or condition.get('icd10')
+                    or TERMINOLOGY_MAPPINGS.get('conditions', {}).get(condition_name, {}).get('icd10', '')
+                )
 
                 narrative_ien = registry.get_narrative_ien(condition_name)
                 icd_ien = registry.get_icd10_ien(icd_code)
@@ -1513,7 +1534,7 @@ class VistaFormatter:
             for global_ref, value in sorted(all_globals.items()):
                 if value == "":
                     handle.write(f'S {global_ref}=""\n')
-                elif value.replace('.', '').isdigit():
+                elif re.fullmatch(r"-?\d+(\.\d+)?", value):
                     handle.write(f"S {global_ref}={value}\n")
                 else:
                     handle.write(f'S {global_ref}="{value}"\n')
