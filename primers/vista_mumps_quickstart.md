@@ -10,7 +10,7 @@
 - Globals are sparse, hierarchical key/value stores (VA VistA).
 - Common patient data: `^DPT(IEN,field,...)=value` where `0` is a caret‑delimited main record.
 - Phase 3 exporter detail: DOB values in the `0` node or `.03` node are **day offsets since 1841-01-01**, not legacy 7-digit FileMan dates.
-- Frequent fields: `.02` sex (M/F), `.03` DOB (day offsets), `.09` SSN, `.11` address multi, `.131` phones.
+- Frequent fields: `.02` sex (M/F), `.03` DOB (day offsets), `.09` SSN, `.11` address (caret-delimited string), `.13` phone.
 
 ## Date Conversion Helpers
 ```python
@@ -87,12 +87,15 @@ def parse_globals_file(path: str) -> Dict[str, Any]:
         for raw in f:
             line = raw.strip()
             if not line or '=' not in line: continue
+            if line.startswith('S '):
+                line = line[2:].lstrip()
             lhs, rhs = line.split('=', 1)
             m = gpat.match(lhs)
             if not m: continue
             name, subs = m.group(1), parse_subscripts(m.group(2))
             bucket = data.setdefault(name, {})
-            set_nested(bucket, subs, rhs)
+            value = rhs.strip('"')
+            set_nested(bucket, subs, value)
     return data
 ```
 
@@ -102,7 +105,8 @@ def parse_dpt_demographics(doc: Dict[str, Any], ien: str) -> Dict[str, Any]:
     node = (doc.get('DPT') or {}).get(ien) or {}
     demo = {}
     if '0' in node:
-        parts = node['0'].split('^')
+        record = node['0'].strip('"') if isinstance(node['0'], str) else str(node['0'])
+        parts = record.split('^')
         demo['name'] = parts[0] if parts else ''
         demo['sex'] = parts[1] if len(parts)>1 else ''
         demo['dob'] = vista_days_to_date(parts[2]) if len(parts)>2 and parts[2] else None
@@ -111,17 +115,16 @@ def parse_dpt_demographics(doc: Dict[str, Any], ien: str) -> Dict[str, Any]:
     if '.03' in node: demo['dob'] = vista_days_to_date(node['.03'])
     if '.09' in node: demo['ssn'] = node['.09']
     if '.11' in node:
-        a = node['.11']
+        parts = (node['.11'] or '').split('^')
         demo['address'] = {
-            'street1': a.get('1',''), 'street2': a.get('2',''),
-            'city': a.get('3',''), 'state': a.get('4',''), 'zip': a.get('5','')
+            'street1': parts[0] if len(parts) > 0 else '',
+            'street2': parts[1] if len(parts) > 1 else '',
+            'city': parts[2] if len(parts) > 2 else '',
+            'state': parts[3] if len(parts) > 3 else '',
+            'zip': parts[4] if len(parts) > 4 else '',
         }
-    if '.131' in node:
-        phones = []
-        for k, v in (node['.131'] or {}).items():
-            if isinstance(v, dict) and '0' in v:
-                phones.append(v['0'].split('^')[0])
-        demo['phones'] = phones
+    if '.13' in node and node['.13']:
+        demo['phones'] = [node['.13']]
     return demo
 ```
 
