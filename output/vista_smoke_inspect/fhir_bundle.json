@@ -1,0 +1,5554 @@
+{
+  "resourceType": "Bundle",
+  "type": "collection",
+  "timestamp": "2025-10-01T14:57:51.344434",
+  "entry": [
+    {
+      "resource": {
+        "resourceType": "Patient",
+        "id": "cc494ba7-9ccb-49a3-bb31-74ba1d224cf2",
+        "identifier": [
+          {
+            "use": "usual",
+            "type": {
+              "coding": [
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                  "code": "MR"
+                }
+              ]
+            },
+            "value": "MRN500123"
+          },
+          {
+            "use": "official",
+            "type": {
+              "coding": [
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                  "code": "SS"
+                }
+              ]
+            },
+            "system": "http://hl7.org/fhir/sid/us-ssn",
+            "value": "512-94-8107"
+          }
+        ],
+        "active": true,
+        "telecom": [
+          {
+            "system": "phone",
+            "value": "795-686-6004x27934"
+          }
+        ],
+        "name": [
+          {
+            "use": "official",
+            "family": "Bailey",
+            "given": [
+              "Cameron",
+              "P"
+            ]
+          }
+        ],
+        "gender": "other",
+        "birthDate": "1920-10-27",
+        "address": [
+          {
+            "use": "home",
+            "line": [
+              "702 Roy Junctions Suite 683"
+            ],
+            "city": "Smithmouth",
+            "state": "DE",
+            "postalCode": "90408",
+            "country": "US"
+          }
+        ]
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Patient",
+        "id": "25111606-e5df-420a-aee4-eed9589b2f56",
+        "identifier": [
+          {
+            "use": "usual",
+            "type": {
+              "coding": [
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                  "code": "MR"
+                }
+              ]
+            },
+            "value": "MRN331377"
+          },
+          {
+            "use": "official",
+            "type": {
+              "coding": [
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                  "code": "SS"
+                }
+              ]
+            },
+            "system": "http://hl7.org/fhir/sid/us-ssn",
+            "value": "422-21-2704"
+          }
+        ],
+        "active": true,
+        "telecom": [
+          {
+            "system": "phone",
+            "value": "327.444.3215"
+          }
+        ],
+        "name": [
+          {
+            "use": "official",
+            "family": "Parks",
+            "given": [
+              "Cindy",
+              "N"
+            ]
+          }
+        ],
+        "gender": "male",
+        "birthDate": "1995-10-09",
+        "address": [
+          {
+            "use": "home",
+            "line": [
+              "9650 Watts Crest Suite 621"
+            ],
+            "city": "New Alisha",
+            "state": "IL",
+            "postalCode": "77933",
+            "country": "US"
+          }
+        ]
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Patient",
+        "id": "f13b2659-eb08-4c09-9791-1856f1647302",
+        "identifier": [
+          {
+            "use": "usual",
+            "type": {
+              "coding": [
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                  "code": "MR"
+                }
+              ]
+            },
+            "value": "MRN290848"
+          },
+          {
+            "use": "official",
+            "type": {
+              "coding": [
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                  "code": "SS"
+                }
+              ]
+            },
+            "system": "http://hl7.org/fhir/sid/us-ssn",
+            "value": "851-60-7608"
+          }
+        ],
+        "active": true,
+        "telecom": [
+          {
+            "system": "phone",
+            "value": "938-532-7771x63887"
+          }
+        ],
+        "name": [
+          {
+            "use": "official",
+            "family": "Hill",
+            "given": [
+              "Sandra",
+              "R"
+            ]
+          }
+        ],
+        "gender": "female",
+        "birthDate": "1989-10-10",
+        "address": [
+          {
+            "use": "home",
+            "line": [
+              "230 Gallagher Center"
+            ],
+            "city": "New Michelleborough",
+            "state": "GU",
+            "postalCode": "90379",
+            "country": "US"
+          }
+        ]
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Patient",
+        "id": "2fff6d96-4c98-4338-a183-42e3cfe01a54",
+        "identifier": [
+          {
+            "use": "usual",
+            "type": {
+              "coding": [
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                  "code": "MR"
+                }
+              ]
+            },
+            "value": "MRN124856"
+          },
+          {
+            "use": "official",
+            "type": {
+              "coding": [
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                  "code": "SS"
+                }
+              ]
+            },
+            "system": "http://hl7.org/fhir/sid/us-ssn",
+            "value": "334-78-4758"
+          }
+        ],
+        "active": true,
+        "telecom": [
+          {
+            "system": "phone",
+            "value": "717-654-8783"
+          }
+        ],
+        "name": [
+          {
+            "use": "official",
+            "family": "Abbott",
+            "given": [
+              "Nicholas",
+              "D"
+            ]
+          }
+        ],
+        "gender": "female",
+        "birthDate": "2020-10-02",
+        "address": [
+          {
+            "use": "home",
+            "line": [
+              "85242 Angela Branch Apt. 692"
+            ],
+            "city": "Jonesburgh",
+            "state": "FM",
+            "postalCode": "28920",
+            "country": "US"
+          }
+        ]
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Patient",
+        "id": "4614b9aa-5660-4935-a550-95039d44641d",
+        "identifier": [
+          {
+            "use": "usual",
+            "type": {
+              "coding": [
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                  "code": "MR"
+                }
+              ]
+            },
+            "value": "MRN315494"
+          },
+          {
+            "use": "official",
+            "type": {
+              "coding": [
+                {
+                  "system": "http://terminology.hl7.org/CodeSystem/v2-0203",
+                  "code": "SS"
+                }
+              ]
+            },
+            "system": "http://hl7.org/fhir/sid/us-ssn",
+            "value": "337-62-0603"
+          }
+        ],
+        "active": true,
+        "telecom": [
+          {
+            "system": "phone",
+            "value": "226-805-9560"
+          }
+        ],
+        "name": [
+          {
+            "use": "official",
+            "family": "Nelson",
+            "given": [
+              "Ryan",
+              "K"
+            ]
+          }
+        ],
+        "gender": "other",
+        "birthDate": "1971-10-15",
+        "address": [
+          {
+            "use": "home",
+            "line": [
+              "587 Buchanan Harbor Suite 925"
+            ],
+            "city": "Lake Josephstad",
+            "state": "UT",
+            "postalCode": "53653",
+            "country": "US"
+          }
+        ]
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Condition",
+        "id": "14b2c7ce-7e9c-48e6-8b60-9c4d836c7c6e",
+        "subject": {
+          "reference": "Patient/cc494ba7-9ccb-49a3-bb31-74ba1d224cf2"
+        },
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/sid/icd-10-cm",
+              "code": "E11.9",
+              "display": "Diabetes"
+            },
+            {
+              "system": "http://snomed.info/sct",
+              "code": "44054006",
+              "display": "Diabetes"
+            }
+          ]
+        },
+        "clinicalStatus": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+              "code": "resolved"
+            }
+          ]
+        },
+        "onsetDateTime": "2022-09-04"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Condition",
+        "id": "cfe49e44-8726-4d20-99ac-55c3cfcb8335",
+        "subject": {
+          "reference": "Patient/cc494ba7-9ccb-49a3-bb31-74ba1d224cf2"
+        },
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/sid/icd-10-cm",
+              "code": "F41.1",
+              "display": "Anxiety"
+            },
+            {
+              "system": "http://snomed.info/sct",
+              "code": "21897009",
+              "display": "Anxiety"
+            }
+          ]
+        },
+        "clinicalStatus": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+              "code": "active"
+            }
+          ]
+        },
+        "onsetDateTime": "1929-01-03"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Condition",
+        "id": "bd151d95-3be8-4069-a4e0-091858736322",
+        "subject": {
+          "reference": "Patient/cc494ba7-9ccb-49a3-bb31-74ba1d224cf2"
+        },
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/sid/icd-10-cm",
+              "code": "I10",
+              "display": "Hypertension"
+            },
+            {
+              "system": "http://snomed.info/sct",
+              "code": "38341003",
+              "display": "Hypertension"
+            }
+          ]
+        },
+        "clinicalStatus": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+              "code": "remission"
+            }
+          ]
+        },
+        "onsetDateTime": "2014-05-09"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Condition",
+        "id": "922b3b39-ec3a-4837-975b-bcc33d950951",
+        "subject": {
+          "reference": "Patient/cc494ba7-9ccb-49a3-bb31-74ba1d224cf2"
+        },
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/sid/icd-10-cm",
+              "code": "F33.1",
+              "display": "Depression"
+            },
+            {
+              "system": "http://snomed.info/sct",
+              "code": "370143000",
+              "display": "Depression"
+            }
+          ]
+        },
+        "clinicalStatus": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+              "code": "remission"
+            }
+          ]
+        },
+        "onsetDateTime": "1955-01-21"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Condition",
+        "id": "fa6fd29d-44b1-432f-a204-58042b21b479",
+        "subject": {
+          "reference": "Patient/25111606-e5df-420a-aee4-eed9589b2f56"
+        },
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/sid/icd-10-cm",
+              "code": "T78.40XA",
+              "display": "Allergy"
+            },
+            {
+              "system": "http://snomed.info/sct",
+              "code": "419199007",
+              "display": "Allergy"
+            }
+          ]
+        },
+        "clinicalStatus": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+              "code": "remission"
+            }
+          ]
+        },
+        "onsetDateTime": "2013-06-08"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Condition",
+        "id": "e27b8946-6bbf-4af6-abf6-f464f9c9575d",
+        "subject": {
+          "reference": "Patient/25111606-e5df-420a-aee4-eed9589b2f56"
+        },
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/sid/icd-10-cm",
+              "code": "J10.1",
+              "display": "Flu"
+            },
+            {
+              "system": "http://snomed.info/sct",
+              "code": "6142004",
+              "display": "Flu"
+            }
+          ]
+        },
+        "clinicalStatus": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+              "code": "remission"
+            }
+          ]
+        },
+        "onsetDateTime": "1999-03-17"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Condition",
+        "id": "76a153e3-903d-4ba6-9572-99e0a72e1e77",
+        "subject": {
+          "reference": "Patient/25111606-e5df-420a-aee4-eed9589b2f56"
+        },
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/sid/icd-10-cm",
+              "code": "J44.1",
+              "display": "COPD"
+            },
+            {
+              "system": "http://snomed.info/sct",
+              "code": "13645005",
+              "display": "COPD"
+            }
+          ]
+        },
+        "clinicalStatus": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+              "code": "active"
+            }
+          ]
+        },
+        "onsetDateTime": "2013-06-08"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Condition",
+        "id": "7f80c26f-6faa-4645-b923-5075d3ee5217",
+        "subject": {
+          "reference": "Patient/f13b2659-eb08-4c09-9791-1856f1647302"
+        },
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/sid/icd-10-cm",
+              "code": "I25.10",
+              "display": "Heart Disease"
+            },
+            {
+              "system": "http://snomed.info/sct",
+              "code": "53741008",
+              "display": "Heart Disease"
+            }
+          ]
+        },
+        "clinicalStatus": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+              "code": "resolved"
+            }
+          ]
+        },
+        "onsetDateTime": "2018-05-18"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Condition",
+        "id": "e8c5594a-3610-41fd-b900-467b9adf4bea",
+        "subject": {
+          "reference": "Patient/f13b2659-eb08-4c09-9791-1856f1647302"
+        },
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/sid/icd-10-cm",
+              "code": "G43.909",
+              "display": "Migraine"
+            },
+            {
+              "system": "http://snomed.info/sct",
+              "code": "37796009",
+              "display": "Migraine"
+            }
+          ]
+        },
+        "clinicalStatus": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+              "code": "remission"
+            }
+          ]
+        },
+        "onsetDateTime": "1994-06-23"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Condition",
+        "id": "c7989f0c-d36c-4e87-96a1-2859c11d31c2",
+        "subject": {
+          "reference": "Patient/f13b2659-eb08-4c09-9791-1856f1647302"
+        },
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/sid/icd-10-cm",
+              "code": "I10",
+              "display": "Hypertension"
+            },
+            {
+              "system": "http://snomed.info/sct",
+              "code": "38341003",
+              "display": "Hypertension"
+            }
+          ]
+        },
+        "clinicalStatus": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+              "code": "remission"
+            }
+          ]
+        },
+        "onsetDateTime": "2018-05-18"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Condition",
+        "id": "7781f44d-7006-44fb-a5ca-1afb2359c22a",
+        "subject": {
+          "reference": "Patient/f13b2659-eb08-4c09-9791-1856f1647302"
+        },
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/sid/icd-10-cm",
+              "code": "J44.1",
+              "display": "COPD"
+            },
+            {
+              "system": "http://snomed.info/sct",
+              "code": "13645005",
+              "display": "COPD"
+            }
+          ]
+        },
+        "clinicalStatus": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+              "code": "active"
+            }
+          ]
+        },
+        "onsetDateTime": "1994-06-23"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Condition",
+        "id": "2810db87-d676-4943-b77e-417437947548",
+        "subject": {
+          "reference": "Patient/2fff6d96-4c98-4338-a183-42e3cfe01a54"
+        },
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/sid/icd-10-cm",
+              "code": "J45.909",
+              "display": "Asthma"
+            },
+            {
+              "system": "http://snomed.info/sct",
+              "code": "195967001",
+              "display": "Asthma"
+            }
+          ]
+        },
+        "clinicalStatus": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+              "code": "active"
+            }
+          ]
+        },
+        "onsetDateTime": "2023-11-30"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Condition",
+        "id": "7b5ffcda-bab2-42df-bd60-551d36852617",
+        "subject": {
+          "reference": "Patient/2fff6d96-4c98-4338-a183-42e3cfe01a54"
+        },
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/sid/icd-10-cm",
+              "code": "F33.1",
+              "display": "Depression"
+            },
+            {
+              "system": "http://snomed.info/sct",
+              "code": "370143000",
+              "display": "Depression"
+            }
+          ]
+        },
+        "clinicalStatus": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+              "code": "resolved"
+            }
+          ]
+        },
+        "onsetDateTime": "2021-08-16"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Condition",
+        "id": "57a3136d-3e9d-4b58-bb29-c8689093d1cb",
+        "subject": {
+          "reference": "Patient/4614b9aa-5660-4935-a550-95039d44641d"
+        },
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/sid/icd-10-cm",
+              "code": "J44.1",
+              "display": "COPD"
+            },
+            {
+              "system": "http://snomed.info/sct",
+              "code": "13645005",
+              "display": "COPD"
+            }
+          ]
+        },
+        "clinicalStatus": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+              "code": "resolved"
+            }
+          ]
+        },
+        "onsetDateTime": "2022-10-11"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Condition",
+        "id": "2ae949cb-df38-4b97-ac57-e6084653e8fc",
+        "subject": {
+          "reference": "Patient/4614b9aa-5660-4935-a550-95039d44641d"
+        },
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/sid/icd-10-cm",
+              "code": "F41.1",
+              "display": "Anxiety"
+            },
+            {
+              "system": "http://snomed.info/sct",
+              "code": "21897009",
+              "display": "Anxiety"
+            }
+          ]
+        },
+        "clinicalStatus": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+              "code": "remission"
+            }
+          ]
+        },
+        "onsetDateTime": "2014-06-25"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Condition",
+        "id": "33955d51-cd60-478f-a05f-1816bc0b9489",
+        "subject": {
+          "reference": "Patient/4614b9aa-5660-4935-a550-95039d44641d"
+        },
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/sid/icd-10-cm",
+              "code": "M19.90",
+              "display": "Arthritis"
+            },
+            {
+              "system": "http://snomed.info/sct",
+              "code": "3723001",
+              "display": "Arthritis"
+            }
+          ]
+        },
+        "clinicalStatus": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+              "code": "active"
+            }
+          ]
+        },
+        "onsetDateTime": "2016-06-14"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Condition",
+        "id": "512573a3-01bf-4e2c-8531-671c6e1c40b7",
+        "subject": {
+          "reference": "Patient/4614b9aa-5660-4935-a550-95039d44641d"
+        },
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/sid/icd-10-cm",
+              "code": "F33.1",
+              "display": "Depression"
+            },
+            {
+              "system": "http://snomed.info/sct",
+              "code": "370143000",
+              "display": "Depression"
+            }
+          ]
+        },
+        "clinicalStatus": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+              "code": "resolved"
+            }
+          ]
+        },
+        "onsetDateTime": "2024-08-02"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Condition",
+        "id": "2f711303-1a2c-4bac-9d5d-aa866a752c8b",
+        "subject": {
+          "reference": "Patient/4614b9aa-5660-4935-a550-95039d44641d"
+        },
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/sid/icd-10-cm",
+              "code": "U07.1",
+              "display": "COVID-19"
+            },
+            {
+              "system": "http://snomed.info/sct",
+              "code": "840539006",
+              "display": "COVID-19"
+            }
+          ]
+        },
+        "clinicalStatus": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+              "code": "resolved"
+            }
+          ]
+        },
+        "onsetDateTime": "1975-08-26"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Condition",
+        "id": "957cf27a-b6ba-4f20-be7c-0fe888c8a518",
+        "subject": {
+          "reference": "Patient/4614b9aa-5660-4935-a550-95039d44641d"
+        },
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/sid/icd-10-cm",
+              "code": "U07.1",
+              "display": "COVID-19"
+            },
+            {
+              "system": "http://snomed.info/sct",
+              "code": "840539006",
+              "display": "COVID-19"
+            }
+          ]
+        },
+        "clinicalStatus": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+              "code": "resolved"
+            }
+          ]
+        },
+        "onsetDateTime": "1975-08-26"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "MedicationStatement",
+        "id": "13be0fa0-c326-46b7-848f-37874e872139",
+        "status": "active",
+        "medicationCodeableConcept": {
+          "coding": [
+            {
+              "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+              "code": "860975",
+              "display": "24 HR metformin hydrochloride 500 MG Extended Release Oral Tablet"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/cc494ba7-9ccb-49a3-bb31-74ba1d224cf2"
+        },
+        "effectiveDateTime": "1955-01-21T00:00:00"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "MedicationStatement",
+        "id": "9e1e275f-17ba-4cbf-847b-5735ee7df675",
+        "status": "active",
+        "medicationCodeableConcept": {
+          "coding": [
+            {
+              "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+              "code": "312941",
+              "display": "sertraline 50 MG Oral Tablet"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/cc494ba7-9ccb-49a3-bb31-74ba1d224cf2"
+        },
+        "effectiveDateTime": "1955-01-21T00:00:00"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "MedicationStatement",
+        "id": "9ef2ad78-6ac7-4ec7-851b-786d1a3a126d",
+        "status": "active",
+        "medicationCodeableConcept": {
+          "coding": [],
+          "text": "Amlodipine"
+        },
+        "subject": {
+          "reference": "Patient/cc494ba7-9ccb-49a3-bb31-74ba1d224cf2"
+        },
+        "effectiveDateTime": "2022-09-04T00:00:00"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "MedicationStatement",
+        "id": "704a58bd-c4b2-4cf4-bcbb-7c53d21520e1",
+        "status": "active",
+        "medicationCodeableConcept": {
+          "coding": [],
+          "text": "Fluoxetine"
+        },
+        "subject": {
+          "reference": "Patient/cc494ba7-9ccb-49a3-bb31-74ba1d224cf2"
+        },
+        "effectiveDateTime": "2022-09-04T00:00:00"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "MedicationStatement",
+        "id": "1b155b07-f28f-4f4a-b77d-9c379aa74342",
+        "status": "active",
+        "medicationCodeableConcept": {
+          "coding": [
+            {
+              "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+              "code": "211789",
+              "display": "Loratadine"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/25111606-e5df-420a-aee4-eed9589b2f56"
+        },
+        "effectiveDateTime": "1999-03-17T00:00:00"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "MedicationStatement",
+        "id": "4243c67e-a005-41fd-ae2b-d69b8003bb23",
+        "status": "active",
+        "medicationCodeableConcept": {
+          "coding": [
+            {
+              "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+              "code": "5640",
+              "display": "ibuprofen"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/25111606-e5df-420a-aee4-eed9589b2f56"
+        },
+        "effectiveDateTime": "1999-03-17T00:00:00"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "MedicationStatement",
+        "id": "d922a57c-64e2-494d-89f1-7c3f335e590c",
+        "status": "active",
+        "medicationCodeableConcept": {
+          "coding": [],
+          "text": "Tiotropium"
+        },
+        "subject": {
+          "reference": "Patient/25111606-e5df-420a-aee4-eed9589b2f56"
+        },
+        "effectiveDateTime": "2002-03-13T00:00:00"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "MedicationStatement",
+        "id": "717f4aa5-fd2c-4440-bdbb-3a3bbf30f263",
+        "status": "active",
+        "medicationCodeableConcept": {
+          "coding": [
+            {
+              "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+              "code": "312961",
+              "display": "simvastatin 20 MG Oral Tablet"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/f13b2659-eb08-4c09-9791-1856f1647302"
+        },
+        "effectiveDateTime": "1994-06-23T00:00:00"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "MedicationStatement",
+        "id": "3994c96c-eac0-4296-a530-a8de461006cf",
+        "status": "active",
+        "medicationCodeableConcept": {
+          "coding": [
+            {
+              "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+              "code": "617314",
+              "display": "atorvastatin 10 MG Oral Tablet [Lipitor]"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/f13b2659-eb08-4c09-9791-1856f1647302"
+        },
+        "effectiveDateTime": "2018-05-18T00:00:00"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "MedicationStatement",
+        "id": "dade22ff-abe4-4d62-af9d-015965c98cc6",
+        "status": "active",
+        "medicationCodeableConcept": {
+          "coding": [],
+          "text": "Salmeterol/Fluticasone"
+        },
+        "subject": {
+          "reference": "Patient/f13b2659-eb08-4c09-9791-1856f1647302"
+        },
+        "effectiveDateTime": "2018-05-18T00:00:00"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "MedicationStatement",
+        "id": "6bd4ef09-97f6-45dd-9f16-d4c0ca7e882b",
+        "status": "active",
+        "medicationCodeableConcept": {
+          "coding": [
+            {
+              "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+              "code": "865098",
+              "display": "insulin lispro 100 UNT/ML Injectable Solution [Humalog]"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/2fff6d96-4c98-4338-a183-42e3cfe01a54"
+        },
+        "effectiveDateTime": "2021-08-16T00:00:00"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "MedicationStatement",
+        "id": "67a98c5c-2ea0-4480-abe1-23cb46b739b1",
+        "status": "active",
+        "medicationCodeableConcept": {
+          "coding": [],
+          "text": "Escitalopram"
+        },
+        "subject": {
+          "reference": "Patient/2fff6d96-4c98-4338-a183-42e3cfe01a54"
+        },
+        "effectiveDateTime": "2021-08-16T00:00:00"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "MedicationStatement",
+        "id": "09619caf-a8fc-4a25-ad39-58e9d2336b24",
+        "status": "active",
+        "medicationCodeableConcept": {
+          "coding": [],
+          "text": "Tiotropium"
+        },
+        "subject": {
+          "reference": "Patient/4614b9aa-5660-4935-a550-95039d44641d"
+        },
+        "effectiveDateTime": "2024-08-02T00:00:00"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "MedicationStatement",
+        "id": "906e6f37-a851-4244-be74-3db2b3bbd45f",
+        "status": "active",
+        "medicationCodeableConcept": {
+          "coding": [
+            {
+              "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+              "code": "7987",
+              "display": "Paroxetine"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/4614b9aa-5660-4935-a550-95039d44641d"
+        },
+        "effectiveDateTime": "2016-06-14T00:00:00"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "MedicationStatement",
+        "id": "4576a404-6157-4552-9138-e2e0aaf1fe88",
+        "status": "active",
+        "medicationCodeableConcept": {
+          "coding": [
+            {
+              "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+              "code": "549697",
+              "display": "Celecoxib"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/4614b9aa-5660-4935-a550-95039d44641d"
+        },
+        "effectiveDateTime": "2016-06-14T00:00:00"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "MedicationStatement",
+        "id": "df562ce5-ca3e-44a6-a221-1289fab9518e",
+        "status": "active",
+        "medicationCodeableConcept": {
+          "coding": [],
+          "text": "Fluoxetine"
+        },
+        "subject": {
+          "reference": "Patient/4614b9aa-5660-4935-a550-95039d44641d"
+        },
+        "effectiveDateTime": "2014-06-25T00:00:00"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "MedicationStatement",
+        "id": "d7d44076-15dd-4918-b090-1141575aac4c",
+        "status": "active",
+        "medicationCodeableConcept": {
+          "coding": [
+            {
+              "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+              "code": "161",
+              "display": "acetaminophen"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/4614b9aa-5660-4935-a550-95039d44641d"
+        },
+        "effectiveDateTime": "2016-06-14T00:00:00"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "MedicationStatement",
+        "id": "28480baa-87b8-4d91-af9b-4fdab1438ad2",
+        "status": "active",
+        "medicationCodeableConcept": {
+          "coding": [
+            {
+              "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+              "code": "197862",
+              "display": "leucovorin 25 MG Oral Tablet"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/4614b9aa-5660-4935-a550-95039d44641d"
+        },
+        "effectiveDateTime": "1975-08-26T00:00:00"
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "99959764-3976-4348-94aa-01cec7a2416c",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "2951-2",
+              "display": "Sodium [Moles/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/2951-2"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/cc494ba7-9ccb-49a3-bb31-74ba1d224cf2"
+        },
+        "valueQuantity": {
+          "value": 142.22
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "fbde473a-5df1-43a6-8afc-3cc1c58b01e2",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "2823-3",
+              "display": "Potassium [Moles/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/2823-3"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/cc494ba7-9ccb-49a3-bb31-74ba1d224cf2"
+        },
+        "valueQuantity": {
+          "value": 4.25
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "57b6e35d-fe69-46b0-b084-bca7130f3c69",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "2075-0",
+              "display": "Chloride [Moles/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/2075-0"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/cc494ba7-9ccb-49a3-bb31-74ba1d224cf2"
+        },
+        "valueQuantity": {
+          "value": 85.95
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "c1438f4b-eb0c-4ac7-8767-16a218943296",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "2028-9",
+              "display": "Carbon dioxide, total [Moles/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/2028-9"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/cc494ba7-9ccb-49a3-bb31-74ba1d224cf2"
+        },
+        "valueQuantity": {
+          "value": 22.49
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "f1019661-f706-4b15-b22a-c391d5d06da1",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "3094-0",
+              "display": "Urea nitrogen [Mass/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/3094-0"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/cc494ba7-9ccb-49a3-bb31-74ba1d224cf2"
+        },
+        "valueQuantity": {
+          "value": 16.36
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "c75cd894-4650-4a15-8a0a-057f94bf03d1",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "2160-0",
+              "display": "Creatinine [Mass/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/2160-0"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/cc494ba7-9ccb-49a3-bb31-74ba1d224cf2"
+        },
+        "valueQuantity": {
+          "value": 0.84
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "3e36a59b-fa48-44e3-8788-e7ec59107836",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "2345-7",
+              "display": "Glucose [Mass/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/2345-7"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/cc494ba7-9ccb-49a3-bb31-74ba1d224cf2"
+        },
+        "valueQuantity": {
+          "value": 101.88
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "562b1e3a-84a8-449b-9bf6-bd21c0ac90a7",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "33914-3",
+              "display": "eGFR"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/cc494ba7-9ccb-49a3-bb31-74ba1d224cf2"
+        },
+        "valueQuantity": {
+          "value": 70.83
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "51eb36c9-acb0-4d15-adcb-f17f650b213a",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "2093-3",
+              "display": "Cholesterol [Mass/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/2093-3"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/cc494ba7-9ccb-49a3-bb31-74ba1d224cf2"
+        },
+        "valueQuantity": {
+          "value": 167.57
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "b154de2e-c5d7-40f9-9b59-0e0305d92ba9",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "2085-9",
+              "display": "Cholesterol in HDL [Mass/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/2085-9"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/cc494ba7-9ccb-49a3-bb31-74ba1d224cf2"
+        },
+        "valueQuantity": {
+          "value": 59.13
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "f946f522-4d94-4aff-8f2b-e23efa8b4818",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "2089-1",
+              "display": "Cholesterol in LDL [Mass/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/2089-1"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/cc494ba7-9ccb-49a3-bb31-74ba1d224cf2"
+        },
+        "valueQuantity": {
+          "value": 0.0
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "efa348d7-4c1a-4d4b-9a12-7ae7af098d15",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "2571-8",
+              "display": "Triglyceride [Mass/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/2571-8"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/cc494ba7-9ccb-49a3-bb31-74ba1d224cf2"
+        },
+        "valueQuantity": {
+          "value": 171.75
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "2a8cfae4-d0bd-47b6-9044-06a6f5d11c94",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "13457-7",
+              "display": "Cholesterol in LDL [Mass/volume] in Serum or Plasma by calculation",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/13457-7"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/cc494ba7-9ccb-49a3-bb31-74ba1d224cf2"
+        },
+        "valueQuantity": {
+          "value": 70.3
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "1a4606f9-3c6c-474c-83a5-f126df60d941",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "4548-4",
+              "display": "Hemoglobin A1c/Hemoglobin.total in Blood",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/4548-4"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/cc494ba7-9ccb-49a3-bb31-74ba1d224cf2"
+        },
+        "valueQuantity": {
+          "value": 4.56
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "33ff44d5-c8fa-4a52-8c41-20728c7f45be",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "1558-6",
+              "display": "Fasting glucose [Mass/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/1558-6"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/cc494ba7-9ccb-49a3-bb31-74ba1d224cf2"
+        },
+        "valueQuantity": {
+          "value": 94.37
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "b9ea8d92-db12-4d99-8404-08bf74cb43ae",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "2345-7",
+              "display": "Glucose [Mass/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/2345-7"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/cc494ba7-9ccb-49a3-bb31-74ba1d224cf2"
+        },
+        "valueQuantity": {
+          "value": 103.46
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "fe9a571f-758d-4c95-970f-9081e104e5b8",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "14957-5",
+              "display": "Microalbumin [Mass/volume] in Urine",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/14957-5"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/cc494ba7-9ccb-49a3-bb31-74ba1d224cf2"
+        },
+        "valueQuantity": {
+          "value": 3.82
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "2cb9f456-bc28-44cb-a667-2a98e8125b9d",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "10839-9",
+              "display": "Troponin I.cardiac [Mass/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/10839-9"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/cc494ba7-9ccb-49a3-bb31-74ba1d224cf2"
+        },
+        "valueQuantity": {
+          "value": 0.04
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "297067c3-9fdd-4216-9608-d34d84ddb73e",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "13969-1",
+              "display": "Creatine kinase.MB [Mass/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/13969-1"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/cc494ba7-9ccb-49a3-bb31-74ba1d224cf2"
+        },
+        "valueQuantity": {
+          "value": 3.92
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "e53c506b-a054-4ecf-82bc-b18381dc4d09",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "30934-4",
+              "display": "Natriuretic peptide B [Mass/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/30934-4"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/cc494ba7-9ccb-49a3-bb31-74ba1d224cf2"
+        },
+        "valueQuantity": {
+          "value": 49.52
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "4ce1d7e0-871f-4bd4-a0b2-7225d3046650",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "33762-6",
+              "display": "Natriuretic peptide.B prohormone N-Terminal [Mass/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/33762-6"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/cc494ba7-9ccb-49a3-bb31-74ba1d224cf2"
+        },
+        "valueQuantity": {
+          "value": 72.64
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "8d3fe296-4754-4355-93ae-4b06e7620fe0",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "44249-1",
+              "display": "PHQ-9 quick depression assessment panel [Reported.PHQ]",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/44249-1"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/cc494ba7-9ccb-49a3-bb31-74ba1d224cf2"
+        },
+        "valueQuantity": {
+          "value": 2.58
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "e80b7c6f-d0e7-46fc-9414-1dd8e92df239",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "70273-5",
+              "display": "GAD7_Score"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/cc494ba7-9ccb-49a3-bb31-74ba1d224cf2"
+        },
+        "valueQuantity": {
+          "value": 3.04
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "e57ea9a0-d240-4c9a-8f80-caed741949f7",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "75626-2",
+              "display": "Total score [AUDIT-C]",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/75626-2"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/cc494ba7-9ccb-49a3-bb31-74ba1d224cf2"
+        },
+        "valueQuantity": {
+          "value": 0.43
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "d31c9b5e-417f-4b6e-b9d0-ec575c55cdd2",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "6690-2",
+              "display": "Leukocytes [#/volume] in Blood by Automated count",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/6690-2"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/cc494ba7-9ccb-49a3-bb31-74ba1d224cf2"
+        },
+        "valueQuantity": {
+          "value": 9.43
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "394b8219-d381-466e-a813-8df11cd1c5f9",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "789-8",
+              "display": "Erythrocytes [#/volume] in Blood by Automated count",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/789-8"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/cc494ba7-9ccb-49a3-bb31-74ba1d224cf2"
+        },
+        "valueQuantity": {
+          "value": 7.03
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "5260a660-1deb-4cf9-ae7a-a7fa9daf0cd5",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "718-7",
+              "display": "Hemoglobin [Mass/volume] in Blood",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/718-7"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/cc494ba7-9ccb-49a3-bb31-74ba1d224cf2"
+        },
+        "valueQuantity": {
+          "value": 12.45
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "4c442033-6d60-4faf-88ff-2dc6c19e12fb",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "4544-3",
+              "display": "Hematocrit [Volume Fraction] of Blood by Automated count",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/4544-3"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/cc494ba7-9ccb-49a3-bb31-74ba1d224cf2"
+        },
+        "valueQuantity": {
+          "value": 44.07
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "2767998b-1d44-482d-9ace-bf208ce86fcb",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "777-3",
+              "display": "Platelets [#/volume] in Blood by Automated count",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/777-3"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/cc494ba7-9ccb-49a3-bb31-74ba1d224cf2"
+        },
+        "valueQuantity": {
+          "value": 254.21
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "a1a63aa6-45e9-488c-af11-f80296db1b42",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "787-2",
+              "display": "MCV [Entitic mean volume] in Red Blood Cells by Automated count",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/787-2"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/cc494ba7-9ccb-49a3-bb31-74ba1d224cf2"
+        },
+        "valueQuantity": {
+          "value": 77.09
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "237cace8-9a47-4355-b197-54f396386332",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "785-6",
+              "display": "MCH [Entitic mass] by Automated count",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/785-6"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/cc494ba7-9ccb-49a3-bb31-74ba1d224cf2"
+        },
+        "valueQuantity": {
+          "value": 30.22
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "c3f9b9ef-0331-4671-aa6d-b7e5fb777cda",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "786-4",
+              "display": "MCHC [Entitic Mass/volume] in Red Blood Cells by Automated count",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/786-4"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/cc494ba7-9ccb-49a3-bb31-74ba1d224cf2"
+        },
+        "valueQuantity": {
+          "value": 33.27
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "507a2b9f-1f9f-4153-8b96-3bceb77aafa1",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "30934-4",
+              "display": "Natriuretic peptide B [Mass/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/30934-4"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/cc494ba7-9ccb-49a3-bb31-74ba1d224cf2"
+        },
+        "valueQuantity": {
+          "value": 98.89
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "c3b92e36-e5ac-43b7-807f-7ebcf9f0eff1",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "33762-6",
+              "display": "Natriuretic peptide.B prohormone N-Terminal [Mass/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/33762-6"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/cc494ba7-9ccb-49a3-bb31-74ba1d224cf2"
+        },
+        "valueQuantity": {
+          "value": 24.9
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "7e989ac1-9697-42c2-9172-6cbf86fc6735",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "67151-1",
+              "display": "Troponin T.cardiac [Mass/volume] in Serum or Plasma by High sensitivity method",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/67151-1"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/cc494ba7-9ccb-49a3-bb31-74ba1d224cf2"
+        },
+        "valueQuantity": {
+          "value": 11.21
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "c1256a20-b9de-44df-8d91-387e3f8a3422",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "13457-7",
+              "display": "Cholesterol in LDL [Mass/volume] in Serum or Plasma by calculation",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/13457-7"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/cc494ba7-9ccb-49a3-bb31-74ba1d224cf2"
+        },
+        "valueQuantity": {
+          "value": 27.4
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "ee864cf4-98a6-47fd-b379-d8e9f84d7591",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/data-absent-reason",
+              "code": "unknown",
+              "display": "Blood Pressure"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/cc494ba7-9ccb-49a3-bb31-74ba1d224cf2"
+        },
+        "valueQuantity": {
+          "value": 158.0
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "bff180bd-15ee-443e-a2c0-56fc23231059",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/data-absent-reason",
+              "code": "unknown",
+              "display": "Weight"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/cc494ba7-9ccb-49a3-bb31-74ba1d224cf2"
+        },
+        "valueQuantity": {
+          "value": 66.8
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "7abdde46-9053-41a5-be1d-6637db78bdbb",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/data-absent-reason",
+              "code": "unknown",
+              "display": "Hemoglobin A1c"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/cc494ba7-9ccb-49a3-bb31-74ba1d224cf2"
+        },
+        "valueQuantity": {
+          "value": 9.2
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "70089da3-257b-414d-a523-6f4cb8212006",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "2951-2",
+              "display": "Sodium [Moles/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/2951-2"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/25111606-e5df-420a-aee4-eed9589b2f56"
+        },
+        "valueQuantity": {
+          "value": 141.7
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "b7969105-a91f-4cc1-afd8-07e674c2f500",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "2823-3",
+              "display": "Potassium [Moles/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/2823-3"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/25111606-e5df-420a-aee4-eed9589b2f56"
+        },
+        "valueQuantity": {
+          "value": 4.62
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "8428fdbb-2860-4820-b0fb-0fd38c595fd7",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "2075-0",
+              "display": "Chloride [Moles/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/2075-0"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/25111606-e5df-420a-aee4-eed9589b2f56"
+        },
+        "valueQuantity": {
+          "value": 100.43
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "2b049f5f-d312-4241-a79c-e0598e3c5dca",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "2028-9",
+              "display": "Carbon dioxide, total [Moles/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/2028-9"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/25111606-e5df-420a-aee4-eed9589b2f56"
+        },
+        "valueQuantity": {
+          "value": 22.22
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "16feaeea-7a15-42e5-89d6-9928101dbf2b",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "3094-0",
+              "display": "Urea nitrogen [Mass/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/3094-0"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/25111606-e5df-420a-aee4-eed9589b2f56"
+        },
+        "valueQuantity": {
+          "value": 8.26
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "e98985b9-ddfa-43ef-aae2-f7416e91c6e7",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "2160-0",
+              "display": "Creatinine [Mass/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/2160-0"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/25111606-e5df-420a-aee4-eed9589b2f56"
+        },
+        "valueQuantity": {
+          "value": 1.28
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "da79217a-ec06-4c83-b33c-4e0ba2daa0c6",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "2345-7",
+              "display": "Glucose [Mass/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/2345-7"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/25111606-e5df-420a-aee4-eed9589b2f56"
+        },
+        "valueQuantity": {
+          "value": 72.04
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "35d6dca2-0651-4102-af15-b3df37fce91c",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "33914-3",
+              "display": "eGFR"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/25111606-e5df-420a-aee4-eed9589b2f56"
+        },
+        "valueQuantity": {
+          "value": 118.0
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "fdff7a73-26b2-4e01-9dcc-a073d59f9114",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "20150-9",
+              "display": "FEV1",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/20150-9"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/25111606-e5df-420a-aee4-eed9589b2f56"
+        },
+        "valueQuantity": {
+          "value": 2.88
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "d8a88dd8-5333-438a-b3d7-b6c029433843",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "19870-5",
+              "display": "Forced vital capacity [Volume] Respiratory system",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/19870-5"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/25111606-e5df-420a-aee4-eed9589b2f56"
+        },
+        "valueQuantity": {
+          "value": 4.87
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "c285d2c4-c92d-4a98-b273-b7b8e5c27066",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "19926-5",
+              "display": "FEV1/FVC",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/19926-5"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/25111606-e5df-420a-aee4-eed9589b2f56"
+        },
+        "valueQuantity": {
+          "value": 63.46
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "a140b143-413e-42fc-a58e-a6c0df07899a",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "2093-3",
+              "display": "Cholesterol [Mass/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/2093-3"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/25111606-e5df-420a-aee4-eed9589b2f56"
+        },
+        "valueQuantity": {
+          "value": 142.05
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "4f6c8a85-6bb7-493e-8a89-fa487af735db",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "2085-9",
+              "display": "Cholesterol in HDL [Mass/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/2085-9"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/25111606-e5df-420a-aee4-eed9589b2f56"
+        },
+        "valueQuantity": {
+          "value": 43.37
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "9c06893f-5da7-4759-a0cb-5b735b7d8884",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "2089-1",
+              "display": "Cholesterol in LDL [Mass/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/2089-1"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/25111606-e5df-420a-aee4-eed9589b2f56"
+        },
+        "valueQuantity": {
+          "value": 4.56
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "785b1ded-0580-45ff-ae94-597a5d133f53",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "2571-8",
+              "display": "Triglyceride [Mass/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/2571-8"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/25111606-e5df-420a-aee4-eed9589b2f56"
+        },
+        "valueQuantity": {
+          "value": 114.67
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "0ebd5913-ce23-4ecc-b247-6f97ca4ee47a",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "13457-7",
+              "display": "Cholesterol in LDL [Mass/volume] in Serum or Plasma by calculation",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/13457-7"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/25111606-e5df-420a-aee4-eed9589b2f56"
+        },
+        "valueQuantity": {
+          "value": 121.94
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "8a8357e8-79eb-435f-8bb6-67af3f0329f8",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "6690-2",
+              "display": "Leukocytes [#/volume] in Blood by Automated count",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/6690-2"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/25111606-e5df-420a-aee4-eed9589b2f56"
+        },
+        "valueQuantity": {
+          "value": 9.28
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "8c743755-b0a4-47eb-9086-9760027802a2",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "789-8",
+              "display": "Erythrocytes [#/volume] in Blood by Automated count",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/789-8"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/25111606-e5df-420a-aee4-eed9589b2f56"
+        },
+        "valueQuantity": {
+          "value": 4.38
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "c322cad5-7fda-4467-9f83-87885ae7acfc",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "718-7",
+              "display": "Hemoglobin [Mass/volume] in Blood",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/718-7"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/25111606-e5df-420a-aee4-eed9589b2f56"
+        },
+        "valueQuantity": {
+          "value": 16.36
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "a88961cc-f0a0-4a30-9b7b-dffb34b3d96b",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "4544-3",
+              "display": "Hematocrit [Volume Fraction] of Blood by Automated count",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/4544-3"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/25111606-e5df-420a-aee4-eed9589b2f56"
+        },
+        "valueQuantity": {
+          "value": 45.48
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "16abbc27-6999-412e-80dc-c9a37bd421de",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "777-3",
+              "display": "Platelets [#/volume] in Blood by Automated count",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/777-3"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/25111606-e5df-420a-aee4-eed9589b2f56"
+        },
+        "valueQuantity": {
+          "value": 387.92
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "8dfc5ff9-c535-4668-8430-c28d28f6d161",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "787-2",
+              "display": "MCV [Entitic mean volume] in Red Blood Cells by Automated count",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/787-2"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/25111606-e5df-420a-aee4-eed9589b2f56"
+        },
+        "valueQuantity": {
+          "value": 85.9
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "4bcbcbcc-410c-42c5-b96e-ca89d1c6b36a",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "785-6",
+              "display": "MCH [Entitic mass] by Automated count",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/785-6"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/25111606-e5df-420a-aee4-eed9589b2f56"
+        },
+        "valueQuantity": {
+          "value": 31.36
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "c6eac570-2828-4729-bb1d-7c0f5287ce76",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "786-4",
+              "display": "MCHC [Entitic Mass/volume] in Red Blood Cells by Automated count",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/786-4"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/25111606-e5df-420a-aee4-eed9589b2f56"
+        },
+        "valueQuantity": {
+          "value": 32.59
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "35ac6963-851f-4b09-84bd-411dbd323b88",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "3016-3",
+              "display": "Thyrotropin [Units/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/3016-3"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/25111606-e5df-420a-aee4-eed9589b2f56"
+        },
+        "valueQuantity": {
+          "value": 0.65
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "b5b9df08-87f7-409f-b1ec-25fbc03bff83",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "3024-7",
+              "display": "Thyroxine (T4) free [Mass/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/3024-7"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/25111606-e5df-420a-aee4-eed9589b2f56"
+        },
+        "valueQuantity": {
+          "value": 1.01
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "d85a0bbd-652c-4da7-b56d-172e1a8463fe",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "3051-0",
+              "display": "Triiodothyronine (T3) Free [Mass/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/3051-0"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/25111606-e5df-420a-aee4-eed9589b2f56"
+        },
+        "valueQuantity": {
+          "value": 3.82
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "3c1c8fd4-39ed-4111-90f0-bbc501593b63",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/data-absent-reason",
+              "code": "unknown",
+              "display": "Temperature"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/25111606-e5df-420a-aee4-eed9589b2f56"
+        },
+        "valueQuantity": {
+          "value": 37.9
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "66b698ac-dbdc-403a-95ea-c2a23e19db85",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/data-absent-reason",
+              "code": "unknown",
+              "display": "Hemoglobin A1c"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/25111606-e5df-420a-aee4-eed9589b2f56"
+        },
+        "valueQuantity": {
+          "value": 5.1
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "464cfd08-058f-42ef-80d0-0b77e32ae977",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/data-absent-reason",
+              "code": "unknown",
+              "display": "Temperature"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/25111606-e5df-420a-aee4-eed9589b2f56"
+        },
+        "valueQuantity": {
+          "value": 38.5
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "e8b83ad9-793a-482e-a919-ecafb59d7573",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/data-absent-reason",
+              "code": "unknown",
+              "display": "Cholesterol"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/25111606-e5df-420a-aee4-eed9589b2f56"
+        },
+        "valueQuantity": {
+          "value": 242.0
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "e38d6541-7487-4840-8840-ad975d729c43",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "2951-2",
+              "display": "Sodium [Moles/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/2951-2"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/f13b2659-eb08-4c09-9791-1856f1647302"
+        },
+        "valueQuantity": {
+          "value": 143.3
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "4595888d-e54e-4ad8-85ee-2606a513492b",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "2823-3",
+              "display": "Potassium [Moles/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/2823-3"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/f13b2659-eb08-4c09-9791-1856f1647302"
+        },
+        "valueQuantity": {
+          "value": 3.64
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "fb6424cb-1a64-4a7b-af83-338a3bf5ef6b",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "2075-0",
+              "display": "Chloride [Moles/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/2075-0"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/f13b2659-eb08-4c09-9791-1856f1647302"
+        },
+        "valueQuantity": {
+          "value": 99.41
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "bce81c51-c9c6-4181-8c01-5de013d5b54a",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "2028-9",
+              "display": "Carbon dioxide, total [Moles/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/2028-9"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/f13b2659-eb08-4c09-9791-1856f1647302"
+        },
+        "valueQuantity": {
+          "value": 23.43
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "6df16fb3-2000-4c3d-a92d-4370c30aad78",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "3094-0",
+              "display": "Urea nitrogen [Mass/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/3094-0"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/f13b2659-eb08-4c09-9791-1856f1647302"
+        },
+        "valueQuantity": {
+          "value": 20.09
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "1c014be4-b917-46ca-bed4-e7abf0f52eff",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "2160-0",
+              "display": "Creatinine [Mass/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/2160-0"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/f13b2659-eb08-4c09-9791-1856f1647302"
+        },
+        "valueQuantity": {
+          "value": 1.07
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "461ae7a1-cf64-4465-a02c-1096de121676",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "2345-7",
+              "display": "Glucose [Mass/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/2345-7"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/f13b2659-eb08-4c09-9791-1856f1647302"
+        },
+        "valueQuantity": {
+          "value": 81.36
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "8057cf66-cd1d-4def-94b5-871d9c04ba77",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "33914-3",
+              "display": "eGFR"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/f13b2659-eb08-4c09-9791-1856f1647302"
+        },
+        "valueQuantity": {
+          "value": 90.89
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "4f546635-fa53-43db-8876-26b2db9982be",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "2093-3",
+              "display": "Cholesterol [Mass/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/2093-3"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/f13b2659-eb08-4c09-9791-1856f1647302"
+        },
+        "valueQuantity": {
+          "value": 148.23
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "91e8595d-23dc-4605-9224-92ab513e11da",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "2085-9",
+              "display": "Cholesterol in HDL [Mass/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/2085-9"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/f13b2659-eb08-4c09-9791-1856f1647302"
+        },
+        "valueQuantity": {
+          "value": 41.54
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "4947c75d-efc7-45f9-9957-0c46d1bc3060",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "2089-1",
+              "display": "Cholesterol in LDL [Mass/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/2089-1"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/f13b2659-eb08-4c09-9791-1856f1647302"
+        },
+        "valueQuantity": {
+          "value": 78.95
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "f0add676-b6b7-4604-882b-883b017ae29f",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "2571-8",
+              "display": "Triglyceride [Mass/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/2571-8"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/f13b2659-eb08-4c09-9791-1856f1647302"
+        },
+        "valueQuantity": {
+          "value": 134.79
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "319949cc-f586-459c-9d9e-bfd89696a4a2",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "13457-7",
+              "display": "Cholesterol in LDL [Mass/volume] in Serum or Plasma by calculation",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/13457-7"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/f13b2659-eb08-4c09-9791-1856f1647302"
+        },
+        "valueQuantity": {
+          "value": 0.0
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "ddd280a4-32bf-4300-a0b1-0f05c712351a",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "20150-9",
+              "display": "FEV1",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/20150-9"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/f13b2659-eb08-4c09-9791-1856f1647302"
+        },
+        "valueQuantity": {
+          "value": 1.41
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "24128a68-ca26-459b-9dec-e51be0fb3adb",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "19870-5",
+              "display": "Forced vital capacity [Volume] Respiratory system",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/19870-5"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/f13b2659-eb08-4c09-9791-1856f1647302"
+        },
+        "valueQuantity": {
+          "value": 3.38
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "450daf6b-bf1f-4ae8-af6b-ea1599c0985b",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "19926-5",
+              "display": "FEV1/FVC",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/19926-5"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/f13b2659-eb08-4c09-9791-1856f1647302"
+        },
+        "valueQuantity": {
+          "value": 95.91
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "1d2f4e78-006b-4b82-9b07-9e203b7fe864",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "10839-9",
+              "display": "Troponin I.cardiac [Mass/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/10839-9"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/f13b2659-eb08-4c09-9791-1856f1647302"
+        },
+        "valueQuantity": {
+          "value": 0.02
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "f3503396-91f2-4a5e-bf1a-54a05362ab83",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "13969-1",
+              "display": "Creatine kinase.MB [Mass/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/13969-1"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/f13b2659-eb08-4c09-9791-1856f1647302"
+        },
+        "valueQuantity": {
+          "value": 1.89
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "f3b7946b-2cb4-435d-958d-3a99e5cc6e5b",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "30934-4",
+              "display": "Natriuretic peptide B [Mass/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/30934-4"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/f13b2659-eb08-4c09-9791-1856f1647302"
+        },
+        "valueQuantity": {
+          "value": 10.9
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "f1ad136e-c303-4e08-8e8d-5dd9a2fe6d08",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "33762-6",
+              "display": "Natriuretic peptide.B prohormone N-Terminal [Mass/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/33762-6"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/f13b2659-eb08-4c09-9791-1856f1647302"
+        },
+        "valueQuantity": {
+          "value": 0.0
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "25f7ffb3-9ef9-4b3c-bc41-36a231146a89",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "6690-2",
+              "display": "Leukocytes [#/volume] in Blood by Automated count",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/6690-2"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/f13b2659-eb08-4c09-9791-1856f1647302"
+        },
+        "valueQuantity": {
+          "value": 10.8
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "f06eb5af-9ccf-49a2-a1d2-6aa274a4db34",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "789-8",
+              "display": "Erythrocytes [#/volume] in Blood by Automated count",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/789-8"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/f13b2659-eb08-4c09-9791-1856f1647302"
+        },
+        "valueQuantity": {
+          "value": 5.17
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "41a010e5-ed73-4016-9f33-16e8c04fa543",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "718-7",
+              "display": "Hemoglobin [Mass/volume] in Blood",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/718-7"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/f13b2659-eb08-4c09-9791-1856f1647302"
+        },
+        "valueQuantity": {
+          "value": 12.85
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "992c4676-6425-40ea-86e2-0dac972c63fa",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "4544-3",
+              "display": "Hematocrit [Volume Fraction] of Blood by Automated count",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/4544-3"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/f13b2659-eb08-4c09-9791-1856f1647302"
+        },
+        "valueQuantity": {
+          "value": 39.17
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "97aae515-add1-4300-863d-32a60f0fbae5",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "777-3",
+              "display": "Platelets [#/volume] in Blood by Automated count",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/777-3"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/f13b2659-eb08-4c09-9791-1856f1647302"
+        },
+        "valueQuantity": {
+          "value": 392.02
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "e4d7d920-e147-478e-8490-cb03ccc95df0",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "787-2",
+              "display": "MCV [Entitic mean volume] in Red Blood Cells by Automated count",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/787-2"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/f13b2659-eb08-4c09-9791-1856f1647302"
+        },
+        "valueQuantity": {
+          "value": 83.49
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "71b57da3-68a2-49b7-964a-e2d870bfd1ff",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "785-6",
+              "display": "MCH [Entitic mass] by Automated count",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/785-6"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/f13b2659-eb08-4c09-9791-1856f1647302"
+        },
+        "valueQuantity": {
+          "value": 27.72
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "fb5896af-dcbd-4586-b084-8a59f61b1932",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "786-4",
+              "display": "MCHC [Entitic Mass/volume] in Red Blood Cells by Automated count",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/786-4"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/f13b2659-eb08-4c09-9791-1856f1647302"
+        },
+        "valueQuantity": {
+          "value": 34.02
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "3001e565-0805-420e-b074-678698f5dc07",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "4537-7",
+              "display": "Erythrocyte [Sedimentation Rate] in Blood by Westergren method",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/4537-7"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/f13b2659-eb08-4c09-9791-1856f1647302"
+        },
+        "valueQuantity": {
+          "value": 21.87
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "9efd26ef-8f44-4c0a-a84d-dbac44999fd6",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "1988-5",
+              "display": "C reactive protein [Mass/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/1988-5"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/f13b2659-eb08-4c09-9791-1856f1647302"
+        },
+        "valueQuantity": {
+          "value": 1.97
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "978570d2-2052-46a3-832d-7bba31cf202c",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "33747-0",
+              "display": "Procalcitonin"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/f13b2659-eb08-4c09-9791-1856f1647302"
+        },
+        "valueQuantity": {
+          "value": 0.17
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "01cd9579-28cf-4462-a66d-d05e9fea8129",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "3016-3",
+              "display": "Thyrotropin [Units/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/3016-3"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/f13b2659-eb08-4c09-9791-1856f1647302"
+        },
+        "valueQuantity": {
+          "value": 1.21
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "f75417c3-fde7-42c6-b9f7-5b4f0475f172",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "3024-7",
+              "display": "Thyroxine (T4) free [Mass/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/3024-7"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/f13b2659-eb08-4c09-9791-1856f1647302"
+        },
+        "valueQuantity": {
+          "value": 1.17
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "ea3688b7-6e10-42a0-b896-1e4c6bcca6aa",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "3051-0",
+              "display": "Triiodothyronine (T3) Free [Mass/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/3051-0"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/f13b2659-eb08-4c09-9791-1856f1647302"
+        },
+        "valueQuantity": {
+          "value": 4.77
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "bbb7b4ad-70a1-47ba-b801-c2c0487aa130",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "30934-4",
+              "display": "Natriuretic peptide B [Mass/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/30934-4"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/f13b2659-eb08-4c09-9791-1856f1647302"
+        },
+        "valueQuantity": {
+          "value": 1.76
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "9267bb57-4625-47f1-b97f-0610cb285af2",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "33762-6",
+              "display": "Natriuretic peptide.B prohormone N-Terminal [Mass/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/33762-6"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/f13b2659-eb08-4c09-9791-1856f1647302"
+        },
+        "valueQuantity": {
+          "value": 50.75
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "46e0654b-2a1a-45cd-93e7-b6d74ee5db8c",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "67151-1",
+              "display": "Troponin T.cardiac [Mass/volume] in Serum or Plasma by High sensitivity method",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/67151-1"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/f13b2659-eb08-4c09-9791-1856f1647302"
+        },
+        "valueQuantity": {
+          "value": 11.28
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "36834d7b-6291-43a6-853e-e3b661561ffc",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "13457-7",
+              "display": "Cholesterol in LDL [Mass/volume] in Serum or Plasma by calculation",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/13457-7"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/f13b2659-eb08-4c09-9791-1856f1647302"
+        },
+        "valueQuantity": {
+          "value": 94.15
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "6b31e054-70de-41eb-8590-e4b9dc577147",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/data-absent-reason",
+              "code": "unknown",
+              "display": "Blood Pressure"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/f13b2659-eb08-4c09-9791-1856f1647302"
+        },
+        "valueQuantity": {
+          "value": 119.0
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "74600267-1cea-48fe-bef3-71a152d1cc7a",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/data-absent-reason",
+              "code": "unknown",
+              "display": "Blood Pressure"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/f13b2659-eb08-4c09-9791-1856f1647302"
+        },
+        "valueQuantity": {
+          "value": 110.0
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "35d43b4d-53e5-4815-9874-f43c46882b9b",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/data-absent-reason",
+              "code": "unknown",
+              "display": "Hemoglobin A1c"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/f13b2659-eb08-4c09-9791-1856f1647302"
+        },
+        "valueQuantity": {
+          "value": 7.1
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "310b02d0-6041-4a19-8102-2686c04cdc9a",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/data-absent-reason",
+              "code": "unknown",
+              "display": "Height"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/f13b2659-eb08-4c09-9791-1856f1647302"
+        },
+        "valueQuantity": {
+          "value": 157.0
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "09761393-2b05-479b-a604-e2f220d01197",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/data-absent-reason",
+              "code": "unknown",
+              "display": "Heart Rate"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/f13b2659-eb08-4c09-9791-1856f1647302"
+        },
+        "valueQuantity": {
+          "value": 103.0
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "37b24af5-e31b-479f-b53b-84006320f88d",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "20150-9",
+              "display": "FEV1",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/20150-9"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/2fff6d96-4c98-4338-a183-42e3cfe01a54"
+        },
+        "valueQuantity": {
+          "value": 3.23
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "4f900543-b11c-477d-8eed-f674d2592cc9",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "19870-5",
+              "display": "Forced vital capacity [Volume] Respiratory system",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/19870-5"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/2fff6d96-4c98-4338-a183-42e3cfe01a54"
+        },
+        "valueQuantity": {
+          "value": 3.14
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "0877d7e0-7bc2-4eab-9a78-23719840a527",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "19926-5",
+              "display": "FEV1/FVC",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/19926-5"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/2fff6d96-4c98-4338-a183-42e3cfe01a54"
+        },
+        "valueQuantity": {
+          "value": 94.33
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "c81f5645-57b3-49a5-821a-517f4f23adee",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "44249-1",
+              "display": "PHQ-9 quick depression assessment panel [Reported.PHQ]",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/44249-1"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/2fff6d96-4c98-4338-a183-42e3cfe01a54"
+        },
+        "valueQuantity": {
+          "value": 1.37
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "3f6e8cbe-0e87-4877-986e-49b4c9bf0edf",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "70273-5",
+              "display": "GAD7_Score"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/2fff6d96-4c98-4338-a183-42e3cfe01a54"
+        },
+        "valueQuantity": {
+          "value": 1.51
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "1eb25dfd-e8e1-49c5-a1a2-9083f38df8eb",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "75626-2",
+              "display": "Total score [AUDIT-C]",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/75626-2"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/2fff6d96-4c98-4338-a183-42e3cfe01a54"
+        },
+        "valueQuantity": {
+          "value": 0.0
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "1155c721-038c-4831-ac1c-bccc0d113b27",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/data-absent-reason",
+              "code": "unknown",
+              "display": "Heart Rate"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/2fff6d96-4c98-4338-a183-42e3cfe01a54"
+        },
+        "valueQuantity": {
+          "value": 116.0
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "64ca0095-5240-4008-b113-24a4a24f9ed9",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/data-absent-reason",
+              "code": "unknown",
+              "display": "Height"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/2fff6d96-4c98-4338-a183-42e3cfe01a54"
+        },
+        "valueQuantity": {
+          "value": 161.6
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "d4c68043-2c89-4a08-aca0-ed887e4529f0",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/data-absent-reason",
+              "code": "unknown",
+              "display": "Heart Rate"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/2fff6d96-4c98-4338-a183-42e3cfe01a54"
+        },
+        "valueQuantity": {
+          "value": 112.0
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "ed0af056-76ab-4f28-bd5f-d099bfa23301",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/data-absent-reason",
+              "code": "unknown",
+              "display": "Hemoglobin A1c"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/2fff6d96-4c98-4338-a183-42e3cfe01a54"
+        },
+        "valueQuantity": {
+          "value": 8.7
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "a7a78dd5-aade-46f5-8d91-ea12dcf2a517",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/data-absent-reason",
+              "code": "unknown",
+              "display": "Cholesterol"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/2fff6d96-4c98-4338-a183-42e3cfe01a54"
+        },
+        "valueQuantity": {
+          "value": 262.0
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "74f7d7e3-fb12-4659-aaf3-8895c562a3ee",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/data-absent-reason",
+              "code": "unknown",
+              "display": "Height"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/2fff6d96-4c98-4338-a183-42e3cfe01a54"
+        },
+        "valueQuantity": {
+          "value": 162.0
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "142a2924-a030-41c4-8bed-5e5dab8845fb",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "2951-2",
+              "display": "Sodium [Moles/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/2951-2"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/4614b9aa-5660-4935-a550-95039d44641d"
+        },
+        "valueQuantity": {
+          "value": 138.81
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "f89ff9d1-a8b7-4594-8d21-6685ded22ef7",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "2823-3",
+              "display": "Potassium [Moles/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/2823-3"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/4614b9aa-5660-4935-a550-95039d44641d"
+        },
+        "valueQuantity": {
+          "value": 4.67
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "ed340432-43d4-4684-bd4b-5a47c52a5fb6",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "2075-0",
+              "display": "Chloride [Moles/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/2075-0"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/4614b9aa-5660-4935-a550-95039d44641d"
+        },
+        "valueQuantity": {
+          "value": 100.69
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "80bea154-8ed9-4ce7-91a8-a16ab3792285",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "2028-9",
+              "display": "Carbon dioxide, total [Moles/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/2028-9"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/4614b9aa-5660-4935-a550-95039d44641d"
+        },
+        "valueQuantity": {
+          "value": 22.45
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "0c4ea051-3122-4d98-b5fd-7042f48cfb7b",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "3094-0",
+              "display": "Urea nitrogen [Mass/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/3094-0"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/4614b9aa-5660-4935-a550-95039d44641d"
+        },
+        "valueQuantity": {
+          "value": 6.97
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "441bf0ea-077b-41c3-a981-ba0e5a084c58",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "2160-0",
+              "display": "Creatinine [Mass/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/2160-0"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/4614b9aa-5660-4935-a550-95039d44641d"
+        },
+        "valueQuantity": {
+          "value": 1.12
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "3e6cbfe3-daa3-4647-ba34-0eb0c573227e",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "2345-7",
+              "display": "Glucose [Mass/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/2345-7"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/4614b9aa-5660-4935-a550-95039d44641d"
+        },
+        "valueQuantity": {
+          "value": 85.13
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "564dbfad-279c-4b6d-9fdf-e98bca7e91da",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "33914-3",
+              "display": "eGFR"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/4614b9aa-5660-4935-a550-95039d44641d"
+        },
+        "valueQuantity": {
+          "value": 95.41
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "f85577d3-ecf0-4392-bcaf-bec952d7736d",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "20150-9",
+              "display": "FEV1",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/20150-9"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/4614b9aa-5660-4935-a550-95039d44641d"
+        },
+        "valueQuantity": {
+          "value": 3.3
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "483fcbba-ed02-4f32-b229-1b4513b33b34",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "19870-5",
+              "display": "Forced vital capacity [Volume] Respiratory system",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/19870-5"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/4614b9aa-5660-4935-a550-95039d44641d"
+        },
+        "valueQuantity": {
+          "value": 4.69
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "18a2d07c-834e-4ebf-96d1-220ba616b64c",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "19926-5",
+              "display": "FEV1/FVC",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/19926-5"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/4614b9aa-5660-4935-a550-95039d44641d"
+        },
+        "valueQuantity": {
+          "value": 90.93
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "f7940120-5ebe-4388-9fd9-756b29ce3393",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "2093-3",
+              "display": "Cholesterol [Mass/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/2093-3"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/4614b9aa-5660-4935-a550-95039d44641d"
+        },
+        "valueQuantity": {
+          "value": 160.47
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "190f54d2-cb5d-48e7-b63f-66f18c07a72c",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "2085-9",
+              "display": "Cholesterol in HDL [Mass/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/2085-9"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/4614b9aa-5660-4935-a550-95039d44641d"
+        },
+        "valueQuantity": {
+          "value": 51.39
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "527d98bb-0062-4929-a5a3-56777f8ad7df",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "2089-1",
+              "display": "Cholesterol in LDL [Mass/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/2089-1"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/4614b9aa-5660-4935-a550-95039d44641d"
+        },
+        "valueQuantity": {
+          "value": 59.03
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "46ed3f31-f22a-4c48-ae7d-52d5b949b3a4",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "2571-8",
+              "display": "Triglyceride [Mass/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/2571-8"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/4614b9aa-5660-4935-a550-95039d44641d"
+        },
+        "valueQuantity": {
+          "value": 100.19
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "44bf7e4a-cc36-4f41-9132-673bcbdb7b18",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "13457-7",
+              "display": "Cholesterol in LDL [Mass/volume] in Serum or Plasma by calculation",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/13457-7"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/4614b9aa-5660-4935-a550-95039d44641d"
+        },
+        "valueQuantity": {
+          "value": 99.67
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "ac13aed5-1b54-4e73-9fe4-28d33ac3a003",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "44249-1",
+              "display": "PHQ-9 quick depression assessment panel [Reported.PHQ]",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/44249-1"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/4614b9aa-5660-4935-a550-95039d44641d"
+        },
+        "valueQuantity": {
+          "value": 2.12
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "a7264b01-d1c5-4e50-b194-f993e663cd3f",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "70273-5",
+              "display": "GAD7_Score"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/4614b9aa-5660-4935-a550-95039d44641d"
+        },
+        "valueQuantity": {
+          "value": 0.0
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "bb9ae939-3f9d-45f7-95d3-30d212ddc12d",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "75626-2",
+              "display": "Total score [AUDIT-C]",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/75626-2"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/4614b9aa-5660-4935-a550-95039d44641d"
+        },
+        "valueQuantity": {
+          "value": 2.37
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "20552311-abe9-4e9a-aa9c-a9a967e791c9",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "6690-2",
+              "display": "Leukocytes [#/volume] in Blood by Automated count",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/6690-2"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/4614b9aa-5660-4935-a550-95039d44641d"
+        },
+        "valueQuantity": {
+          "value": 5.4
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "bc38a498-1c8b-4b30-ac64-a2dd97a17b77",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "789-8",
+              "display": "Erythrocytes [#/volume] in Blood by Automated count",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/789-8"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/4614b9aa-5660-4935-a550-95039d44641d"
+        },
+        "valueQuantity": {
+          "value": 5.29
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "e501f80e-81ac-43e2-b02d-02b622f464a3",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "718-7",
+              "display": "Hemoglobin [Mass/volume] in Blood",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/718-7"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/4614b9aa-5660-4935-a550-95039d44641d"
+        },
+        "valueQuantity": {
+          "value": 13.39
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "cab61c64-9b81-4e66-8632-e3a581af679c",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "4544-3",
+              "display": "Hematocrit [Volume Fraction] of Blood by Automated count",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/4544-3"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/4614b9aa-5660-4935-a550-95039d44641d"
+        },
+        "valueQuantity": {
+          "value": 36.31
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "fce36b07-e50e-4e96-9cfe-3b1121d84957",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "777-3",
+              "display": "Platelets [#/volume] in Blood by Automated count",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/777-3"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/4614b9aa-5660-4935-a550-95039d44641d"
+        },
+        "valueQuantity": {
+          "value": 917.55
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "d2fc7b86-69db-4cf9-b378-3e96f24dadd1",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "787-2",
+              "display": "MCV [Entitic mean volume] in Red Blood Cells by Automated count",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/787-2"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/4614b9aa-5660-4935-a550-95039d44641d"
+        },
+        "valueQuantity": {
+          "value": 65.02
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "fc47faee-4c81-45e6-bf0e-efaea19e9ffe",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "785-6",
+              "display": "MCH [Entitic mass] by Automated count",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/785-6"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/4614b9aa-5660-4935-a550-95039d44641d"
+        },
+        "valueQuantity": {
+          "value": 27.62
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "5ca74835-6295-48c5-a6e8-d7ef86827e86",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "786-4",
+              "display": "MCHC [Entitic Mass/volume] in Red Blood Cells by Automated count",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/786-4"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/4614b9aa-5660-4935-a550-95039d44641d"
+        },
+        "valueQuantity": {
+          "value": 35.67
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "07349d4e-77ea-4b66-a72f-ce8661f1073b",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "3016-3",
+              "display": "Thyrotropin [Units/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/3016-3"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/4614b9aa-5660-4935-a550-95039d44641d"
+        },
+        "valueQuantity": {
+          "value": 0.25
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "99d40031-f838-44b5-a9d5-d07bae45554e",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "3024-7",
+              "display": "Thyroxine (T4) free [Mass/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/3024-7"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/4614b9aa-5660-4935-a550-95039d44641d"
+        },
+        "valueQuantity": {
+          "value": 1.18
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "aa9d9b14-ff4a-4f3c-9027-ea167d01205c",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "3051-0",
+              "display": "Triiodothyronine (T3) Free [Mass/volume] in Serum or Plasma",
+              "extension": [
+                {
+                  "url": "https://www.ncbi.nlm.nih.gov/",
+                  "valueUri": "https://loinc.org/3051-0"
+                }
+              ]
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/4614b9aa-5660-4935-a550-95039d44641d"
+        },
+        "valueQuantity": {
+          "value": 3.21
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "c506b5ea-3538-4e49-b03b-b86b7bb9f705",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/data-absent-reason",
+              "code": "unknown",
+              "display": "Temperature"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/4614b9aa-5660-4935-a550-95039d44641d"
+        },
+        "valueQuantity": {
+          "value": 36.1
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "5d286445-2106-4c5d-9a7f-caba21318d69",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/data-absent-reason",
+              "code": "unknown",
+              "display": "Blood Pressure"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/4614b9aa-5660-4935-a550-95039d44641d"
+        },
+        "valueQuantity": {
+          "value": 139.0
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "987cef02-3fe4-4cc0-8e8a-d2326f6f9f19",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/data-absent-reason",
+              "code": "unknown",
+              "display": "Temperature"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/4614b9aa-5660-4935-a550-95039d44641d"
+        },
+        "valueQuantity": {
+          "value": 37.0
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "71f28af9-4ea8-4ca0-83a0-c6bbee6b7631",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/data-absent-reason",
+              "code": "unknown",
+              "display": "Blood Pressure"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/4614b9aa-5660-4935-a550-95039d44641d"
+        },
+        "valueQuantity": {
+          "value": 107.0
+        }
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "Observation",
+        "id": "5fa8f3f3-2b66-4e65-a3a5-2556ceb8dea1",
+        "status": "final",
+        "code": {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/data-absent-reason",
+              "code": "unknown",
+              "display": "Height"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "Patient/4614b9aa-5660-4935-a550-95039d44641d"
+        },
+        "valueQuantity": {
+          "value": 188.4
+        }
+      }
+    }
+  ]
+}

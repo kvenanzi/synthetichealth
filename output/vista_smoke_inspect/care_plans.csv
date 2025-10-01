@@ -1,0 +1,22 @@
+patient_id,condition,pathway_stage,care_team,target_metric,scheduled_date,status
+cc494ba7-9ccb-49a3-bb31-74ba1d224cf2,Depression,Evaluation,"Behavioral_Health,Primary_Care,Social_Work",phq9_documented,1929-02-02,completed
+cc494ba7-9ccb-49a3-bb31-74ba1d224cf2,Depression,Therapy_Initiation,"Behavioral_Health,Primary_Care,Social_Work",therapy_sessions_started,1929-04-03,scheduled
+cc494ba7-9ccb-49a3-bb31-74ba1d224cf2,Depression,Remission_Assessment,"Behavioral_Health,Primary_Care,Social_Work",phq9_improved,1929-08-01,scheduled
+25111606-e5df-420a-aee4-eed9589b2f56,COPD,Pulmonary_Assessment,"Pulmonology,Primary_Care,Respiratory_Therapy",spirometry_updated,1999-05-16,scheduled
+25111606-e5df-420a-aee4-eed9589b2f56,COPD,Maintenance_Therapy,"Pulmonology,Primary_Care,Respiratory_Therapy",inhaler_education,1999-09-13,overdue
+25111606-e5df-420a-aee4-eed9589b2f56,COPD,Exacerbation_Prevention,"Pulmonology,Primary_Care,Respiratory_Therapy",vaccinations_up_to_date,2000-03-11,overdue
+f13b2659-eb08-4c09-9791-1856f1647302,COPD,Pulmonary_Assessment,"Pulmonology,Primary_Care,Respiratory_Therapy",spirometry_updated,1994-08-22,scheduled
+f13b2659-eb08-4c09-9791-1856f1647302,COPD,Maintenance_Therapy,"Pulmonology,Primary_Care,Respiratory_Therapy",inhaler_education,1994-12-20,scheduled
+f13b2659-eb08-4c09-9791-1856f1647302,COPD,Exacerbation_Prevention,"Pulmonology,Primary_Care,Respiratory_Therapy",vaccinations_up_to_date,1995-06-18,overdue
+f13b2659-eb08-4c09-9791-1856f1647302,Heart Disease,Initial_Diagnosis,"Cardiology,Primary_Care,Pharmacy",beta_blocker_on_discharge,1994-07-23,completed
+f13b2659-eb08-4c09-9791-1856f1647302,Heart Disease,Cardiac_Rehab,"Cardiology,Primary_Care,Pharmacy",rehab_completion,1994-10-21,completed
+f13b2659-eb08-4c09-9791-1856f1647302,Heart Disease,Six_Month_Followup,"Cardiology,Primary_Care,Pharmacy",ldl_control,1995-04-19,overdue
+2fff6d96-4c98-4338-a183-42e3cfe01a54,Depression,Evaluation,"Behavioral_Health,Primary_Care,Social_Work",phq9_documented,2021-09-15,overdue
+2fff6d96-4c98-4338-a183-42e3cfe01a54,Depression,Therapy_Initiation,"Behavioral_Health,Primary_Care,Social_Work",therapy_sessions_started,2021-11-14,scheduled
+2fff6d96-4c98-4338-a183-42e3cfe01a54,Depression,Remission_Assessment,"Behavioral_Health,Primary_Care,Social_Work",phq9_improved,2022-03-14,overdue
+4614b9aa-5660-4935-a550-95039d44641d,COPD,Pulmonary_Assessment,"Pulmonology,Primary_Care,Respiratory_Therapy",spirometry_updated,1975-10-25,overdue
+4614b9aa-5660-4935-a550-95039d44641d,COPD,Maintenance_Therapy,"Pulmonology,Primary_Care,Respiratory_Therapy",inhaler_education,1976-02-22,overdue
+4614b9aa-5660-4935-a550-95039d44641d,COPD,Exacerbation_Prevention,"Pulmonology,Primary_Care,Respiratory_Therapy",vaccinations_up_to_date,1976-08-20,completed
+4614b9aa-5660-4935-a550-95039d44641d,Depression,Evaluation,"Behavioral_Health,Primary_Care,Social_Work",phq9_documented,1975-09-25,scheduled
+4614b9aa-5660-4935-a550-95039d44641d,Depression,Therapy_Initiation,"Behavioral_Health,Primary_Care,Social_Work",therapy_sessions_started,1975-11-24,scheduled
+4614b9aa-5660-4935-a550-95039d44641d,Depression,Remission_Assessment,"Behavioral_Health,Primary_Care,Social_Work",phq9_improved,1976-03-23,completed
