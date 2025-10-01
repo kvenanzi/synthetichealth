@@ -3,38 +3,57 @@
 ## What You’ll Do
 - Understand the `^GLOBAL(sub1,sub2,...)=value` pattern
 - Parse patient demographics from `^DPT`
-- Convert FileMan dates to standard date/time
+- Convert generator-specific VistA date/datetime encodings to standard Python objects
 - Produce simple extracts and optional FHIR Patient output
 
 ## Primer
 - Globals are sparse, hierarchical key/value stores (VA VistA).
 - Common patient data: `^DPT(IEN,field,...)=value` where `0` is a caret‑delimited main record.
-- Frequent fields: `.02` sex (M/F), `.03` DOB (FileMan), `.09` SSN, `.11` address multi, `.131` phones.
+- Phase 3 exporter detail: DOB values in the `0` node or `.03` node are **day offsets since 1841-01-01**, not legacy 7-digit FileMan dates.
+- Frequent fields: `.02` sex (M/F), `.03` DOB (day offsets), `.09` SSN, `.11` address multi, `.131` phones.
 
-## FileMan Date Conversion
+## Date Conversion Helpers
 ```python
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 
-def fm_date(d):
-    # 7-digit: YYYMMDD where year = (century_offset+17)*100 + MM
-    if not d: return None
-    s = str(d).split('.')[0]
-    if len(s) != 7: return None
-    century = int(s[0]) + 17
-    year = century*100 + int(s[1:3])
-    return date(year, int(s[3:5]), int(s[5:7]))
+VISTA_EPOCH = date(1841, 1, 1)
 
-def fm_datetime(dt):
-    if not dt: return None
-    parts = str(dt).split('.')
-    d, t = parts[0], parts[1] if len(parts)>1 else '0000'
-    dd = fm_date(d)
-    if not dd: return None
-    t = (t+'0000')[:6]
-    h = int(t[:2]) if len(t)>=2 else 0
-    m = int(t[2:4]) if len(t)>=4 else 0
-    s = int(t[4:6]) if len(t)>=6 else 0
-    return datetime(dd.year, dd.month, dd.day, h, m, s)
+def vista_days_to_date(value: str | int | None):
+    """Convert day offsets (used in ^DPT) to a `date`."""
+    if value in (None, ""):
+        return None
+    try:
+        days = int(str(value).split('.')[0])
+    except ValueError:
+        return None
+    return VISTA_EPOCH + timedelta(days=days)
+
+def vista_timestamp_to_datetime(value: str | None):
+    """Convert visit timestamps (YYYMMDD.HHMMSS with Y=years since 1700) to `datetime`."""
+    if not value:
+        return None
+    chunk = str(value)
+    date_part, _, time_part = chunk.partition('.')
+    if len(date_part) < 5:
+        return None
+    try:
+        years_since_1700 = int(date_part[:-4])
+        month = int(date_part[-4:-2])
+        day = int(date_part[-2:])
+        year = 1700 + years_since_1700
+    except ValueError:
+        return None
+    time_part = (time_part + "000000")[:6]
+    try:
+        hour = int(time_part[0:2])
+        minute = int(time_part[2:4])
+        second = int(time_part[4:6])
+    except ValueError:
+        hour = minute = second = 0
+    try:
+        return datetime(year, month, day, hour, minute, second)
+    except ValueError:
+        return None
 ```
 
 ## Minimal Global Parser
@@ -86,10 +105,10 @@ def parse_dpt_demographics(doc: Dict[str, Any], ien: str) -> Dict[str, Any]:
         parts = node['0'].split('^')
         demo['name'] = parts[0] if parts else ''
         demo['sex'] = parts[1] if len(parts)>1 else ''
-        demo['dob'] = fm_date(parts[2]) if len(parts)>2 and parts[2] else None
+        demo['dob'] = vista_days_to_date(parts[2]) if len(parts)>2 and parts[2] else None
         demo['ssn'] = parts[3] if len(parts)>3 else ''
     if '.02' in node: demo['sex'] = node['.02']
-    if '.03' in node: demo['dob'] = fm_date(node['.03'])
+    if '.03' in node: demo['dob'] = vista_days_to_date(node['.03'])
     if '.09' in node: demo['ssn'] = node['.09']
     if '.11' in node:
         a = node['.11']
@@ -147,6 +166,5 @@ def vista_to_fhir_patient(ien: str, demo: Dict[str, Any]) -> Dict[str, Any]:
 ## Tips
 - Keep IENs stable for lineage during migration.
 - Expect sparsity and optional subtrees; always guard lookups.
-- Normalize FileMan date/times early to avoid downstream confusion.
+- Normalize day-offset DOBs and FileMan-style visit timestamps early to avoid downstream confusion.
 - Use small dictionaries to map VA codes to modern vocabularies incrementally.
-
