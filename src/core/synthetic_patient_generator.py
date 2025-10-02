@@ -902,6 +902,133 @@ class FHIRFormatter:
 
         return resource
 
+    def create_care_plan_resource(
+        self,
+        patient_id: str,
+        care_plan: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        status_map = {
+            "completed": "completed",
+            "overdue": "active",
+            "scheduled": "draft",
+            "in-progress": "active",
+        }
+        status = status_map.get(str(care_plan.get("status", "scheduled")).lower(), "draft")
+        title = f"{care_plan.get('condition', 'Care Plan')} - {care_plan.get('pathway_stage', 'Stage')}"
+        period: Dict[str, Any] = {}
+        start_date = care_plan.get("scheduled_date")
+        if start_date:
+            period["start"] = start_date
+        due_date = care_plan.get("due_date")
+        if due_date:
+            period["end"] = due_date
+
+        resource: Dict[str, Any] = {
+            "resourceType": "CarePlan",
+            "id": care_plan.get("care_plan_id", str(uuid.uuid4())),
+            "status": status,
+            "intent": "plan",
+            "title": title,
+            "subject": {"reference": f"Patient/{patient_id}"},
+        }
+        if period:
+            resource["period"] = period
+
+        condition_reference = care_plan.get("condition_id")
+        if condition_reference:
+            resource["addresses"] = [
+                {
+                    "reference": f"Condition/{condition_reference}",
+                    "display": care_plan.get("condition"),
+                }
+            ]
+        else:
+            resource["addresses"] = [
+                {
+                    "display": care_plan.get("condition"),
+                }
+            ]
+
+        category_text = care_plan.get("condition") or "Condition-focused"
+        resource["category"] = [
+            {
+                "coding": [
+                    {
+                        "system": "http://terminology.hl7.org/CodeSystem/care-plan-category",
+                        "code": "condition",
+                        "display": "Condition-focused",
+                    }
+                ],
+                "text": category_text,
+            }
+        ]
+
+        notes = care_plan.get("notes") or ""
+        if notes:
+            resource.setdefault("note", []).append({"text": notes})
+
+        quality_metric = care_plan.get("quality_metric")
+        if quality_metric:
+            resource.setdefault("extension", []).append(
+                {
+                    "url": "http://example.org/fhir/StructureDefinition/careplan-quality-metric",
+                    "valueString": quality_metric,
+                }
+            )
+        metric_status = care_plan.get("metric_status")
+        if metric_status:
+            resource.setdefault("extension", []).append(
+                {
+                    "url": "http://example.org/fhir/StructureDefinition/careplan-metric-status",
+                    "valueString": metric_status,
+                }
+            )
+
+        activities_source = care_plan.get("activities")
+        activity_status_map = {
+            "completed": "completed",
+            "pending": "scheduled",
+            "in-progress": "in-progress",
+        }
+        if isinstance(activities_source, list):
+            for activity in activities_source:
+                if isinstance(activity, dict):
+                    detail_status = activity_status_map.get(activity.get("status", "pending"), "scheduled")
+                    description = activity.get("display") or activity.get("code") or activity.get("type") or "Activity"
+                    detail: Dict[str, Any] = {
+                        "status": detail_status,
+                        "description": description,
+                    }
+                    if activity.get("planned_date"):
+                        detail["scheduledString"] = activity["planned_date"]
+                    if activity.get("actual_date"):
+                        detail["performedDateTime"] = activity["actual_date"]
+                    resource.setdefault("activity", []).append({"detail": detail})
+                else:
+                    resource.setdefault("activity", []).append(
+                        {
+                            "detail": {
+                                "status": "scheduled",
+                                "description": str(activity),
+                            }
+                        }
+                    )
+        elif isinstance(activities_source, str) and activities_source:
+            resource.setdefault("activity", []).append(
+                {
+                    "detail": {
+                        "status": "scheduled",
+                        "description": activities_source,
+                    }
+                }
+            )
+
+        care_team = care_plan.get("responsible_roles") or []
+        if care_team:
+            resource["contributor"] = [{"display": role} for role in care_team]
+
+        return resource
+
     def create_observation_resource(
         self,
         patient_id: str,
@@ -2822,6 +2949,7 @@ def main():
             else:
                 procedures.extend(module_result.procedures)
         all_procedures.extend(procedures)
+        patient_dict["procedures"] = procedures
 
         immunizations: List[Dict[str, Any]] = []
         immunization_followups: List[Dict[str, Any]] = []
@@ -2853,7 +2981,15 @@ def main():
             observations.extend(immunization_followups)
         all_observations.extend(observations)
         patient_dict["observations"] = observations
-        care_plans = generate_care_plans(patient_dict, conditions, encounters)
+        care_plans = generate_care_plans(
+            patient_dict,
+            conditions,
+            encounters,
+            medications=medications,
+            procedures=procedures,
+            observations=observations,
+            immunizations=immunizations,
+        )
         if module_result.care_plans:
             if "care_plans" in replaced:
                 care_plans = module_result.care_plans
@@ -2861,9 +2997,10 @@ def main():
                 care_plans.extend(module_result.care_plans)
         for plan in care_plans:
             activities = plan.get("activities")
-            if isinstance(activities, list):
+            if isinstance(activities, list) and all(isinstance(item, str) for item in activities):
                 plan["activities"] = ", ".join(activities)
         all_care_plans.extend(care_plans)
+        patient_dict["care_plan_details"] = care_plans
         death = generate_death(patient_dict, conditions)
         if death:
             all_deaths.append(death)
@@ -2888,6 +3025,7 @@ def main():
         patient.metadata['care_plan_completed'] = care_summary.get('completed', 0)
         patient.metadata['care_plan_overdue'] = care_summary.get('overdue', 0)
         patient.metadata['care_plan_scheduled'] = care_summary.get('scheduled', 0)
+        patient.metadata['care_plan_in_progress'] = care_summary.get('in_progress', 0)
 
         # Refresh the dictionary snapshot so metadata changes are captured
         patient_snapshot = patient.to_dict()
@@ -3073,6 +3211,20 @@ def main():
                     patient.patient_id, immunization
                 )
                 bundle_entries.append({"resource": immunization_resource})
+
+        for patient in tqdm(patients_list, desc="Creating FHIR CarePlan resources", unit="patients"):
+            if isinstance(patient, LifecyclePatient):
+                plan_records = patient.care_plans or patient.metadata.get("care_plan_details", [])
+            else:
+                plan_records = []
+            for plan in plan_records:
+                if isinstance(plan, str):
+                    continue
+                care_plan_resource = fhir_formatter.create_care_plan_resource(
+                    patient.patient_id if isinstance(patient, LifecyclePatient) else plan.get("patient_id", ""),
+                    plan,
+                )
+                bundle_entries.append({"resource": care_plan_resource})
 
         # Add Observation resources when lifecycle data is available
         for patient in tqdm(patients_list, desc="Creating FHIR Observation resources", unit="patients"):

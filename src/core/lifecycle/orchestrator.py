@@ -40,6 +40,7 @@ class LifecycleOrchestrator:
             "care_plan_completed",
             "care_plan_overdue",
             "care_plan_scheduled",
+            "care_plan_in_progress",
         ):
             if summary_key in merged_metadata and summary_key not in patient_payload:
                 patient_payload[summary_key] = merged_metadata[summary_key]

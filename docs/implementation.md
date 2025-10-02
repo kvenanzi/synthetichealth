@@ -245,9 +245,9 @@ Exporter Consistency
 - CSV: persist schedule and status; VistA export may remain out of scope unless a specific file is chosen.
 
 Implementation Steps
-1. Expand pathway templates; add scheduling engine to project dates relative to encounters.
-2. Wire activities to order/obs generation; update summaries.
-3. Tests: presence of milestones per condition; activity linkage; schedule plausibility.
+- ✅ Expand pathway templates; add scheduling engine to project dates relative to encounters.
+- ✅ Wire activities to order/obs generation; update summaries.
+- ✅ Tests: presence of milestones per condition; activity linkage; schedule plausibility.
 
 Acceptance Criteria
 - Condition cohorts show structured, timed care activities with appropriate orders and metrics.

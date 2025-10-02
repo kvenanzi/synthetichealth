@@ -2087,37 +2087,163 @@ PRECISION_MEDICINE_MARKERS = {
 # Phase 4: Care pathway templates for specialty conditions
 SPECIALTY_CARE_PATHWAYS = {
     "Heart Disease": {
+        "care_team": ["Cardiology", "Primary_Care", "Pharmacy"],
         "pathway": [
-            {"stage": "Initial_Diagnosis", "expected_interval_days": 30, "quality_metric": "beta_blocker_on_discharge"},
-            {"stage": "Cardiac_Rehab", "expected_interval_days": 90, "quality_metric": "rehab_completion"},
-            {"stage": "Six_Month_Followup", "expected_interval_days": 180, "quality_metric": "ldl_control"}
+            {
+                "stage": "Initial_Diagnosis",
+                "expected_interval_days": 30,
+                "window_days": 45,
+                "quality_metric": "beta_blocker_on_discharge",
+                "encounter_types": ["Cardiology Clinic", "Primary Care Follow-up"],
+                "required_panels": ["Cardiac_Markers", "Lipid_Panel"],
+                "required_procedures": ["Echocardiogram"],
+                "required_therapeutic_classes": ["beta_blocker", "ace_inhibitor"],
+                "care_team": ["Cardiology"],
+                "priority": "high",
+                "notes": "Confirm ischemic burden, initiate guideline-directed therapy, document beta blocker use."
+            },
+            {
+                "stage": "Cardiac_Rehab",
+                "expected_interval_days": 90,
+                "window_days": 75,
+                "quality_metric": "rehab_completion",
+                "encounter_types": ["Rehabilitation Therapy"],
+                "required_procedures": ["Stress_Test"],
+                "required_observation_panels": ["Pulmonary_Function"],
+                "care_team": ["Rehabilitation", "Nursing"],
+                "priority": "routine",
+                "notes": "Enroll patient in supervised cardiac rehab and track functional progress."
+            },
+            {
+                "stage": "Six_Month_Followup",
+                "expected_interval_days": 180,
+                "window_days": 90,
+                "quality_metric": "ldl_control",
+                "encounter_types": ["Cardiology Clinic", "Primary Care Follow-up"],
+                "required_panels": ["Lipid_Panel"],
+                "required_medications": ["Atorvastatin", "Rosuvastatin"],
+                "care_team": ["Primary_Care"],
+                "priority": "routine",
+                "notes": "Adjust statin or antihypertensive therapy to maintain LDL and blood pressure goals."
+            },
         ],
-        "care_team": ["Cardiology", "Primary_Care", "Pharmacy"]
     },
     "Cancer": {
+        "care_team": ["Oncology", "Radiology", "Nutrition"],
         "pathway": [
-            {"stage": "Staging", "expected_interval_days": 14, "quality_metric": "stage_documented"},
-            {"stage": "First_Line_Therapy", "expected_interval_days": 45, "quality_metric": "chemo_initiated"},
-            {"stage": "Restaging", "expected_interval_days": 180, "quality_metric": "tumor_marker_tracked"}
+            {
+                "stage": "Staging",
+                "expected_interval_days": 14,
+                "window_days": 21,
+                "quality_metric": "stage_documented",
+                "encounter_types": ["Oncology Visit"],
+                "required_procedures": ["CT_Chest_Abdomen_Pelvis", "Tumor_Biopsy"],
+                "care_team": ["Oncology"],
+                "priority": "high",
+                "notes": "Complete staging studies and document TNM classification."
+            },
+            {
+                "stage": "First_Line_Therapy",
+                "expected_interval_days": 45,
+                "window_days": 60,
+                "quality_metric": "chemo_initiated",
+                "encounter_types": ["Oncology Visit"],
+                "required_procedures": ["Chemotherapy_Administration"],
+                "required_therapeutic_classes": ["chemotherapy"],
+                "care_team": ["Oncology", "Pharmacy"],
+                "priority": "high",
+                "notes": "Start systemic therapy aligned to biomarker profile and document regimen."
+            },
+            {
+                "stage": "Restaging",
+                "expected_interval_days": 180,
+                "window_days": 90,
+                "quality_metric": "tumor_marker_tracked",
+                "encounter_types": ["Oncology Visit"],
+                "required_panels": ["Oncology_Tumor_Markers"],
+                "required_procedures": ["PET_Scan"],
+                "care_team": ["Oncology", "Radiology"],
+                "priority": "high",
+                "notes": "Assess treatment response and modify plan for recurrence or progression."
+            },
         ],
-        "care_team": ["Oncology", "Radiology", "Nutrition"]
     },
     "COPD": {
+        "care_team": ["Pulmonology", "Primary_Care", "Respiratory_Therapy"],
         "pathway": [
-            {"stage": "Pulmonary_Assessment", "expected_interval_days": 60, "quality_metric": "spirometry_updated"},
-            {"stage": "Maintenance_Therapy", "expected_interval_days": 120, "quality_metric": "inhaler_education"},
-            {"stage": "Exacerbation_Prevention", "expected_interval_days": 180, "quality_metric": "vaccinations_up_to_date"}
+            {
+                "stage": "Pulmonary_Assessment",
+                "expected_interval_days": 60,
+                "window_days": 45,
+                "quality_metric": "spirometry_updated",
+                "encounter_types": ["Pulmonology Clinic"],
+                "required_observation_panels": ["Pulmonary_Function"],
+                "care_team": ["Pulmonology"],
+                "priority": "routine",
+                "notes": "Update spirometry and review inhaler technique."
+            },
+            {
+                "stage": "Maintenance_Therapy",
+                "expected_interval_days": 120,
+                "window_days": 60,
+                "quality_metric": "inhaler_education",
+                "encounter_types": ["Pulmonology Clinic", "Primary Care Follow-up"],
+                "required_therapeutic_classes": ["inhaled_steroid", "bronchodilator"],
+                "care_team": ["Respiratory_Therapy"],
+                "priority": "routine",
+                "notes": "Reinforce maintenance regimen and enroll in pulmonary rehab when appropriate."
+            },
+            {
+                "stage": "Exacerbation_Prevention",
+                "expected_interval_days": 180,
+                "window_days": 90,
+                "quality_metric": "vaccinations_up_to_date",
+                "encounter_types": ["Primary Care Follow-up", "Telehealth Check-in"],
+                "required_immunizations": ["Seasonal Influenza Vaccine", "Pneumococcal Conjugate Vaccine"],
+                "care_team": ["Primary_Care"],
+                "priority": "routine",
+                "notes": "Confirm vaccinations, update action plan, and review rescue medication usage."
+            },
         ],
-        "care_team": ["Pulmonology", "Primary_Care", "Respiratory_Therapy"]
     },
     "Depression": {
+        "care_team": ["Behavioral_Health", "Primary_Care", "Social_Work"],
         "pathway": [
-            {"stage": "Evaluation", "expected_interval_days": 30, "quality_metric": "phq9_documented"},
-            {"stage": "Therapy_Initiation", "expected_interval_days": 60, "quality_metric": "therapy_sessions_started"},
-            {"stage": "Remission_Assessment", "expected_interval_days": 120, "quality_metric": "phq9_improved"}
+            {
+                "stage": "Evaluation",
+                "expected_interval_days": 30,
+                "window_days": 30,
+                "quality_metric": "phq9_documented",
+                "encounter_types": ["Behavioral Health Session", "Primary Care Follow-up"],
+                "required_observation_panels": ["Behavioral_Health_Assessments"],
+                "care_team": ["Behavioral_Health"],
+                "priority": "routine",
+                "notes": "Complete standardized screening and risk assessment."
+            },
+            {
+                "stage": "Therapy_Initiation",
+                "expected_interval_days": 60,
+                "window_days": 45,
+                "quality_metric": "therapy_sessions_started",
+                "encounter_types": ["Behavioral Health Session"],
+                "required_therapeutic_classes": ["ssri", "snri"],
+                "care_team": ["Behavioral_Health", "Pharmacy"],
+                "priority": "routine",
+                "notes": "Start psychotherapy and/or pharmacotherapy, monitor for adverse effects."
+            },
+            {
+                "stage": "Remission_Assessment",
+                "expected_interval_days": 120,
+                "window_days": 60,
+                "quality_metric": "phq9_improved",
+                "encounter_types": ["Behavioral Health Session", "Telehealth Check-in"],
+                "required_observation_panels": ["Behavioral_Health_Assessments"],
+                "care_team": ["Behavioral_Health", "Primary_Care"],
+                "priority": "routine",
+                "notes": "Assess symptom improvement and update relapse prevention plan."
+            },
         ],
-        "care_team": ["Behavioral_Health", "Primary_Care", "Social_Work"]
-    }
+    },
 }
 
 
@@ -2740,45 +2866,418 @@ def assign_precision_markers(patient: Dict[str, Any], conditions: List[Dict[str,
     patient["precision_markers"] = markers
     return markers
 
-def generate_care_plans(patient: Dict[str, Any], conditions: List[Dict[str, Any]], encounters: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """Create specialty care pathway milestones for Phase 4."""
-    care_plans = []
-    condition_names = {c.get("name") for c in conditions}
+def generate_care_plans(
+    patient: Dict[str, Any],
+    conditions: List[Dict[str, Any]],
+    encounters: List[Dict[str, Any]],
+    medications: Optional[List[Dict[str, Any]]] = None,
+    procedures: Optional[List[Dict[str, Any]]] = None,
+    observations: Optional[List[Dict[str, Any]]] = None,
+    immunizations: Optional[List[Dict[str, Any]]] = None,
+) -> List[Dict[str, Any]]:
+    """Create specialty care pathway milestones with status tracking and activities."""
 
-    status_counter = Counter()
+    meds = list(medications) if medications is not None else list(patient.get("medications", []))
+    procs = list(procedures) if procedures is not None else list(patient.get("procedures", []))
+    obs = list(observations) if observations is not None else list(patient.get("observations", []))
+    imm = list(immunizations) if immunizations is not None else list(patient.get("immunizations", []))
 
-    for condition_name in condition_names:
+    today = datetime.now().date()
+    care_plans: List[Dict[str, Any]] = []
+    status_counter: Counter[str] = Counter()
+
+    def _parse_related_conditions(value: Any) -> Set[str]:
+        if not value:
+            return set()
+        if isinstance(value, str):
+            tokens = [token.strip().strip('"').lower() for token in value.split(',') if token.strip()]
+            return set(tokens)
+        if isinstance(value, list):
+            return {str(token).strip().lower() for token in value if token}
+        return set()
+
+    def _collect_by_key(records: List[Dict[str, Any]], key: str) -> Dict[str, List[Dict[str, Any]]]:
+        lookup: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+        for record in records:
+            value = record.get(key)
+            if value:
+                lookup[str(value).lower()].append(record)
+        return lookup
+
+    def _collect_encounters_for_condition(condition_name: str) -> List[Dict[str, Any]]:
+        name_lower = condition_name.lower()
+        matches = []
+        for encounter in encounters:
+            related = _parse_related_conditions(encounter.get("related_conditions"))
+            if not related and condition_name:
+                continue
+            if not related or name_lower in related:
+                matches.append(encounter)
+        return matches
+
+    observations_by_panel = defaultdict(list)
+    observations_by_type = defaultdict(list)
+    for ob in obs:
+        panel = ob.get("panel")
+        if panel:
+            observations_by_panel[panel].append(ob)
+        ob_type = ob.get("type") or ob.get("name")
+        if ob_type:
+            observations_by_type[ob_type].append(ob)
+
+    procedures_by_name = defaultdict(list)
+    for proc in procs:
+        name = proc.get("name")
+        if name:
+            procedures_by_name[name].append(proc)
+
+    medications_by_name = defaultdict(list)
+    medications_by_class = defaultdict(list)
+    for med in meds:
+        name = med.get("name") or med.get("medication")
+        if name:
+            medications_by_name[name.lower()].append(med)
+        therapeutic_class = (med.get("therapeutic_class") or "").lower()
+        if therapeutic_class:
+            medications_by_class[therapeutic_class].append(med)
+
+    immunizations_by_name = defaultdict(list)
+    for record in imm:
+        vaccine = record.get("vaccine") or record.get("name")
+        if vaccine:
+            immunizations_by_name[vaccine.lower()].append(record)
+
+    condition_names = {c.get("name") for c in conditions if c.get("name")}
+
+    for condition_name in sorted(condition_names):
         pathway_template = SPECIALTY_CARE_PATHWAYS.get(condition_name)
         if not pathway_template:
             continue
 
-        start_date = datetime.strptime(patient.get("birthdate"), "%Y-%m-%d")
-        if encounters:
-            first_encounter = min(encounters, key=lambda e: e.get("date", ""))
-            if first_encounter.get("date"):
-                start_date = datetime.strptime(first_encounter["date"], "%Y-%m-%d")
+        condition_records = [c for c in conditions if c.get("name") == condition_name]
+        condition_id = condition_records[0].get("condition_id") if condition_records else None
+        condition_category = condition_records[0].get("condition_category") if condition_records else None
+        onset_dates = [
+            _safe_parse_date(record.get("onset_date"))
+            for record in condition_records
+            if _safe_parse_date(record.get("onset_date")) is not None
+        ]
+        condition_encounters = _collect_encounters_for_condition(condition_name)
+        encounter_dates = [
+            _safe_parse_date(encounter.get("date"))
+            for encounter in condition_encounters
+            if _safe_parse_date(encounter.get("date")) is not None
+        ]
 
-        day_offset = 0
-        for milestone in pathway_template["pathway"]:
-            day_offset += milestone.get("expected_interval_days", 30)
-            milestone_date = (start_date + timedelta(days=day_offset)).date().isoformat()
+        if onset_dates:
+            anchor_date = min(onset_dates)
+        elif encounter_dates:
+            anchor_date = min(encounter_dates)
+        else:
+            anchor_date = today - timedelta(days=30)
 
-            care_plans.append({
-                "patient_id": patient["patient_id"],
-                "condition": condition_name,
-                "pathway_stage": milestone["stage"],
-                "care_team": ",".join(pathway_template.get("care_team", [])),
-                "target_metric": milestone.get("quality_metric", ""),
-                "scheduled_date": milestone_date,
-                "status": random.choice(["scheduled", "completed", "overdue"])
-            })
-            status_counter[care_plans[-1]["status"]] += 1
+        previous_anchor = anchor_date
+        default_care_team = set(pathway_template.get("care_team", []))
 
+        # Pre-compute encounter lookups for efficiency
+        encounters_by_type = defaultdict(list)
+        for encounter in condition_encounters:
+            enc_type = encounter.get("type")
+            enc_date = _safe_parse_date(encounter.get("date"))
+            if enc_type and enc_date:
+                encounters_by_type[enc_type].append((enc_date, encounter))
+
+        for encounter_list in encounters_by_type.values():
+            encounter_list.sort(key=lambda item: item[0])
+
+        for stage in pathway_template.get("pathway", []):
+            interval_days = stage.get("expected_interval_days", stage.get("offset_days", 30))
+            scheduled_date = previous_anchor + timedelta(days=int(interval_days))
+            window_days = stage.get("window_days", 45)
+            due_date = scheduled_date + timedelta(days=int(window_days))
+
+            activities: List[Dict[str, Any]] = []
+            actual_event_dates: List[date] = []
+            completed_requirements = 0
+            total_requirements = 0
+
+            def _register_activity(
+                activity_type: str,
+                code: str,
+                *,
+                display: Optional[str] = None,
+                is_completed: bool = False,
+                reference: Optional[str] = None,
+                planned: Optional[date] = None,
+                actual: Optional[date] = None,
+            ) -> None:
+                entry = {
+                    "type": activity_type,
+                    "code": code,
+                    "display": display or code,
+                    "status": "completed" if is_completed else "pending",
+                    "reference": reference,
+                }
+                if planned:
+                    entry["planned_date"] = planned.isoformat()
+                if actual:
+                    entry["actual_date"] = actual.isoformat()
+                activities.append(entry)
+
+            def _choose_encounter(encounter_types: List[str]) -> Optional[Dict[str, Any]]:
+                candidates: List[Tuple[int, Tuple[date, Dict[str, Any]]]] = []
+                for enc_type in encounter_types:
+                    for enc_date, enc in encounters_by_type.get(enc_type, []):
+                        delta = abs((enc_date - scheduled_date).days)
+                        candidates.append((delta, (enc_date, enc)))
+                if not candidates:
+                    return None
+                candidates.sort(key=lambda item: (item[0], item[1][0]))
+                return candidates[0][1]
+
+            # Encounter requirement
+            encounter_types = stage.get("encounter_types", [])
+            matched_encounter: Optional[Tuple[date, Dict[str, Any]]] = None
+            if encounter_types:
+                total_requirements += 1
+                matched_encounter = _choose_encounter(encounter_types)
+                encounter_completed = matched_encounter is not None and matched_encounter[0] <= today
+                if encounter_completed:
+                    completed_requirements += 1
+                    actual_event_dates.append(matched_encounter[0])
+                _register_activity(
+                    "encounter",
+                    ", ".join(encounter_types),
+                    is_completed=encounter_completed,
+                    reference=matched_encounter[1].get("encounter_id") if matched_encounter else None,
+                    planned=scheduled_date,
+                    actual=matched_encounter[0] if matched_encounter and encounter_completed else None,
+                )
+
+            def _handle_panel(panel_name: str) -> bool:
+                candidates = observations_by_panel.get(panel_name, [])
+                candidates = [
+                    ( _safe_parse_date(ob.get("date")), ob )
+                    for ob in candidates
+                    if _safe_parse_date(ob.get("date")) is not None
+                ]
+                if not candidates:
+                    return False
+                candidates.sort(key=lambda item: (abs((item[0] - scheduled_date).days), item[0]))
+                chosen_date, chosen_ob = candidates[0]
+                completed = chosen_date <= today
+                _register_activity(
+                    "observation",
+                    panel_name,
+                    is_completed=completed,
+                    reference=chosen_ob.get("observation_id"),
+                    planned=scheduled_date,
+                    actual=chosen_date if completed else None,
+                )
+                if completed:
+                    actual_event_dates.append(chosen_date)
+                return completed
+
+            # Observation panels
+            for panel_name in stage.get("required_panels", []):
+                total_requirements += 1
+                if _handle_panel(panel_name):
+                    completed_requirements += 1
+
+            for panel_name in stage.get("required_observation_panels", []):
+                total_requirements += 1
+                if _handle_panel(panel_name):
+                    completed_requirements += 1
+
+            # Observation types
+            for obs_type in stage.get("required_observation_types", []):
+                total_requirements += 1
+                candidates = observations_by_type.get(obs_type, [])
+                candidates = [
+                    (_safe_parse_date(item.get("date")), item)
+                    for item in candidates
+                    if _safe_parse_date(item.get("date")) is not None
+                ]
+                if candidates:
+                    candidates.sort(key=lambda item: (abs((item[0] - scheduled_date).days), item[0]))
+                    chosen_date, chosen_ob = candidates[0]
+                    completed = chosen_date <= today
+                    if completed:
+                        completed_requirements += 1
+                        actual_event_dates.append(chosen_date)
+                    _register_activity(
+                        "observation",
+                        obs_type,
+                        is_completed=completed,
+                        reference=chosen_ob.get("observation_id"),
+                        planned=scheduled_date,
+                        actual=chosen_date if completed else None,
+                    )
+                else:
+                    _register_activity("observation", obs_type, planned=scheduled_date)
+
+            # Procedures
+            for proc_name in stage.get("required_procedures", []):
+                total_requirements += 1
+                candidates = procedures_by_name.get(proc_name, [])
+                candidates = [
+                    (_safe_parse_date(item.get("date")), item)
+                    for item in candidates
+                    if _safe_parse_date(item.get("date")) is not None
+                ]
+                if candidates:
+                    candidates.sort(key=lambda item: (abs((item[0] - scheduled_date).days), item[0]))
+                    chosen_date, chosen_proc = candidates[0]
+                    completed = chosen_date <= today
+                    if completed:
+                        completed_requirements += 1
+                        actual_event_dates.append(chosen_date)
+                    _register_activity(
+                        "procedure",
+                        proc_name,
+                        display=chosen_proc.get("name", proc_name),
+                        is_completed=completed,
+                        reference=chosen_proc.get("procedure_id"),
+                        planned=scheduled_date,
+                        actual=chosen_date if completed else None,
+                    )
+                else:
+                    _register_activity("procedure", proc_name, planned=scheduled_date)
+
+            # Medications by name
+            for med_name in stage.get("required_medications", []):
+                total_requirements += 1
+                matches = medications_by_name.get(med_name.lower(), [])
+                if matches:
+                    med = matches[0]
+                    start_date = _safe_parse_date(med.get("start_date")) or scheduled_date
+                    completed = start_date <= today
+                    if completed:
+                        completed_requirements += 1
+                        actual_event_dates.append(start_date)
+                    _register_activity(
+                        "medication",
+                        med_name,
+                        display=med.get("name", med_name),
+                        is_completed=completed,
+                        reference=med.get("medication_id"),
+                        planned=scheduled_date,
+                        actual=start_date if completed else None,
+                    )
+                else:
+                    _register_activity("medication", med_name, planned=scheduled_date)
+
+            # Medications by therapeutic class
+            for med_class in stage.get("required_therapeutic_classes", []):
+                total_requirements += 1
+                matches = medications_by_class.get(med_class.lower(), [])
+                if matches:
+                    med = matches[0]
+                    start_date = _safe_parse_date(med.get("start_date")) or scheduled_date
+                    completed = start_date <= today
+                    if completed:
+                        completed_requirements += 1
+                        actual_event_dates.append(start_date)
+                    _register_activity(
+                        "medication_class",
+                        med_class,
+                        display=med_class,
+                        is_completed=completed,
+                        reference=med.get("medication_id"),
+                        planned=scheduled_date,
+                        actual=start_date if completed else None,
+                    )
+                else:
+                    _register_activity("medication_class", med_class, planned=scheduled_date)
+
+            # Immunizations
+            for vaccine_name in stage.get("required_immunizations", []):
+                total_requirements += 1
+                matches = immunizations_by_name.get(vaccine_name.lower(), [])
+                if matches:
+                    event = matches[0]
+                    event_date = _safe_parse_date(event.get("date")) or scheduled_date
+                    completed = event_date <= today
+                    if completed:
+                        completed_requirements += 1
+                        actual_event_dates.append(event_date)
+                    _register_activity(
+                        "immunization",
+                        vaccine_name,
+                        is_completed=completed,
+                        reference=event.get("immunization_id"),
+                        planned=scheduled_date,
+                        actual=event_date if completed else None,
+                    )
+                else:
+                    _register_activity("immunization", vaccine_name, planned=scheduled_date)
+
+            progress = (
+                round(completed_requirements / total_requirements, 2)
+                if total_requirements
+                else 0.0
+            )
+            actual_date = min(actual_event_dates) if actual_event_dates else None
+
+            if completed_requirements and completed_requirements == total_requirements:
+                status = "completed"
+            elif due_date < today:
+                status = "overdue"
+            elif completed_requirements > 0:
+                status = "in-progress"
+            else:
+                status = "scheduled"
+
+            status_counter[status] += 1
+
+            care_team_members = set(default_care_team)
+            care_team_members.update(stage.get("care_team", []))
+
+            metric_status = "met" if total_requirements and completed_requirements == total_requirements else "not_met"
+            linked_encounters = [
+                act.get("reference")
+                for act in activities
+                if act["type"] == "encounter" and act.get("status") == "completed" and act.get("reference")
+            ]
+
+            care_plans.append(
+                {
+                    "care_plan_id": str(uuid.uuid4()),
+                    "patient_id": patient["patient_id"],
+                    "condition": condition_name,
+                    "condition_id": condition_id,
+                    "condition_category": condition_category,
+                    "pathway_stage": stage.get("stage"),
+                    "scheduled_date": scheduled_date.isoformat(),
+                    "due_date": due_date.isoformat(),
+                    "actual_date": actual_date.isoformat() if actual_date else None,
+                    "status": status,
+                    "progress": progress,
+                    "completed_requirements": completed_requirements,
+                    "total_requirements": total_requirements,
+                    "quality_metric": stage.get("quality_metric"),
+                    "metric_status": metric_status,
+                    "priority": stage.get("priority", "routine"),
+                    "care_team": ",".join(sorted(member for member in care_team_members if member)),
+                    "responsible_roles": list(sorted(member for member in care_team_members if member)),
+                    "activities": activities,
+                    "notes": stage.get("notes", ""),
+                    "linked_encounters": linked_encounters,
+                    "planned_duration_days": window_days,
+                    "target_metric": stage.get("quality_metric", ""),
+                    "goal": stage.get("quality_metric", ""),
+                }
+            )
+
+            previous_anchor = actual_date or scheduled_date
+
+    scheduled_count = status_counter.get("scheduled", 0) + status_counter.get("in-progress", 0)
     patient["care_plan_summary"] = {
         "total": len(care_plans),
         "completed": status_counter.get("completed", 0),
-        "scheduled": status_counter.get("scheduled", 0),
-        "overdue": status_counter.get("overdue", 0)
+        "scheduled": scheduled_count,
+        "overdue": status_counter.get("overdue", 0),
+        "in_progress": status_counter.get("in-progress", 0),
     }
 
     return care_plans

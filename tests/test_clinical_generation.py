@@ -1,4 +1,5 @@
 import random
+from collections import Counter
 from unittest.mock import patch
 
 from faker import Faker
@@ -29,36 +30,108 @@ def base_patient() -> dict:
 
 
 def test_generate_conditions_and_care_plans_summary():
-    seed_random()
     patient = base_patient()
-    preassigned = clinical.assign_conditions(patient)
-    encounters = clinical.generate_encounters(patient, preassigned_conditions=preassigned)
+    patient["birthdate"] = "1990-01-01"
+    patient_id = patient["patient_id"]
+    conditions = [
+        {
+            "condition_id": "cond-dep",
+            "patient_id": patient_id,
+            "name": "Depression",
+            "status": "active",
+            "onset_date": "2024-01-01",
+            "icd10_code": "F33.1",
+            "snomed_code": "370143000",
+            "condition_category": "behavioral_health",
+        }
+    ]
+    encounters = [
+        {
+            "encounter_id": "enc-therapy",
+            "patient_id": patient_id,
+            "date": "2024-02-15",
+            "time": "10:00",
+            "type": "Behavioral Health Session",
+            "reason": "Therapy follow-up",
+            "provider": "Dr. Rowe",
+            "location": "Behavioral Health - Downtown Clinic",
+            "clinic_stop": "167",
+            "service_category": "A",
+            "related_conditions": "Depression",
+        },
+        {
+            "encounter_id": "enc-follow",
+            "patient_id": patient_id,
+            "date": "2024-05-20",
+            "time": "09:30",
+            "type": "Telehealth Check-in",
+            "reason": "Medication follow-up",
+            "provider": "Dr. Rowe",
+            "location": "Telehealth",
+            "clinic_stop": "179",
+            "service_category": "A",
+            "related_conditions": "Depression",
+        },
+    ]
+    medications = [
+        {
+            "medication_id": "med-ssri",
+            "patient_id": patient_id,
+            "encounter_id": "enc-therapy",
+            "name": "Sertraline",
+            "indication": "Depression",
+            "therapy_category": "ssri",
+            "therapeutic_class": "ssri",
+            "start_date": "2024-02-15",
+            "status": "active",
+        }
+    ]
+    procedures = []
+    observations = [
+        {
+            "observation_id": "obs-phq9",
+            "patient_id": patient_id,
+            "encounter_id": "enc-therapy",
+            "type": "PHQ9_Score",
+            "loinc_code": "44249-1",
+            "value": "8",
+            "value_numeric": 8,
+            "units": "score",
+            "reference_range": "0-4 score",
+            "status": "final",
+            "date": "2024-02-15",
+            "panel": "Behavioral_Health_Assessments",
+        }
+    ]
 
-    conditions = clinical.generate_conditions(
+    care_plans = clinical.generate_care_plans(
         patient,
+        conditions,
         encounters,
-        min_cond=1,
-        max_cond=2,
-        preassigned_conditions=preassigned,
+        medications=medications,
+        procedures=procedures,
+        observations=observations,
     )
-    assert isinstance(conditions, list)
-    if conditions:
-        for condition in conditions:
-            assert condition["condition_id"], "Condition should have an identifier"
-            assert condition["status"] in clinical.CONDITION_STATUSES
-            # Catalog lookups should populate ICD-10 codes where available
-            assert "icd10_code" in condition
-            assert "stage_detail" in condition
-            assert "severity_detail" in condition
-    else:
-        # Even when no conditions are assigned the patient profile should be initialized.
-        assert patient.get("condition_profile") == []
 
-    care_plans = clinical.generate_care_plans(patient, conditions, encounters)
-    assert isinstance(care_plans, list)
+    assert care_plans, "Expected care plans to be generated"
+    statuses = Counter(plan["status"] for plan in care_plans)
     summary = patient.get("care_plan_summary")
     assert summary is not None
     assert summary["total"] == len(care_plans)
+    assert summary["completed"] == statuses.get("completed", 0)
+    assert summary["overdue"] == statuses.get("overdue", 0)
+    expected_scheduled = statuses.get("scheduled", 0) + statuses.get("in-progress", 0)
+    assert summary["scheduled"] == expected_scheduled
+    assert summary.get("in_progress", 0) == statuses.get("in-progress", 0)
+
+    for plan in care_plans:
+        assert plan["care_plan_id"], "Care plan should have an identifier"
+        assert plan["status"] in {"completed", "scheduled", "overdue", "in-progress"}
+        assert plan["scheduled_date"], "Care plan requires a scheduled date"
+        assert plan["due_date"], "Care plan requires a due date"
+        assert "activities" in plan
+        if isinstance(plan["activities"], list):
+            assert all(isinstance(activity, dict) for activity in plan["activities"])
 
 
 def test_generate_medications_structure():

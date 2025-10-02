@@ -262,6 +262,7 @@ class CarePlanSummary:
     completed: int = 0
     overdue: int = 0
     scheduled: int = 0
+    in_progress: int = 0
 
 
 @dataclass
@@ -287,6 +288,7 @@ class Patient:
     observations: List[Observation] = field(default_factory=list)
     allergies: List[Dict[str, Any]] = field(default_factory=list)
     procedures: List[Dict[str, Any]] = field(default_factory=list)
+    care_plans: List[Dict[str, Any]] = field(default_factory=list)
     care_plan: CarePlanSummary = field(default_factory=CarePlanSummary)
     metadata: Dict[str, Any] = field(default_factory=dict)
 
@@ -347,7 +349,11 @@ class Patient:
             completed=patient.get("care_plan_completed", 0),
             overdue=patient.get("care_plan_overdue", 0),
             scheduled=patient.get("care_plan_scheduled", 0),
+            in_progress=patient.get("care_plan_in_progress", 0),
         )
+        care_plan_details = metadata.get("care_plan_details") if metadata else None
+        if not care_plan_details:
+            care_plan_details = patient.get("care_plans") or []
         return cls(
             patient_id=patient.get("patient_id", ""),
             first_name=patient.get("first_name", ""),
@@ -370,6 +376,7 @@ class Patient:
             observations=[Observation.from_legacy(item) for item in observations],
             allergies=allergies,
             procedures=procedures,
+            care_plans=care_plan_details,
             care_plan=care_plan,
             metadata=metadata or {},
         )
