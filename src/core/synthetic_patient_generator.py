@@ -23,6 +23,7 @@ from .lifecycle import (
     Observation as LifecycleObservation,
     Encounter as LifecycleEncounter,
     MedicationOrder as LifecycleMedicationOrder,
+    ImmunizationRecord,
     PatientRecord,
 )
 from .lifecycle.constants import (
@@ -782,6 +783,125 @@ class FHIRFormatter:
 
         return resource
 
+    def create_immunization_resource(
+        self,
+        patient_id: str,
+        immunization: Union[Dict[str, Any], ImmunizationRecord],
+    ) -> Dict[str, Any]:
+        if isinstance(immunization, ImmunizationRecord):
+            metadata = dict(immunization.metadata)
+            vaccine_name = immunization.name or metadata.get("vaccine", "Vaccine")
+            occurrence = (
+                immunization.date_administered.isoformat()
+                if immunization.date_administered
+                else datetime.now().isoformat()
+            )
+            cvx_code = immunization.cvx_code or metadata.get("cvx_code")
+            lot_number = immunization.lot_number or metadata.get("lot_number")
+            performer = immunization.performer or metadata.get("provider")
+        else:
+            metadata = immunization
+            vaccine_name = metadata.get("vaccine") or metadata.get("name", "Vaccine")
+            occurrence = metadata.get("date", datetime.now().isoformat())
+            cvx_code = metadata.get("cvx_code")
+            lot_number = metadata.get("lot_number")
+            performer = metadata.get("provider") or metadata.get("performer")
+
+        coding: List[Dict[str, Any]] = []
+        if cvx_code:
+            coding.append(
+                {
+                    "system": "http://hl7.org/fhir/sid/cvx",
+                    "code": cvx_code,
+                    "display": vaccine_name,
+                }
+            )
+        snomed_code = metadata.get("snomed_code")
+        if snomed_code:
+            coding.append(
+                {
+                    "system": "http://snomed.info/sct",
+                    "code": snomed_code,
+                    "display": vaccine_name,
+                }
+            )
+        if not coding:
+            coding.append(
+                {
+                    "system": "http://terminology.hl7.org/CodeSystem/data-absent-reason",
+                    "code": "unknown",
+                    "display": vaccine_name,
+                }
+            )
+
+        route_text = metadata.get("route", "intramuscular")
+        route_code_map = {
+            "intramuscular": "IM",
+            "subcutaneous": "SC",
+            "intranasal": "NASAL",
+            "oral": "PO",
+        }
+        route_element = None
+        if route_text:
+            route_element = {
+                "coding": [
+                    {
+                        "system": "http://terminology.hl7.org/CodeSystem/v3-RouteOfAdministration",
+                        "code": route_code_map.get(route_text.lower(), "IM"),
+                        "display": route_text.title(),
+                    }
+                ],
+                "text": route_text.title(),
+            }
+
+        site_text = metadata.get("site")
+        site_element = None
+        if site_text:
+            site_element = {
+                "coding": [
+                    {
+                        "system": "http://terminology.hl7.org/CodeSystem/v3-ParticipationTargetBodySite",
+                        "code": site_text.lower().replace(" ", "-"),
+                        "display": site_text.title(),
+                    }
+                ],
+                "text": site_text.title(),
+            }
+
+        resource: Dict[str, Any] = {
+            "resourceType": "Immunization",
+            "id": metadata.get("immunization_id", str(uuid.uuid4())),
+            "status": metadata.get("status", "completed"),
+            "vaccineCode": {"coding": coding, "text": vaccine_name},
+            "patient": {"reference": f"Patient/{patient_id}"},
+            "occurrenceDateTime": occurrence,
+            "primarySource": True,
+        }
+
+        if lot_number:
+            resource["lotNumber"] = lot_number
+        if performer:
+            resource["performer"] = [{"actor": {"display": performer}}]
+        if route_element:
+            resource["route"] = route_element
+        if site_element:
+            resource["site"] = site_element
+
+        dose_number = metadata.get("dose_number")
+        series_total = metadata.get("series_total")
+        series_id = metadata.get("series_id")
+        if dose_number or series_total or series_id:
+            protocol_entry: Dict[str, Any] = {}
+            if series_id:
+                protocol_entry["series"] = str(series_id)
+            if dose_number:
+                protocol_entry["doseNumberPositiveInt"] = int(dose_number)
+            if series_total:
+                protocol_entry["seriesDosesPositiveInt"] = int(series_total)
+            resource["protocolApplied"] = [protocol_entry]
+
+        return resource
+
     def create_observation_resource(
         self,
         patient_id: str,
@@ -1310,12 +1430,14 @@ class VistaReferenceRegistry:
         self.drug_lookup: Dict[str, Dict[str, str]] = {}
         self.lab_lookup: Dict[str, Dict[str, str]] = {}
         self.allergen_lookup: Dict[str, Dict[str, str]] = {}
+        self.immunization_lookup: Dict[str, Dict[str, str]] = {}
         self._icd_counter = 400000
         self._narrative_counter = 500000
         self._location_counter = 600000
         self._drug_counter = 700000
         self._lab_counter = 800000
         self._allergen_counter = 900000
+        self._immunization_counter = 950000
 
     def _allocate(self, counter_attr: str) -> str:
         value = getattr(self, counter_attr)
@@ -1417,6 +1539,23 @@ class VistaReferenceRegistry:
             entry["name"] = name
         return entry["ien"]
 
+    def get_immunization_ien(self, name: Optional[str], cvx_code: Optional[str] = None) -> str:
+        if not name and not cvx_code:
+            return ""
+        key = (cvx_code or name or "").upper()
+        entry = self.immunization_lookup.get(key)
+        if entry is None:
+            ien = self._allocate("_immunization_counter")
+            self.immunization_lookup[key] = {
+                "ien": ien,
+                "name": name or f"IMM {ien}",
+                "cvx": cvx_code or "",
+            }
+            return ien
+        if name and not entry.get("name"):
+            entry["name"] = name
+        return entry["ien"]
+
     def build_reference_globals(self, sanitize: Callable[[str], str]) -> Dict[str, str]:
         globals_dict: Dict[str, str] = {}
         for code, ien in self.icd10_lookup.items():
@@ -1448,6 +1587,12 @@ class VistaReferenceRegistry:
             node_value = f"{name}^{metadata}"
             globals_dict[f"^GMR(120.82,{ien},0)"] = node_value
             globals_dict[f'^GMR(120.82,"B","{name}",{ien})'] = ""
+        for entry in self.immunization_lookup.values():
+            ien = entry["ien"]
+            name = sanitize(entry.get("name", "")) or f"IMMUNIZATION {ien}"
+            cvx = entry.get("cvx", "")
+            globals_dict[f"^AUTTIMM({ien},0)"] = f"{name}^{cvx}"
+            globals_dict[f'^AUTTIMM("B","{name}",{ien})'] = ""
         return globals_dict
 
     def header_entries(self, fm_date: str) -> Dict[str, str]:
@@ -1468,6 +1613,8 @@ class VistaReferenceRegistry:
             headers["^LAB(60,0)"] = f"LAB TEST^60^{max(int(entry['ien']) for entry in self.lab_lookup.values())}^{fm_date}"
         if self.allergen_lookup:
             headers["^GMR(120.82,0)"] = f"ALLERGEN^120.82^{max(int(entry['ien']) for entry in self.allergen_lookup.values())}^{fm_date}"
+        if self.immunization_lookup:
+            headers["^AUTTIMM(0)"] = f"IMMUNIZATION^9999999.14^{max(int(entry['ien']) for entry in self.immunization_lookup.values())}^{fm_date}"
         return headers
 
 
@@ -1850,6 +1997,7 @@ class VistaFormatter:
         medications: List[Dict],
         observations: List[Dict],
         allergies: List[Dict],
+        immunizations: List[Dict],
         output_file: str,
     ) -> Dict[str, int]:
         print(f"Generating VistA MUMPS globals for {len(patients)} patients (FileMan mode)...")
@@ -1865,12 +2013,15 @@ class VistaFormatter:
         medication_iens: Set[int] = set()
         lab_iens: Set[int] = set()
         allergy_iens: Set[int] = set()
+        immunization_iens: Set[int] = set()
         medication_map: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
         observation_map: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
         allergy_map: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+        immunization_map: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
         medication_vista_map: Dict[str, str] = {}
         lab_vista_map: Dict[str, str] = {}
         allergy_vista_map: Dict[str, str] = {}
+        immunization_vista_map: Dict[str, str] = {}
 
         def _ensure_unique_ien(target_set: Set[int]) -> str:
             candidate = VistaFormatter.generate_vista_ien()
@@ -1893,6 +2044,11 @@ class VistaFormatter:
             patient_id = allergy.get('patient_id')
             if patient_id:
                 allergy_map[patient_id].append(allergy)
+
+        for immunization in immunizations or []:
+            patient_id = immunization.get('patient_id')
+            if patient_id:
+                immunization_map[patient_id].append(immunization)
 
         # Patient structures
         for patient in tqdm(patients, desc="Creating VistA patient globals", unit="patients"):
@@ -2141,6 +2297,41 @@ class VistaFormatter:
                 if severity_text:
                     all_globals[f"^GMR(120.8,{allergy_ien},3)"] = severity_text
 
+            for immunization in immunization_map.get(patient.patient_id, []):
+                imm_key = (
+                    immunization.get('immunization_id')
+                    or immunization.get('id')
+                    or f"{immunization.get('vaccine', '')}-{immunization.get('date', '')}"
+                )
+                imm_ien = immunization_vista_map.setdefault(imm_key, _ensure_unique_ien(immunization_iens))
+                vaccine_ien = registry.get_immunization_ien(
+                    immunization.get('vaccine'),
+                    immunization.get('cvx_code'),
+                )
+                visit_ien = ""
+                encounter_ref = immunization.get('encounter_id')
+                if encounter_ref:
+                    visit_ien = visit_map.get(encounter_ref, "")
+                imm_date = VistaFormatter.fileman_date_format(immunization.get('date'))
+                series_type = (immunization.get('series_type') or "").lower()
+                series_flag = "B" if series_type in {"booster", "seasonal"} else "P"
+                segments = [
+                    str(vista_ien or ""),
+                    str(vaccine_ien or ""),
+                    str(visit_ien or ""),
+                    imm_date,
+                    series_flag,
+                    "",
+                    "",
+                    "",
+                ]
+                all_globals[f"^AUPNVIMM({imm_ien},0)"] = "^".join(segments)
+                if vaccine_ien:
+                    all_globals[f'^AUPNVIMM("C",{vaccine_ien},{imm_ien})'] = ""
+                all_globals[f'^AUPNVIMM("B",{vista_ien},{imm_ien})'] = ""
+                if visit_ien:
+                    all_globals[f'^AUPNVIMM("AD",{visit_ien},{imm_ien})'] = ""
+
         # Index conditions by patient
         condition_map: Dict[str, List[Dict[str, Any]]] = {}
         for condition in conditions:
@@ -2198,6 +2389,8 @@ class VistaFormatter:
             all_globals["^AUPNVLAB(0)"] = f"V LAB^9000010.09^{max(lab_iens)}^{fileman_date_today}"
         if allergy_iens:
             all_globals["^GMR(120.8,0)"] = f"PATIENT ALLERGIES^120.8^{max(allergy_iens)}^{fileman_date_today}"
+        if immunization_iens:
+            all_globals["^AUPNVIMM(0)"] = f"V IMMUNIZATION^9000010.11^{max(immunization_iens)}^{fileman_date_today}"
         all_globals.update(registry.header_entries(fileman_date_today))
 
         with open(output_file, 'w') as handle:
@@ -2222,6 +2415,7 @@ class VistaFormatter:
         medication_record_pattern = re.compile(r"^\^AUPNVMED\(\d+,0\)$")
         lab_record_pattern = re.compile(r"^\^AUPNVLAB\(\d+,0\)$")
         allergy_record_pattern = re.compile(r"^\^GMR\(120\.8,\d+,0\)$")
+        immunization_record_pattern = re.compile(r"^\^AUPNVIMM\(\d+,0\)$")
 
         dpt_count = sum(1 for k in all_globals if patient_record_pattern.match(k))
         visit_count = sum(1 for k in all_globals if visit_record_pattern.match(k))
@@ -2229,8 +2423,15 @@ class VistaFormatter:
         medication_count = sum(1 for k in all_globals if medication_record_pattern.match(k))
         lab_count = sum(1 for k in all_globals if lab_record_pattern.match(k))
         allergy_count = sum(1 for k in all_globals if allergy_record_pattern.match(k))
+        immunization_count = sum(1 for k in all_globals if immunization_record_pattern.match(k))
         cross_reference_nodes = len(all_globals) - (
-            dpt_count + visit_count + problem_count + medication_count + lab_count + allergy_count
+            dpt_count
+            + visit_count
+            + problem_count
+            + medication_count
+            + lab_count
+            + allergy_count
+            + immunization_count
         )
         return {
             "total_globals": len(all_globals),
@@ -2240,6 +2441,7 @@ class VistaFormatter:
             "medication_records": medication_count,
             "lab_records": lab_count,
             "allergy_records": allergy_count,
+            "immunization_records": immunization_count,
             "cross_references": cross_reference_nodes,
         }
 
@@ -2251,6 +2453,7 @@ class VistaFormatter:
         medications: List[Dict],
         observations: List[Dict],
         allergies: List[Dict],
+        immunizations: List[Dict],
         output_file: str,
         export_mode: str = FILEMAN_INTERNAL_MODE,
     ) -> Dict[str, int]:
@@ -2265,6 +2468,7 @@ class VistaFormatter:
                 medications,
                 observations,
                 allergies,
+                immunizations,
                 output_file,
             )
         raise ValueError(f"Unsupported VistA export mode: {export_mode}")
@@ -2618,19 +2822,35 @@ def main():
             else:
                 procedures.extend(module_result.procedures)
         all_procedures.extend(procedures)
-        immunizations = generate_immunizations(patient_dict, encounters)
-        if module_result.immunizations:
-            if "immunizations" in replaced:
-                immunizations = module_result.immunizations
-            else:
+
+        immunizations: List[Dict[str, Any]] = []
+        immunization_followups: List[Dict[str, Any]] = []
+        if "immunizations" in replaced:
+            immunizations = module_result.immunizations or []
+        else:
+            immunizations, immunization_followups = generate_immunizations(
+                patient_dict,
+                encounters,
+                allergies=allergies,
+                conditions=conditions,
+            )
+            if module_result.immunizations:
                 immunizations.extend(module_result.immunizations)
+
         all_immunizations.extend(immunizations)
+        patient_dict["immunization_profile"] = [record.get("vaccine") for record in immunizations]
+        patient_dict["immunizations"] = immunizations
+
         observations = generate_observations(patient_dict, encounters, conditions, medications)
+        if immunization_followups:
+            observations.extend(immunization_followups)
         if module_result.observations:
             if "observations" in replaced:
                 observations = module_result.observations
             else:
                 observations.extend(module_result.observations)
+        if immunization_followups and "observations" in replaced:
+            observations.extend(immunization_followups)
         all_observations.extend(observations)
         patient_dict["observations"] = observations
         care_plans = generate_care_plans(patient_dict, conditions, encounters)
@@ -2843,6 +3063,16 @@ def main():
                     patient.patient_id, medication
                 )
                 bundle_entries.append({"resource": medication_resource})
+
+        # Add Immunization resources
+        for patient in tqdm(patients_list, desc="Creating FHIR Immunization resources", unit="patients"):
+            if not isinstance(patient, LifecyclePatient):
+                continue
+            for immunization in patient.immunizations:
+                immunization_resource = fhir_formatter.create_immunization_resource(
+                    patient.patient_id, immunization
+                )
+                bundle_entries.append({"resource": immunization_resource})
 
         # Add Observation resources when lifecycle data is available
         for patient in tqdm(patients_list, desc="Creating FHIR Observation resources", unit="patients"):
@@ -3071,6 +3301,7 @@ def main():
         all_medications,
         all_observations,
         all_allergies,
+        all_immunizations,
         vista_output_file,
         export_mode=vista_mode,
     )
@@ -3143,6 +3374,7 @@ def main():
     report_lines.append(f"  Patient records (^DPT): {vista_stats['patient_records']}")
     report_lines.append(f"  Visit records (^AUPNVSIT): {vista_stats['visit_records']}")
     report_lines.append(f"  Problem records (^AUPNPROB): {vista_stats['problem_records']}")
+    report_lines.append(f"  Immunization records (^AUPNVIMM): {vista_stats.get('immunization_records', 0)}")
     report_lines.append(f"  Cross-references: {vista_stats['cross_references']}")
     
     report = "\n".join(report_lines)

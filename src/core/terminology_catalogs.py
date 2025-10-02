@@ -201,21 +201,18 @@ MEDICATIONS = [
 ]
 
 IMMUNIZATIONS = [
-    {
-        "display": "COVID-19 Vaccine",
-        "cvx": "207",
-        "snomed": "1119349007"
-    },
-    {
-        "display": "Influenza Vaccine",
-        "cvx": "140",
-        "snomed": "871751000000102"
-    },
-    {
-        "display": "Pneumococcal Vaccine",
-        "cvx": "133",
-        "snomed": "71000002107"
-    }
+    {"display": "Hepatitis B Vaccine", "cvx": "08", "snomed": "78778007", "rxnorm": ""},
+    {"display": "DTaP Vaccine", "cvx": "20", "snomed": "333347000", "rxnorm": ""},
+    {"display": "Inactivated Polio Vaccine", "cvx": "10", "snomed": "333341005", "rxnorm": ""},
+    {"display": "Haemophilus influenzae type b Vaccine", "cvx": "49", "snomed": "409568008", "rxnorm": ""},
+    {"display": "MMR Vaccine", "cvx": "03", "snomed": "333349002", "rxnorm": ""},
+    {"display": "Varicella Vaccine", "cvx": "21", "snomed": "333344008", "rxnorm": ""},
+    {"display": "HPV Vaccine", "cvx": "62", "snomed": "333358004", "rxnorm": ""},
+    {"display": "Tdap Vaccine", "cvx": "115", "snomed": "871751000000109", "rxnorm": ""},
+    {"display": "Seasonal Influenza Vaccine", "cvx": "140", "snomed": "86198006", "rxnorm": ""},
+    {"display": "Pneumococcal Conjugate Vaccine", "cvx": "133", "snomed": "333353000", "rxnorm": ""},
+    {"display": "COVID-19 mRNA Vaccine", "cvx": "207", "snomed": "1119349007", "rxnorm": ""},
+    {"display": "Zoster Vaccine", "cvx": "187", "snomed": "871895005", "rxnorm": ""}
 ]
 
 ALLERGENS = [

@@ -1,13 +1,15 @@
 """Lifecycle clinical generation helpers extracted from synthetic_patient_generator."""
 from __future__ import annotations
 
+import calendar
 import difflib
 import random
 import re
+import string
 import uuid
 from collections import Counter, defaultdict
-from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Tuple
+from datetime import date, datetime, timedelta
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from faker import Faker
 
@@ -823,11 +825,230 @@ if not CONDITION_CATALOG:
     }
 
 IMMUNIZATION_CATALOG = {entry["display"]: entry for entry in IMMUNIZATION_TERMS}
+IMMUNIZATION_BY_CVX = {
+    entry.get("cvx"): entry for entry in IMMUNIZATION_TERMS if entry.get("cvx")
+}
 PROCEDURE_CATALOG = {entry["display"]: entry for entry in PROCEDURE_TERMS}
 
 CONDITION_NAMES = list(CONDITION_CATALOG.keys())
 PROCEDURES = list(PROCEDURE_CATALOG.keys())
 IMMUNIZATIONS = list(IMMUNIZATION_CATALOG.keys())
+
+IMMUNIZATION_SERIES_DEFINITIONS = [
+    {
+        "name": "Hepatitis B Vaccine",
+        "series_id": "hepB_primary",
+        "cvx": "08",
+        "series_type": "childhood",
+        "min_age_months": 0,
+        "max_age_months": 600,
+        "catch_up_end_months": 240,
+        "contraindications": ["yeast"],
+        "route": "intramuscular",
+        "doses": [
+            {"age_months": 0, "coverage": 0.98},
+            {"age_months": 1, "coverage": 0.96},
+            {"age_months": 6, "coverage": 0.93},
+        ],
+        "titer": {
+            "loinc": "5196-1",
+            "display": "Hepatitis B surface Ab [Units/volume] in Serum",
+            "probability": 0.25,
+        },
+    },
+    {
+        "name": "DTaP Vaccine",
+        "series_id": "dtap_child",
+        "cvx": "20",
+        "series_type": "childhood",
+        "min_age_months": 2,
+        "max_age_months": 96,
+        "catch_up_end_months": 144,
+        "route": "intramuscular",
+        "doses": [
+            {"age_months": 2, "coverage": 0.97},
+            {"age_months": 4, "coverage": 0.96},
+            {"age_months": 6, "coverage": 0.95},
+            {"age_months": 15, "coverage": 0.93},
+            {"age_months": 48, "coverage": 0.9},
+        ],
+    },
+    {
+        "name": "Inactivated Polio Vaccine",
+        "series_id": "ipv_child",
+        "cvx": "10",
+        "series_type": "childhood",
+        "min_age_months": 2,
+        "max_age_months": 192,
+        "catch_up_end_months": 228,
+        "route": "intramuscular",
+        "doses": [
+            {"age_months": 2, "coverage": 0.97},
+            {"age_months": 4, "coverage": 0.95},
+            {"age_months": 6, "coverage": 0.94},
+            {"age_months": 48, "coverage": 0.9},
+        ],
+    },
+    {
+        "name": "Haemophilus influenzae type b Vaccine",
+        "series_id": "hib_child",
+        "cvx": "49",
+        "series_type": "childhood",
+        "min_age_months": 2,
+        "max_age_months": 72,
+        "catch_up_end_months": 60,
+        "route": "intramuscular",
+        "doses": [
+            {"age_months": 2, "coverage": 0.96},
+            {"age_months": 4, "coverage": 0.95},
+            {"age_months": 12, "coverage": 0.94},
+        ],
+    },
+    {
+        "name": "Pneumococcal Conjugate Vaccine",
+        "series_id": "pcv_child",
+        "cvx": "133",
+        "series_type": "childhood",
+        "min_age_months": 2,
+        "max_age_months": 72,
+        "catch_up_end_months": 84,
+        "route": "intramuscular",
+        "doses": [
+            {"age_months": 2, "coverage": 0.96},
+            {"age_months": 4, "coverage": 0.95},
+            {"age_months": 6, "coverage": 0.94},
+            {"age_months": 12, "coverage": 0.92},
+        ],
+    },
+    {
+        "name": "MMR Vaccine",
+        "series_id": "mmr_child",
+        "cvx": "03",
+        "series_type": "childhood",
+        "min_age_months": 12,
+        "max_age_months": 216,
+        "catch_up_end_months": 240,
+        "route": "subcutaneous",
+        "contraindications": ["gelatin"],
+        "doses": [
+            {"age_months": 12, "coverage": 0.94},
+            {"age_months": 48, "coverage": 0.92},
+        ],
+    },
+    {
+        "name": "Varicella Vaccine",
+        "series_id": "varicella_child",
+        "cvx": "21",
+        "series_type": "childhood",
+        "min_age_months": 12,
+        "max_age_months": 216,
+        "catch_up_end_months": 240,
+        "route": "subcutaneous",
+        "contraindications": ["gelatin"],
+        "doses": [
+            {"age_months": 12, "coverage": 0.93},
+            {"age_months": 48, "coverage": 0.9},
+        ],
+    },
+    {
+        "name": "HPV Vaccine",
+        "series_id": "hpv_adolescent",
+        "cvx": "62",
+        "series_type": "adolescent",
+        "min_age_months": 132,
+        "max_age_months": 312,
+        "catch_up_end_months": 432,
+        "route": "intramuscular",
+        "doses": [
+            {"age_months": 132, "coverage": 0.85},
+            {"age_months": 138, "coverage": 0.82},
+            {"age_months": 144, "coverage": 0.75},
+        ],
+        "two_dose_cutoff_months": 180,
+    },
+    {
+        "name": "COVID-19 mRNA Vaccine",
+        "series_id": "covid_primary",
+        "cvx": "207",
+        "series_type": "adult",
+        "min_age_months": 192,
+        "route": "intramuscular",
+        "doses": [
+            {"age_months": 192, "coverage": 0.92},
+            {"age_months": 192, "offset_days": 28, "coverage": 0.9},
+        ],
+    },
+    {
+        "name": "Zoster Vaccine",
+        "series_id": "zoster_senior",
+        "cvx": "187",
+        "series_type": "adult",
+        "min_age_months": 600,
+        "route": "intramuscular",
+        "doses": [
+            {"age_months": 600, "coverage": 0.75},
+            {"age_months": 602, "coverage": 0.72},
+        ],
+    },
+]
+
+IMMUNIZATION_ADMIN_SITES = [
+    "left deltoid",
+    "right deltoid",
+    "left vastus lateralis",
+    "right vastus lateralis",
+    "left gluteus",
+]
+
+IMMUNIZATION_RECURRENT_DEFINITIONS = [
+    {
+        "name": "Seasonal Influenza Vaccine",
+        "series_id": "influenza_seasonal",
+        "cvx": "140",
+        "min_age_months": 6,
+        "route": "intramuscular",
+        "series_type": "seasonal",
+        "interval_years": 1,
+        "max_years": 5,
+        "season_month": 10,
+        "coverage": 0.68,
+        "contraindications": ["egg"],
+    },
+    {
+        "name": "Tdap Vaccine",
+        "series_id": "tdap_booster",
+        "cvx": "115",
+        "min_age_months": 132,
+        "route": "intramuscular",
+        "series_type": "booster",
+        "interval_years": 10,
+        "max_years": 40,
+        "coverage": 0.8,
+    },
+    {
+        "name": "COVID-19 mRNA Vaccine",
+        "series_id": "covid_booster",
+        "cvx": "207",
+        "min_age_months": 192,
+        "route": "intramuscular",
+        "series_type": "booster",
+        "interval_years": 1,
+        "max_years": 3,
+        "coverage": 0.7,
+    },
+    {
+        "name": "Pneumococcal Conjugate Vaccine",
+        "series_id": "pcv_senior",
+        "cvx": "133",
+        "min_age_months": 780,
+        "route": "intramuscular",
+        "series_type": "adult",
+        "interval_years": 10,
+        "max_years": 1,
+        "coverage": 0.7,
+        "target_categories": {"respiratory", "cardiometabolic"},
+    },
+]
 
 try:
     _ALLERGEN_LOADER_ENTRIES = load_allergen_entries()
@@ -1902,6 +2123,387 @@ SPECIALTY_CARE_PATHWAYS = {
 
 fake = Faker()
 
+
+def _safe_parse_date(value: Any) -> Optional[date]:
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    if isinstance(value, str):
+        try:
+            return datetime.strptime(value, "%Y-%m-%d").date()
+        except ValueError:
+            return None
+    return None
+
+
+def _patient_age_context(patient: Dict[str, Any]) -> Tuple[int, Optional[date], date]:
+    today = datetime.now().date()
+    birthdate = _safe_parse_date(patient.get("birthdate"))
+    if birthdate:
+        age_days = max((today - birthdate).days, 0)
+        age_months = age_days // 30
+    else:
+        age_years = int(patient.get("age", 0) or 0)
+        age_months = max(age_years * 12, 0)
+    return age_months, birthdate, today
+
+
+def _collect_allergy_terms(allergies: Optional[List[Dict[str, Any]]]) -> Set[str]:
+    if not allergies:
+        return set()
+    terms: Set[str] = set()
+    for allergy in allergies:
+        substance = (allergy.get("substance") or "").lower()
+        if substance:
+            terms.add(substance)
+        category = (allergy.get("category") or "").lower()
+        if category:
+            terms.add(category)
+    return terms
+
+
+def _series_applicable(
+    series: Dict[str, Any],
+    age_months: int,
+    condition_categories: Set[str],
+    condition_names: Set[str],
+) -> bool:
+    if age_months < series.get("min_age_months", 0):
+        return False
+    max_age = series.get("max_age_months")
+    if max_age is not None and age_months > max_age and series.get("series_type") != "adult":
+        return False
+    catch_up_end = series.get("catch_up_end_months")
+    if (
+        catch_up_end is not None
+        and series.get("series_type") == "childhood"
+        and age_months > catch_up_end
+    ):
+        return False
+    required_conditions = series.get("required_conditions")
+    if required_conditions and not set(required_conditions).intersection(condition_names):
+        return False
+    target_categories = series.get("target_categories")
+    if target_categories and not target_categories.intersection(condition_categories):
+        return False
+    return True
+
+
+def _has_contraindication(entry: Dict[str, Any], allergy_terms: Set[str]) -> bool:
+    contraindications = entry.get("contraindications") or []
+    if not contraindications or not allergy_terms:
+        return False
+    for item in contraindications:
+        token = item.lower()
+        if any(token in term for term in allergy_terms):
+            return True
+    return False
+
+
+def _add_months(base_date: date, months: int) -> date:
+    year = base_date.year + months // 12
+    month = base_date.month + months % 12
+    if month > 12:
+        year += 1
+        month -= 12
+    day = min(base_date.day, calendar.monthrange(year, month)[1])
+    return date(year, month, day)
+
+
+def _select_encounter_for_date(
+    encounters: List[Dict[str, Any]], target_date: Optional[date]
+) -> Optional[Dict[str, Any]]:
+    if not encounters or target_date is None:
+        return None
+    best_match: Optional[Dict[str, Any]] = None
+    smallest_delta: Optional[int] = None
+    for encounter in encounters:
+        encounter_date = _safe_parse_date(encounter.get("date"))
+        if not encounter_date:
+            continue
+        delta = abs((encounter_date - target_date).days)
+        if smallest_delta is None or delta < smallest_delta:
+            best_match = encounter
+            smallest_delta = delta
+    return best_match
+
+
+def _random_lot_number() -> str:
+    return f"{random.choice(string.ascii_uppercase)}{random.randint(100000, 999999)}"
+
+
+def _prepare_series_doses(series: Dict[str, Any], age_months: int) -> Tuple[List[Dict[str, Any]], int]:
+    planned = series.get("doses", [])
+    if not planned:
+        return [], 0
+    max_doses = len(planned)
+    cutoff = series.get("two_dose_cutoff_months")
+    if cutoff is not None and age_months < cutoff:
+        max_doses = min(2, max_doses)
+
+    prepared: List[Dict[str, Any]] = []
+    for idx, config in enumerate(planned, start=1):
+        if idx > max_doses:
+            break
+        target_age = config.get("age_months", series.get("min_age_months", 0))
+        grace_months = config.get("grace_months", 1)
+        if age_months + grace_months < target_age:
+            continue
+        prepared.append(
+            {
+                "dose_number": idx,
+                "target_age_months": target_age,
+                "coverage": config.get("coverage", series.get("coverage", 0.9)),
+                "offset_days": config.get("offset_days"),
+                "route": config.get("route"),
+                "is_catch_up": age_months > target_age + 12,
+            }
+        )
+    return prepared, max_doses
+
+
+def _resolve_target_date(
+    series: Dict[str, Any],
+    dose: Dict[str, Any],
+    birthdate: Optional[date],
+    today: date,
+    prior_doses: List[Dict[str, Any]],
+    age_months: int,
+) -> date:
+    offset_days = dose.get("offset_days")
+    if offset_days and prior_doses:
+        previous_date = _safe_parse_date(prior_doses[-1].get("date")) or today
+        candidate = previous_date + timedelta(days=offset_days)
+    elif birthdate and dose.get("target_age_months") is not None:
+        candidate = _add_months(birthdate, int(dose["target_age_months"]))
+    elif birthdate:
+        candidate = birthdate + timedelta(days=age_months * 30)
+    else:
+        candidate = today - timedelta(days=max(0, series.get("min_age_months", 0)) * 30)
+
+    if candidate > today:
+        candidate = today - timedelta(days=random.randint(7, 90))
+    if birthdate and candidate < birthdate:
+        candidate = birthdate + timedelta(days=14)
+    return candidate
+
+
+def _build_immunization_record(
+    patient: Dict[str, Any],
+    encounter: Optional[Dict[str, Any]],
+    series: Dict[str, Any],
+    dose: Dict[str, Any],
+    administration_date: date,
+    series_total: int,
+    series_history: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    catalog_entry = IMMUNIZATION_CATALOG.get(series["name"], {})
+    fallback_by_cvx = IMMUNIZATION_BY_CVX.get(series.get("cvx")) or {}
+    cvx_code = series.get("cvx") or catalog_entry.get("cvx") or fallback_by_cvx.get("cvx")
+    snomed_code = catalog_entry.get("snomed") or fallback_by_cvx.get("snomed")
+    route = dose.get("route") or series.get("route") or "intramuscular"
+    encounter_id = encounter.get("encounter_id") if encounter else None
+    location = encounter.get("location") if encounter else None
+    provider = encounter.get("provider") if encounter else f"Nurse {fake.last_name()}"
+    status_reason = "catch-up" if dose.get("is_catch_up") else "routine"
+
+    record = {
+        "immunization_id": str(uuid.uuid4()),
+        "patient_id": patient["patient_id"],
+        "encounter_id": encounter_id,
+        "vaccine": series["name"],
+        "name": series["name"],
+        "cvx_code": cvx_code,
+        "snomed_code": snomed_code,
+        "date": administration_date.isoformat(),
+        "dose_number": dose.get("dose_number", 1),
+        "series_total": series_total or dose.get("dose_number", 1),
+        "series_id": series.get("series_id"),
+        "series_type": series.get("series_type", "unspecified"),
+        "series_description": f"Dose {dose.get('dose_number', 1)} of {series_total or dose.get('dose_number', 1)}",
+        "status": "completed",
+        "status_reason": status_reason,
+        "route": route,
+        "site": random.choice(IMMUNIZATION_ADMIN_SITES),
+        "provider": provider,
+        "performer": provider,
+        "location": location,
+        "lot_number": _random_lot_number(),
+        "manufacturer": random.choice(["Pfizer", "Moderna", "Merck", "Sanofi", "GSK"]),
+        "expiration_date": (administration_date + timedelta(days=365)).isoformat(),
+        "recorded_date": administration_date.isoformat(),
+        "was_booster": series.get("series_type") in {"booster", "seasonal"},
+    }
+
+    return record
+
+
+def _build_titer_observation(
+    patient: Dict[str, Any],
+    encounter: Optional[Dict[str, Any]],
+    immunization_record: Dict[str, Any],
+    titer_config: Dict[str, Any],
+    observation_date: date,
+) -> Dict[str, Any]:
+    protective_threshold = titer_config.get("protective_threshold", 10.0)
+    value = round(random.uniform(protective_threshold * 4, protective_threshold * 10), 1)
+    status = "normal" if value >= protective_threshold else "abnormal"
+    interpretation = "N" if status == "normal" else "A"
+
+    return {
+        "observation_id": str(uuid.uuid4()),
+        "patient_id": patient["patient_id"],
+        "encounter_id": encounter.get("encounter_id") if encounter else None,
+        "type": titer_config.get("display", "Post-vaccine Antibody Titer"),
+        "loinc_code": titer_config.get("loinc", ""),
+        "value": str(value),
+        "value_numeric": value,
+        "units": titer_config.get("units", "mIU/mL"),
+        "reference_range": titer_config.get("reference_range", ">= 10 mIU/mL"),
+        "status": status,
+        "interpretation": interpretation,
+        "date": observation_date.isoformat(),
+        "panel": "Immunization_Titers",
+    }
+
+
+def _determine_recurrent_date(
+    definition: Dict[str, Any], birthdate: Optional[date], today: date
+) -> date:
+    season_month = definition.get("season_month")
+    if season_month:
+        year = today.year if today.month >= season_month else today.year - 1
+        day = min(15, calendar.monthrange(year, season_month)[1])
+        candidate = date(year, season_month, day)
+    else:
+        candidate = today - timedelta(days=random.randint(60, 365))
+
+    if birthdate and candidate < birthdate:
+        candidate = birthdate + timedelta(days=definition.get("min_age_months", 0) * 30)
+    if candidate > today:
+        candidate = today - timedelta(days=30)
+    return candidate
+
+
+def _generate_series_immunizations(
+    patient: Dict[str, Any],
+    encounters: List[Dict[str, Any]],
+    allergies: Optional[List[Dict[str, Any]]],
+    conditions: Optional[List[Dict[str, Any]]],
+    age_months: int,
+    birthdate: Optional[date],
+    today: date,
+    series_history: Dict[str, List[Dict[str, Any]]],
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    immunizations: List[Dict[str, Any]] = []
+    followup_observations: List[Dict[str, Any]] = []
+    allergy_terms = _collect_allergy_terms(allergies)
+    condition_names = {cond["name"] for cond in conditions or []}
+    condition_categories = {
+        cond.get("condition_category")
+        for cond in conditions or []
+        if cond.get("condition_category")
+    }
+
+    for series in IMMUNIZATION_SERIES_DEFINITIONS:
+        if not _series_applicable(series, age_months, condition_categories, condition_names):
+            continue
+        if _has_contraindication(series, allergy_terms):
+            continue
+
+        doses, series_total = _prepare_series_doses(series, age_months)
+        if not doses:
+            continue
+
+        history = series_history.setdefault(series["series_id"], [])
+        for dose in doses:
+            if any(record["dose_number"] == dose["dose_number"] for record in history):
+                continue
+            if random.random() > dose.get("coverage", 0.9):
+                continue
+
+            administration_date = _resolve_target_date(series, dose, birthdate, today, history, age_months)
+            encounter = _select_encounter_for_date(encounters, administration_date)
+            record = _build_immunization_record(
+                patient,
+                encounter,
+                series,
+                dose,
+                administration_date,
+                series_total,
+                history,
+            )
+            history.append(record)
+            immunizations.append(record)
+
+            titer_config = series.get("titer")
+            if titer_config and random.random() < titer_config.get("probability", 0.0):
+                observation_date = min(administration_date + timedelta(days=60), today)
+                followup_observations.append(
+                    _build_titer_observation(patient, encounter, record, titer_config, observation_date)
+                )
+
+    return immunizations, followup_observations
+
+
+def _generate_recurrent_immunizations(
+    patient: Dict[str, Any],
+    encounters: List[Dict[str, Any]],
+    allergies: Optional[List[Dict[str, Any]]],
+    conditions: Optional[List[Dict[str, Any]]],
+    age_months: int,
+    birthdate: Optional[date],
+    today: date,
+    series_history: Dict[str, List[Dict[str, Any]]],
+) -> List[Dict[str, Any]]:
+    immunizations: List[Dict[str, Any]] = []
+    allergy_terms = _collect_allergy_terms(allergies)
+    condition_categories = {
+        cond.get("condition_category")
+        for cond in conditions or []
+        if cond.get("condition_category")
+    }
+
+    for definition in IMMUNIZATION_RECURRENT_DEFINITIONS:
+        if age_months < definition.get("min_age_months", 0):
+            continue
+        if definition.get("target_categories") and not definition["target_categories"].intersection(condition_categories):
+            continue
+        if _has_contraindication(definition, allergy_terms):
+            continue
+
+        history = series_history.setdefault(definition["series_id"], [])
+        if history and definition.get("interval_years"):
+            last_date = _safe_parse_date(history[-1].get("date"))
+            if last_date and (today - last_date).days < definition["interval_years"] * 365:
+                continue
+
+        coverage = definition.get("coverage", 0.7)
+        if random.random() > coverage:
+            continue
+
+        administration_date = _determine_recurrent_date(definition, birthdate, today)
+        encounter = _select_encounter_for_date(encounters, administration_date)
+        dose = {
+            "dose_number": len(history) + 1,
+            "coverage": coverage,
+            "route": definition.get("route"),
+            "is_catch_up": False,
+        }
+        record = _build_immunization_record(
+            patient,
+            encounter,
+            definition,
+            dose,
+            administration_date,
+            1,
+            history,
+        )
+        history.append(record)
+        immunizations.append(record)
+
+    return immunizations
 def weighted_choice(choices):
     total = sum(w for c, w in choices)
     r = random.uniform(0, total)
@@ -3223,24 +3825,43 @@ def find_procedure_cpt(procedure_name):
                     return procedure.get("cpt", "")
     return ""
 
-def generate_immunizations(patient, encounters, min_imm=0, max_imm=3):
-    n = random.randint(min_imm, max_imm)
-    immunizations = []
-    for _ in range(n):
-        enc = random.choice(encounters) if encounters else None
-        date = enc["date"] if enc else patient["birthdate"]
-        vaccine_name = random.choice(IMMUNIZATIONS)
-        vaccine_entry = IMMUNIZATION_CATALOG.get(vaccine_name, {})
-        immunizations.append({
-            "immunization_id": str(uuid.uuid4()),
-            "patient_id": patient["patient_id"],
-            "encounter_id": enc["encounter_id"] if enc else None,
-            "vaccine": vaccine_name,
-            "cvx_code": vaccine_entry.get("cvx"),
-            "snomed_code": vaccine_entry.get("snomed"),
-            "date": date,
-        })
-    return immunizations
+def generate_immunizations(
+    patient: Dict[str, Any],
+    encounters: List[Dict[str, Any]],
+    allergies: Optional[List[Dict[str, Any]]] = None,
+    conditions: Optional[List[Dict[str, Any]]] = None,
+    min_imm: int = 0,
+    max_imm: int = 3,
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    # min_imm and max_imm retained for backward compatibility but handled implicitly
+    age_months, birthdate, today = _patient_age_context(patient)
+    series_history: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+
+    series_immunizations, followup_observations = _generate_series_immunizations(
+        patient,
+        encounters,
+        allergies,
+        conditions,
+        age_months,
+        birthdate,
+        today,
+        series_history,
+    )
+
+    recurrent_immunizations = _generate_recurrent_immunizations(
+        patient,
+        encounters,
+        allergies,
+        conditions,
+        age_months,
+        birthdate,
+        today,
+        series_history,
+    )
+
+    immunizations = series_immunizations + recurrent_immunizations
+    immunizations.sort(key=lambda record: record.get("date", ""))
+    return immunizations, followup_observations
 
 # PHASE 2: Enhanced observation generation with comprehensive lab panels
 def generate_observations(patient, encounters, conditions=None, medications=None, min_obs=1, max_obs=8):

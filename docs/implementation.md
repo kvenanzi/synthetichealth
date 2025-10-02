@@ -218,12 +218,12 @@ Model & Generator Changes
 
 Exporter Consistency
 - CSV/FHIR: emit Immunization resources with CVX (via VSAC) and/or RxNorm; add Observation records for titers.
-- VistA: plan to emit `^AUPNVIMM` (V Immunization #9000010.11) entries with pointers to vaccine dictionary stubs if present (phase‑in after core schedule).
+- VistA: emit `^AUPNVIMM` (V Immunization #9000010.11) entries with pointers to vaccine dictionary stubs.
 
 Implementation Steps
-1. Hydrate immunization catalog from VSAC/RxNorm; define schedule templates.
-2. Generate doses by age and scenario; attach contraindications and titer observations.
-3. Tests: verify coverage across age bands; code integrity; (optional) VistA `^AUPNVIMM` pilot.
+- ✅ Hydrate immunization catalog from VSAC/RxNorm; define schedule templates.
+- ✅ Generate doses by age and scenario; attach contraindications and titer observations.
+- ✅ Tests: verify coverage across age bands; code integrity; (optional) VistA `^AUPNVIMM` pilot.
 
 Acceptance Criteria
 - Age‑appropriate series for common vaccines; valid CVX/RxNorm codings; titer LOINC where applicable.

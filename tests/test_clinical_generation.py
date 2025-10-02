@@ -141,3 +141,31 @@ def test_parse_distribution_accepts_mapping():
     distribution = {"a": 0.5, "b": 0.5}
     parsed = clinical.parse_distribution(distribution, ["a", "b"], default_dist=None)
     assert parsed == distribution
+
+
+def test_generate_immunizations_schedule():
+    seed_random(321)
+    patient = base_patient()
+    patient["birthdate"] = "2018-01-01"
+    patient["age"] = 6
+    preassigned = clinical.assign_conditions(patient)
+    encounters = clinical.generate_encounters(patient, preassigned_conditions=preassigned)
+    allergies = clinical.generate_allergies(patient)
+    condition_payload = [
+        {
+            "name": name,
+            "condition_category": clinical.CONDITION_CATALOG.get(name, {}).get("category"),
+        }
+        for name in preassigned
+    ]
+
+    immunizations, followups = clinical.generate_immunizations(
+        patient,
+        encounters,
+        allergies=allergies,
+        conditions=condition_payload,
+    )
+
+    assert immunizations, "Expected schedule-driven immunizations"
+    assert all(record.get("cvx_code") for record in immunizations)
+    assert len(followups) <= len(immunizations)
