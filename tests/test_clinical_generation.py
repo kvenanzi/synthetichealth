@@ -31,9 +31,16 @@ def base_patient() -> dict:
 def test_generate_conditions_and_care_plans_summary():
     seed_random()
     patient = base_patient()
-    encounters = []
+    preassigned = clinical.assign_conditions(patient)
+    encounters = clinical.generate_encounters(patient, preassigned_conditions=preassigned)
 
-    conditions = clinical.generate_conditions(patient, encounters, min_cond=1, max_cond=2)
+    conditions = clinical.generate_conditions(
+        patient,
+        encounters,
+        min_cond=1,
+        max_cond=2,
+        preassigned_conditions=preassigned,
+    )
     assert isinstance(conditions, list)
     if conditions:
         for condition in conditions:
@@ -41,6 +48,8 @@ def test_generate_conditions_and_care_plans_summary():
             assert condition["status"] in clinical.CONDITION_STATUSES
             # Catalog lookups should populate ICD-10 codes where available
             assert "icd10_code" in condition
+            assert "stage_detail" in condition
+            assert "severity_detail" in condition
     else:
         # Even when no conditions are assigned the patient profile should be initialized.
         assert patient.get("condition_profile") == []
@@ -55,8 +64,15 @@ def test_generate_conditions_and_care_plans_summary():
 def test_generate_medications_structure():
     seed_random(2024)
     patient = base_patient()
-    encounters = clinical.generate_encounters(patient, conditions=None)
-    conditions = clinical.generate_conditions(patient, encounters, min_cond=1, max_cond=3)
+    preassigned = clinical.assign_conditions(patient)
+    encounters = clinical.generate_encounters(patient, preassigned_conditions=preassigned)
+    conditions = clinical.generate_conditions(
+        patient,
+        encounters,
+        min_cond=1,
+        max_cond=3,
+        preassigned_conditions=preassigned,
+    )
 
     medications = clinical.generate_medications(patient, encounters, conditions)
     assert isinstance(medications, list)
@@ -69,8 +85,15 @@ def test_generate_medications_structure():
 def test_generate_observations_has_panel_information():
     seed_random(7)
     patient = base_patient()
-    encounters = clinical.generate_encounters(patient, conditions=None)
-    conditions = clinical.generate_conditions(patient, encounters, min_cond=1, max_cond=2)
+    preassigned = clinical.assign_conditions(patient)
+    encounters = clinical.generate_encounters(patient, preassigned_conditions=preassigned)
+    conditions = clinical.generate_conditions(
+        patient,
+        encounters,
+        min_cond=1,
+        max_cond=2,
+        preassigned_conditions=preassigned,
+    )
 
     observations = clinical.generate_observations(patient, encounters, conditions, min_obs=2, max_obs=4)
     assert observations, "Expected observations to be generated"
@@ -84,6 +107,22 @@ def test_generate_observations_has_panel_information():
         encounter_ids = {enc["encounter_id"] for enc in encounters}
         if encounter_ids:
             assert sample.get("encounter_id") in encounter_ids
+
+
+def test_generate_encounters_includes_stop_codes():
+    seed_random(11)
+    patient = base_patient()
+    preassigned = clinical.assign_conditions(patient)
+    encounters = clinical.generate_encounters(patient, preassigned_conditions=preassigned)
+
+    assert encounters, "Expected at least one encounter"
+    for encounter in encounters:
+        assert "encounter_id" in encounter
+        assert encounter["patient_id"] == patient["patient_id"]
+        assert encounter.get("clinic_stop"), "Encounters should include clinic stop codes"
+        assert encounter.get("service_category") in {"A", "E", "I"}
+        assert encounter.get("encounter_class") in {"ambulatory", "emergency", "inpatient"}
+        assert "duration_minutes" in encounter
 
 
 def test_generate_death_with_forced_probability():
@@ -102,4 +141,3 @@ def test_parse_distribution_accepts_mapping():
     distribution = {"a": 0.5, "b": 0.5}
     parsed = clinical.parse_distribution(distribution, ["a", "b"], default_dist=None)
     assert parsed == distribution
-

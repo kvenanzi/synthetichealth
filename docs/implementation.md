@@ -169,10 +169,10 @@ Exporter Consistency
 - HL7 v2: expose problems in ORU/OBX context when included, or in summary segments where applicable.
 
 Implementation Steps
-1. Add condition loader using DuckDB (ICD‑10 + SNOMED + optional VSAC filters).
-2. Replace/augment `CONDITION_CATALOG` with loader output under configurable breadth per cohort.
-3. Add optional severity/staging attributes per condition; wire to exporters.
-4. Tests: ensure breadth (≥40 distinct conditions across 1k pts), coding integrity, and stable exporter behavior.
+- ✅ Add condition loader using DuckDB (ICD‑10 + SNOMED + optional VSAC filters).
+- ✅ Replace/augment `CONDITION_CATALOG` with loader output under configurable breadth per cohort.
+- ✅ Add optional severity/staging attributes per condition; wire to exporters.
+- ✅ Tests: ensure breadth (≥40 distinct conditions across 1k pts), coding integrity, and stable exporter behavior.
 
 Acceptance Criteria
 - ≥40 distinct conditions across cohorts; age/sex/SDOH distributions look plausible.
@@ -196,9 +196,9 @@ Exporter Consistency
 - FHIR/HL7: maintain Encounter resources/ADT coverage; ensure reason codes present when available.
 
 Implementation Steps
-1. Add encounter cadence rules driven by conditions/care plans.
-2. Expand mapping from internal encounter types to clinic stops.
-3. Tests: per‑patient visit distribution by condition burden; stop code validity; exporter pointer integrity.
+- ✅ Add encounter cadence rules driven by conditions/care plans.
+- ✅ Expand mapping from internal encounter types to clinic stops.
+- ✅ Tests: per‑patient visit distribution by condition burden; stop code validity; exporter pointer integrity.
 
 Acceptance Criteria
 - Visit counts correlate with condition severity and care plans.

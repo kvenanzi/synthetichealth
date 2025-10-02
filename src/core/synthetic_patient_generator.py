@@ -57,6 +57,7 @@ from .lifecycle.generation.clinical import (
     generate_medications,
     generate_observations,
     generate_procedures,
+    assign_conditions,
     parse_distribution,
 )
 from .lifecycle.generation.patient import generate_patient_profile_for_index
@@ -304,11 +305,13 @@ class FHIRFormatter:
             onset_date = condition.onset_date.isoformat() if condition.onset_date else None
             status = condition.clinical_status or "active"
             condition_id = condition.condition_id or str(uuid.uuid4())
+            metadata = condition.metadata or {}
         else:
             condition_name = condition.get("name", "")
             onset_date = condition.get("onset_date")
             status = condition.get("status", "active")
             condition_id = condition.get("condition_id", str(uuid.uuid4()))
+            metadata = condition.get("metadata") or {}
 
         codes = TERMINOLOGY_MAPPINGS["conditions"].get(condition_name, {})
 
@@ -328,7 +331,7 @@ class FHIRFormatter:
                 }
             )
 
-        return {
+        resource: Dict[str, Any] = {
             "resourceType": "Condition",
             "id": condition_id,
             "subject": {"reference": f"Patient/{patient_id}"},
@@ -341,8 +344,101 @@ class FHIRFormatter:
                     }
                 ]
             },
+            "verificationStatus": {
+                "coding": [
+                    {
+                        "system": "http://terminology.hl7.org/CodeSystem/condition-ver-status",
+                        "code": "confirmed",
+                    }
+                ]
+            },
             "onsetDateTime": onset_date,
         }
+
+        def _as_dict(value: Any) -> Optional[Dict[str, Any]]:
+            if value is None or value == "":
+                return None
+            if isinstance(value, dict):
+                return value
+            if isinstance(value, str):
+                try:
+                    parsed = json.loads(value)
+                    return parsed if isinstance(parsed, dict) else None
+                except json.JSONDecodeError:
+                    return None
+            return None
+
+        stage_detail = (
+            _as_dict(metadata.get("stage_detail"))
+            or _as_dict(condition.get("stage_detail") if isinstance(condition, dict) else None)
+        )
+        severity_detail = (
+            _as_dict(metadata.get("severity_detail"))
+            or _as_dict(condition.get("severity_detail") if isinstance(condition, dict) else None)
+        )
+
+        category_text: Optional[str] = None
+        if isinstance(condition, LifecycleCondition) and condition.category:
+            category_text = condition.category
+        elif isinstance(condition, dict):
+            category_text = condition.get("condition_category")
+
+        category_entry: Dict[str, Any] = {
+            "coding": [
+                {
+                    "system": "http://terminology.hl7.org/CodeSystem/condition-category",
+                    "code": "problem-list-item",
+                    "display": "Problem List Item",
+                }
+            ]
+        }
+        if category_text:
+            category_entry["text"] = str(category_text).replace("_", " ").title()
+        resource.setdefault("category", []).append(category_entry)
+
+        if stage_detail:
+            stage_entry: Dict[str, Any] = {}
+            summary_coding: Dict[str, Any] = {}
+            stage_system = stage_detail.get("system") or stage_detail.get("code_system")
+            stage_code = stage_detail.get("code")
+            stage_display = stage_detail.get("display") or stage_detail.get("text")
+            if stage_system:
+                summary_coding["system"] = stage_system
+            if stage_code:
+                summary_coding["code"] = stage_code
+            if stage_display:
+                summary_coding["display"] = stage_display
+
+            if summary_coding:
+                stage_entry["summary"] = {"coding": [summary_coding]}
+            elif stage_display:
+                stage_entry["summary"] = {"text": stage_display}
+
+            stage_type = stage_detail.get("type")
+            if stage_type:
+                stage_entry["type"] = {"text": stage_type.replace("_", " ").title()}
+
+            if stage_entry:
+                resource.setdefault("stage", []).append(stage_entry)
+
+        if severity_detail:
+            severity_coding: Dict[str, Any] = {}
+            severity_system = severity_detail.get("system") or severity_detail.get("code_system")
+            severity_code = severity_detail.get("code")
+            severity_display = severity_detail.get("display") or severity_detail.get("text")
+            if severity_system:
+                severity_coding["system"] = severity_system
+            if severity_code:
+                severity_coding["code"] = severity_code
+            if severity_display:
+                severity_coding["display"] = severity_display
+
+            if severity_coding:
+                resource["severity"] = {"coding": [severity_coding]}
+            elif severity_display:
+                resource["severity"] = {"text": severity_display}
+
+        return resource
 
     def _build_coding(self, system: str, code: Optional[str], display: str) -> Dict[str, Any]:
         coding_entry = {
@@ -542,18 +638,29 @@ class FHIRFormatter:
         medication: Union[Dict[str, Any], LifecycleMedicationOrder],
     ) -> Dict[str, Any]:
         medication_id = getattr(medication, "medication_id", None) or str(uuid.uuid4())
-        medication_name = getattr(medication, "name", None) or medication.get("medication", "Unknown Medication")
-        start_date = getattr(medication, "start_date", None)
-        if not start_date:
-            start_date = medication.get("start_date") if isinstance(medication, dict) else None
-        if isinstance(start_date, datetime):
-            effective = start_date.isoformat()
-        elif isinstance(start_date, date):
-            effective = datetime.combine(start_date, datetime.min.time()).isoformat()
-        elif isinstance(start_date, str):
-            effective = start_date
-        else:
-            effective = datetime.now().isoformat()
+        medication_name = getattr(medication, "name", None) or medication.get("name", medication.get("medication", "Unknown Medication"))
+
+        start_date_obj = getattr(medication, "start_date", None)
+        end_date_obj = getattr(medication, "end_date", None)
+        if not isinstance(medication, LifecycleMedicationOrder):
+            if start_date_obj is None:
+                start_date_obj = medication.get("start_date")
+            if end_date_obj is None:
+                end_date_obj = medication.get("end_date")
+
+        def _to_datetime_string(value: Any) -> Optional[str]:
+            if value is None:
+                return None
+            if isinstance(value, datetime):
+                return value.isoformat()
+            if isinstance(value, date):
+                return datetime.combine(value, datetime.min.time()).isoformat()
+            if isinstance(value, str):
+                return value
+            return None
+
+        start_iso = _to_datetime_string(start_date_obj) or datetime.now().isoformat()
+        end_iso = _to_datetime_string(end_date_obj)
 
         rxnorm_code = None
         if isinstance(medication, LifecycleMedicationOrder):
@@ -561,24 +668,19 @@ class FHIRFormatter:
         else:
             rxnorm_code = medication.get("rxnorm_code") or medication.get("rxnorm")
 
-        coding: Dict[str, Any] = {
-            "coding": [],
-        }
+        medication_coding: List[Dict[str, Any]] = []
         if rxnorm_code:
             rxnorm_entry = self.rxnorm_lookup.get(str(rxnorm_code))
             display = rxnorm_entry.display if rxnorm_entry else medication_name
-            coding["coding"].append(
-                {
-                    "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
-                    "code": str(rxnorm_code),
-                    "display": display,
-                }
-            )
+            coding_entry = {
+                "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                "code": str(rxnorm_code),
+                "display": display,
+            }
             umls_concepts = self.umls_by_source.get(("RXNORM", str(rxnorm_code)), [])
             if umls_concepts:
-                extensions = coding["coding"][-1].setdefault("extension", [])
-                for concept in umls_concepts:
-                    extensions.append(
+                coding_entry.setdefault("extension", []).extend(
+                    [
                         {
                             "url": "http://example.org/fhir/StructureDefinition/umls-concept",
                             "extension": [
@@ -590,27 +692,93 @@ class FHIRFormatter:
                                 },
                             ],
                         }
-                    )
-        if not coding["coding"]:
-            coding["text"] = medication_name
+                        for concept in umls_concepts
+                    ]
+                )
+            medication_coding.append(coding_entry)
 
-        dosage = None
+        medication_codeable = (
+            {"coding": medication_coding}
+            if medication_coding
+            else {"text": medication_name}
+        )
+
+        status = "active"
         if isinstance(medication, LifecycleMedicationOrder):
-            dosage = medication.metadata.get("dosage")
+            status = "completed" if medication.end_date else "active"
         else:
-            dosage = medication.get("dosage")
+            status = medication.get("status") or ("completed" if medication.get("end_date") else "active")
 
         resource: Dict[str, Any] = {
             "resourceType": "MedicationStatement",
             "id": medication_id,
-            "status": "active",
-            "medicationCodeableConcept": coding,
+            "status": status,
+            "medicationCodeableConcept": medication_codeable,
             "subject": {"reference": f"Patient/{patient_id}"},
-            "effectiveDateTime": effective,
         }
 
-        if dosage:
-            resource["dosage"] = [{"text": dosage}]
+        if end_iso:
+            resource["effectivePeriod"] = {
+                "start": start_iso,
+                "end": end_iso,
+            }
+        else:
+            resource["effectiveDateTime"] = start_iso
+
+        reason = None
+        if isinstance(medication, LifecycleMedicationOrder):
+            reason = medication.indication
+        else:
+            reason = medication.get("indication")
+        if reason:
+            resource["reasonCode"] = [{"text": reason}]
+
+        therapeutic_class = None
+        route = None
+        monitoring_panels: List[str] = []
+        if isinstance(medication, LifecycleMedicationOrder):
+            therapeutic_class = medication.therapeutic_class
+            metadata = medication.metadata or {}
+            route = metadata.get("route")
+            panels = metadata.get("monitoring_panels") or []
+            if isinstance(panels, list):
+                monitoring_panels = panels
+        else:
+            therapeutic_class = medication.get("therapeutic_class")
+            route = medication.get("route")
+            panels = medication.get("monitoring_panels", [])
+            if isinstance(panels, list):
+                monitoring_panels = panels
+        extensions = []
+        if therapeutic_class:
+            extensions.append(
+                {
+                    "url": "http://example.org/fhir/StructureDefinition/therapeutic-class",
+                    "valueString": therapeutic_class,
+                }
+            )
+        if monitoring_panels:
+            extensions.append(
+                {
+                    "url": "http://example.org/fhir/StructureDefinition/medication-monitoring",
+                    "valueString": ",".join(sorted(set(monitoring_panels))),
+                }
+            )
+        if extensions:
+            resource.setdefault("extension", []).extend(extensions)
+
+        dosage_entry: Dict[str, Any] = {}
+        dosage_text = None
+        if isinstance(medication, LifecycleMedicationOrder):
+            dosage_text = medication.metadata.get("dosage")
+        else:
+            dosage_text = medication.get("dosage")
+        if dosage_text:
+            dosage_entry["text"] = dosage_text
+        if route:
+            dosage_entry["route"] = {"text": route}
+        if dosage_entry:
+            resource["dosage"] = [dosage_entry]
 
         return resource
 
@@ -701,6 +869,20 @@ class FHIRFormatter:
 class HL7v2Formatter:
     """HL7 v2.x message formatter for Phase 2"""
     
+    @staticmethod
+    def _format_provider(provider: Optional[str]) -> str:
+        if not provider:
+            return "UNKNOWN^PROVIDER"
+        cleaned = provider.replace("Dr.", "").replace("DR.", "").strip()
+        if not cleaned:
+            return "UNKNOWN^PROVIDER"
+        parts = cleaned.split()
+        if len(parts) == 1:
+            return f"{parts[0].upper()}^"
+        first = parts[0].upper()
+        last = parts[-1].upper()
+        return f"{last}^{first}"
+
     @staticmethod
     def create_adt_message(
         patient_record: Union[PatientRecord, LifecyclePatient],
@@ -821,18 +1003,39 @@ class HL7v2Formatter:
 
         # PV1 - Patient Visit (if encounter provided)
         if encounter:
+            service_category = encounter.get('service_category')
+            if not service_category:
+                encounter_class = encounter.get('encounter_class')
+                if encounter_class == "emergency":
+                    service_category = "E"
+                elif encounter_class == "inpatient":
+                    service_category = "I"
+                else:
+                    service_category = "A"
+
+            patient_class = {
+                "I": "I",
+                "E": "E",
+            }.get(service_category, "O")
+
+            stop_code = encounter.get('clinic_stop') or "CLINIC"
+            department = encounter.get('department') or encounter.get('clinic_stop_description') or "Clinic"
+            assigned_location = f"{stop_code}^^^{department[:20]}"
+
+            provider_field = HL7v2Formatter._format_provider(encounter.get('provider'))
+
             pv1_segments = [
                 "PV1",
                 "1",  # Set ID
-                encounter.get('type', 'O'),  # Patient Class (O=Outpatient, I=Inpatient)
-                "CLINIC1^^^VA^CLINIC",  # Assigned Patient Location
+                patient_class,
+                assigned_location,
                 "",   # Admission Type
                 "",   # Preadmit Number
                 "",   # Prior Patient Location
-                "DOE^JOHN^A^^^DR",  # Attending Doctor
+                provider_field,
                 "",   # Referring Doctor
                 "",   # Consulting Doctor
-                "GIM",  # Hospital Service
+                stop_code,
                 "",   # Temporary Location
                 "",   # Preadmit Test Indicator
                 "",   # Re-admission Indicator
@@ -1474,25 +1677,32 @@ class VistaFormatter:
         visit_datetime = VistaFormatter.vista_datetime_format(encounter.get('date', ''))
         
         # Map encounter types to VistA stop codes (simplified)
-        stop_code_mapping = {
-            "Wellness Visit": "323",
-            "Emergency": "130", 
-            "Follow-up": "323",
-            "Specialist": "301",
-            "Lab": "175",
-            "Surgery": "162"
-        }
-        stop_code = stop_code_mapping.get(encounter.get('type', ''), "323")
-        
+        stop_code = encounter.get('clinic_stop')
+        stop_description = encounter.get('clinic_stop_description') or encounter.get('department') or encounter.get('type', 'Unknown Clinic')
+        if not stop_code:
+            stop_code_mapping = {
+                "Wellness Visit": "323",
+                "Emergency": "130",
+                "Follow-up": "323",
+                "Specialist": "301",
+                "Lab": "175",
+                "Surgery": "162",
+            }
+            stop_code = stop_code_mapping.get(encounter.get('type', ''), "323")
+
         # Service category mapping
-        service_category = "A"  # Ambulatory care
-        if encounter.get('type') == "Emergency":
-            service_category = "E"  # Emergency
-        elif encounter.get('type') == "Surgery":
-            service_category = "I"  # Inpatient
-        
+        service_category = encounter.get('service_category')
+        if not service_category:
+            encounter_class = encounter.get('encounter_class')
+            if encounter_class == "emergency":
+                service_category = "E"
+            elif encounter_class == "inpatient":
+                service_category = "I"
+            else:
+                service_category = "A"
+
         globals_dict = {}
-        
+
         # Main visit record - ^AUPNVSIT(IEN,0)
         # Format: PATIENT_IEN^VISIT_DATE^VISIT_TYPE^STOP_CODE^SERVICE_CATEGORY
         zero_node = f"{patient_ien}^{visit_datetime}^{service_category}^{stop_code}^{encounter.get('encounter_id', '')}"
@@ -1501,13 +1711,17 @@ class VistaFormatter:
         # Visit location - ^AUPNVSIT(IEN,.06)
         if encounter.get('location'):
             globals_dict[f"^AUPNVSIT({visit_ien},.06)"] = VistaFormatter.sanitize_mumps_string(encounter.get('location', ''))
-        
+
         # Cross-reference: "B" index by patient and date
         globals_dict[f'^AUPNVSIT("B",{patient_ien},{visit_datetime},{visit_ien})'] = ""
-        
+
         # Cross-reference: Date index
         globals_dict[f'^AUPNVSIT("D",{visit_datetime},{visit_ien})'] = ""
-        
+
+        # Cross-reference: stop code
+        if stop_code:
+            globals_dict[f'^AUPNVSIT("AE",{stop_code},{visit_ien})'] = ""
+
         return globals_dict
     
     @staticmethod 
@@ -1741,22 +1955,30 @@ class VistaFormatter:
                 visit_ien = visit_map.setdefault(encounter_key, _ensure_unique_ien(visit_iens))
 
                 visit_datetime = VistaFormatter.fileman_datetime_format(encounter.get('date', ''), encounter.get('time'))
-                stop_code_mapping = {
-                    "Wellness Visit": "323",
-                    "Emergency": "130",
-                    "Follow-up": "323",
-                    "Specialist": "301",
-                    "Lab": "175",
-                    "Surgery": "162",
-                }
-                stop_code_value = stop_code_mapping.get(encounter.get('type', ''), "323")
-                stop_code = registry.register_stop_code(stop_code_value, encounter.get('type', 'Unknown'))
 
-                service_category = "A"
-                if encounter.get('type') == "Emergency":
-                    service_category = "E"
-                elif encounter.get('type') == "Surgery":
-                    service_category = "I"
+                stop_code_value = encounter.get('clinic_stop')
+                stop_desc = encounter.get('clinic_stop_description') or encounter.get('department') or encounter.get('type', 'Unknown Clinic')
+                if not stop_code_value:
+                    stop_code_mapping = {
+                        "Wellness Visit": "323",
+                        "Emergency": "130",
+                        "Follow-up": "323",
+                        "Specialist": "301",
+                        "Lab": "175",
+                        "Surgery": "162",
+                    }
+                    stop_code_value = stop_code_mapping.get(encounter.get('type', ''), "323")
+                stop_code = registry.register_stop_code(stop_code_value, stop_desc)
+
+                service_category = encounter.get('service_category')
+                if not service_category:
+                    encounter_class = encounter.get('encounter_class')
+                    if encounter_class == "emergency":
+                        service_category = "E"
+                    elif encounter_class == "inpatient":
+                        service_category = "I"
+                    else:
+                        service_category = "A"
 
                 zero_node = f"{vista_ien}^{visit_datetime}^{service_category}^{stop_code}^"
                 all_globals[f"^AUPNVSIT({visit_ien},0)"] = zero_node
@@ -1769,6 +1991,9 @@ class VistaFormatter:
 
                 all_globals[f'^AUPNVSIT("B",{vista_ien},{visit_datetime},{visit_ien})'] = ""
                 all_globals[f'^AUPNVSIT("D",{visit_datetime},{visit_ien})'] = ""
+
+                if stop_code:
+                    all_globals[f'^AUPNVSIT("AE",{stop_code},{visit_ien})'] = ""
 
                 # Preserve GUID cross-reference under custom node to avoid DD conflicts
                 if encounter.get('encounter_id'):
@@ -2293,20 +2518,66 @@ def main():
         module_result = module_engine.execute(patient_dict) if module_engine else ModuleExecutionResult()
         replaced = module_result.replacements
 
+        module_condition_names: List[str] = []
+        if module_result.conditions:
+            for cond in module_result.conditions:
+                name: Optional[str] = None
+                if isinstance(cond, dict):
+                    name = cond.get("name") or cond.get("condition") or cond.get("display")
+                elif hasattr(cond, "name"):
+                    name = getattr(cond, "name")
+                elif isinstance(cond, str):
+                    name = cond
+                if name:
+                    module_condition_names.append(name)
+
+        baseline_conditions = assign_conditions(patient_dict)
+
+        def _deduplicate(values: Iterable[str]) -> List[str]:
+            seen: Set[str] = set()
+            ordered: List[str] = []
+            for value in values:
+                if not value:
+                    continue
+                if value not in seen:
+                    ordered.append(value)
+                    seen.add(value)
+            return ordered
+
+        if "conditions" in replaced and module_condition_names:
+            preassigned_conditions = _deduplicate(module_condition_names)
+        else:
+            combined = list(baseline_conditions) + [
+                name for name in module_condition_names if name not in baseline_conditions
+            ]
+            preassigned_conditions = _deduplicate(combined)
+
+        patient_dict["preassigned_conditions"] = preassigned_conditions
+
         encounters = []
         if "encounters" in replaced:
             encounters = module_result.encounters
         else:
-            encounters = generate_encounters(patient_dict, module_result.encounters or None)
+            encounters = generate_encounters(
+                patient_dict,
+                module_result.conditions if module_result.conditions else None,
+                preassigned_conditions=preassigned_conditions,
+            )
             if module_result.encounters:
                 encounters.extend(module_result.encounters)
         all_encounters.extend(encounters)
 
         conditions = []
         if "conditions" in replaced:
-            conditions = module_result.conditions
+            conditions = module_result.conditions or []
         else:
-            conditions = generate_conditions(patient_dict, encounters, min_cond=1, max_cond=5)
+            conditions = generate_conditions(
+                patient_dict,
+                encounters,
+                min_cond=1,
+                max_cond=5,
+                preassigned_conditions=preassigned_conditions,
+            )
             if module_result.conditions:
                 conditions.extend(module_result.conditions)
 
@@ -2329,6 +2600,8 @@ def main():
             if module_result.medications:
                 medications.extend(module_result.medications)
         all_medications.extend(medications)
+        patient_dict["medications"] = medications
+        patient_dict["medication_profile"] = [m.get("name") for m in medications]
 
         for condition in conditions:
             if condition.get("precision_markers") and isinstance(condition["precision_markers"], list):
@@ -2337,6 +2610,7 @@ def main():
                 condition["care_plan"] = ",".join(condition["care_plan"])
         allergies = generate_allergies(patient_dict)
         all_allergies.extend(allergies)
+        patient_dict["allergies"] = allergies
         procedures = generate_procedures(patient_dict, encounters, conditions)
         if module_result.procedures:
             if "procedures" in replaced:
@@ -2351,13 +2625,14 @@ def main():
             else:
                 immunizations.extend(module_result.immunizations)
         all_immunizations.extend(immunizations)
-        observations = generate_observations(patient_dict, encounters, conditions)
+        observations = generate_observations(patient_dict, encounters, conditions, medications)
         if module_result.observations:
             if "observations" in replaced:
                 observations = module_result.observations
             else:
                 observations.extend(module_result.observations)
         all_observations.extend(observations)
+        patient_dict["observations"] = observations
         care_plans = generate_care_plans(patient_dict, conditions, encounters)
         if module_result.care_plans:
             if "care_plans" in replaced:
@@ -2729,15 +3004,37 @@ def main():
     patients_dict = [patient.to_dict() for patient in tqdm(patients, desc="Converting patients", unit="patients")]
     
     print("Saving data files...")
+    def _sanitize_frame(data: List[Dict[str, Any]]) -> pl.DataFrame:
+        if not data:
+            return pl.DataFrame([])
+        frame = pl.DataFrame(data)
+        processed_columns = {}
+        for column in frame.columns:
+            series = frame.get_column(column)
+            dtype = frame.schema[column]
+            if dtype == pl.List:
+                processed_columns[column] = series.map_elements(
+                    lambda value: ",".join(str(item) for item in value) if isinstance(value, list) else ("" if value is None else str(value)),
+                    return_dtype=pl.Utf8,
+                )
+            elif dtype == pl.Struct:
+                processed_columns[column] = series.map_elements(
+                    lambda value: json.dumps(value) if isinstance(value, dict) else ("" if value is None else str(value)),
+                    return_dtype=pl.Utf8,
+                )
+        if processed_columns:
+            frame = frame.with_columns(list(processed_columns.values()))
+        return frame
+
     tables_to_save = [
-        (pl.DataFrame(patients_dict), "patients"),
-        (pl.DataFrame(all_encounters), "encounters"),
-        (pl.DataFrame(all_conditions), "conditions"),
-        (pl.DataFrame(all_medications), "medications"),
-        (pl.DataFrame(all_allergies), "allergies"),
-        (pl.DataFrame(all_procedures), "procedures"),
-        (pl.DataFrame(all_immunizations), "immunizations"),
-        (pl.DataFrame(all_observations), "observations")
+        (_sanitize_frame(patients_dict), "patients"),
+        (_sanitize_frame(all_encounters), "encounters"),
+        (_sanitize_frame(all_conditions), "conditions"),
+        (_sanitize_frame(all_medications), "medications"),
+        (_sanitize_frame(all_allergies), "allergies"),
+        (_sanitize_frame(all_procedures), "procedures"),
+        (_sanitize_frame(all_immunizations), "immunizations"),
+        (_sanitize_frame(all_observations), "observations"),
     ]
     
     if all_deaths:

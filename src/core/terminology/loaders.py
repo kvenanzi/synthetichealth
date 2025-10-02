@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import csv
 import os
+from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
@@ -218,6 +219,40 @@ def load_snomed_conditions(root: Optional[str] = None) -> List[TerminologyEntry]
     return _load_csv(path, code_field="snomed_id", display_field="pt_name")
 
 
+def load_snomed_icd10_crosswalk(root: Optional[str] = None) -> Dict[str, List[TerminologyEntry]]:
+    """Return mapping of ICD-10 codes to SNOMED concepts from the curated seed file."""
+
+    path = _resolve_path("snomed/snomed_conditions.csv", root)
+    if not path.exists():
+        return {}
+
+    def _normalize_icd10(raw_code: str) -> str:
+        code = (raw_code or "").strip().upper()
+        if not code:
+            return ""
+        code = code.replace(".", "")
+        if len(code) > 3:
+            code = f"{code[:3]}.{code[3:]}"
+        return code
+
+    crosswalk: Dict[str, List[TerminologyEntry]] = defaultdict(list)
+    with path.open("r", encoding="utf-8") as handle:
+        reader = csv.DictReader(handle)
+        for row in reader:
+            snomed_code = row.get("snomed_id")
+            display = row.get("pt_name")
+            icd10_mapping = row.get("icd10_mapping", "")
+            if not snomed_code or not display or not icd10_mapping:
+                continue
+            metadata = {k: v for k, v in row.items() if k not in {"snomed_id", "pt_name", "icd10_mapping"}}
+            entry = TerminologyEntry(code=str(snomed_code), display=str(display), metadata=metadata)
+            for raw_code in icd10_mapping.replace(";", ",").split(","):
+                normalized = _normalize_icd10(raw_code)
+                if normalized:
+                    crosswalk[normalized].append(entry)
+    return crosswalk
+
+
 def load_rxnorm_medications(root: Optional[str] = None) -> List[TerminologyEntry]:
     db_entries = _load_from_db("rxnorm", "rxnorm_cui", "ingredient_name", root)
     if db_entries is not None:
@@ -340,6 +375,210 @@ def _classify_allergen(raw: str, default: str = "environment") -> str:
         return "environment"
     return default
 
+
+CURATED_MEDICATIONS = [
+    {"display": "Lisinopril", "therapeutic_class": "ace_inhibitor", "keywords": ["lisinopril"]},
+    {"display": "Enalapril", "therapeutic_class": "ace_inhibitor", "keywords": ["enalapril"]},
+    {"display": "Losartan", "therapeutic_class": "arb", "keywords": ["losartan"]},
+    {"display": "Valsartan", "therapeutic_class": "arb", "keywords": ["valsartan"]},
+    {"display": "Amlodipine", "therapeutic_class": "calcium_channel_blocker", "keywords": ["amlodipine"]},
+    {"display": "Hydrochlorothiazide", "therapeutic_class": "thiazide_diuretic", "keywords": ["hydrochlorothiazide"]},
+    {"display": "Metoprolol", "therapeutic_class": "beta_blocker", "keywords": ["metoprolol"]},
+    {"display": "Carvedilol", "therapeutic_class": "beta_blocker", "keywords": ["carvedilol"]},
+    {"display": "Furosemide", "therapeutic_class": "loop_diuretic", "keywords": ["furosemide"]},
+    {"display": "Spironolactone", "therapeutic_class": "aldosterone_antagonist", "keywords": ["spironolactone"]},
+    {"display": "Atorvastatin", "therapeutic_class": "statin", "keywords": ["atorvastatin"]},
+    {"display": "Rosuvastatin", "therapeutic_class": "statin", "keywords": ["rosuvastatin"]},
+    {"display": "Simvastatin", "therapeutic_class": "statin", "keywords": ["simvastatin"]},
+    {"display": "Metformin", "therapeutic_class": "biguanide", "keywords": ["metformin"]},
+    {"display": "Glipizide", "therapeutic_class": "sulfonylurea", "keywords": ["glipizide"]},
+    {"display": "Sitagliptin", "therapeutic_class": "dpp4_inhibitor", "keywords": ["sitagliptin"]},
+    {"display": "Empagliflozin", "therapeutic_class": "sglt2_inhibitor", "keywords": ["empagliflozin"]},
+    {"display": "Insulin Glargine", "therapeutic_class": "basal_insulin", "keywords": ["insulin glargine", "insulin, glargine"]},
+    {"display": "Insulin Lispro", "therapeutic_class": "rapid_insulin", "keywords": ["insulin lispro", "lispro insulin"]},
+    {"display": "Dulaglutide", "therapeutic_class": "glp1_agonist", "keywords": ["dulaglutide"]},
+    {"display": "Warfarin", "therapeutic_class": "anticoagulant", "keywords": ["warfarin"]},
+    {"display": "Apixaban", "therapeutic_class": "anticoagulant", "keywords": ["apixaban"]},
+    {"display": "Rivaroxaban", "therapeutic_class": "anticoagulant", "keywords": ["rivaroxaban"]},
+    {"display": "Aspirin", "therapeutic_class": "antiplatelet", "keywords": ["aspirin"]},
+    {"display": "Clopidogrel", "therapeutic_class": "antiplatelet", "keywords": ["clopidogrel"]},
+    {"display": "Sertraline", "therapeutic_class": "ssri", "keywords": ["sertraline"]},
+    {"display": "Fluoxetine", "therapeutic_class": "ssri", "keywords": ["fluoxetine"]},
+    {"display": "Escitalopram", "therapeutic_class": "ssri", "keywords": ["escitalopram"]},
+    {"display": "Bupropion", "therapeutic_class": "antidepressant", "keywords": ["bupropion"]},
+    {"display": "Duloxetine", "therapeutic_class": "snri", "keywords": ["duloxetine"]},
+    {"display": "Albuterol", "therapeutic_class": "bronchodilator", "keywords": ["albuterol", "salbutamol"]},
+    {"display": "Levalbuterol", "therapeutic_class": "bronchodilator", "keywords": ["levalbuterol"]},
+    {"display": "Budesonide/Formoterol", "therapeutic_class": "inhaled_combo", "keywords": ["budesonide/formoterol", "budesonide and formoterol"]},
+    {"display": "Fluticasone", "therapeutic_class": "inhaled_steroid", "keywords": ["fluticasone"]},
+    {"display": "Tiotropium", "therapeutic_class": "long_acting_anticholinergic", "keywords": ["tiotropium"]},
+    {"display": "Montelukast", "therapeutic_class": "leukotriene_modifier", "keywords": ["montelukast"]},
+    {"display": "Hydroxychloroquine", "therapeutic_class": "dmard", "keywords": ["hydroxychloroquine"]},
+    {"display": "Methotrexate", "therapeutic_class": "dmard", "keywords": ["methotrexate"]},
+    {"display": "Adalimumab", "therapeutic_class": "biologic_dmard", "keywords": ["adalimumab"]},
+    {"display": "Etanercept", "therapeutic_class": "biologic_dmard", "keywords": ["etanercept"]},
+    {"display": "Epinephrine", "therapeutic_class": "emergency_anaphylaxis", "keywords": ["epinephrine"]},
+    {"display": "Cetirizine", "therapeutic_class": "antihistamine", "keywords": ["cetirizine"]},
+    {"display": "Loratadine", "therapeutic_class": "antihistamine", "keywords": ["loratadine"]},
+    {"display": "Diphenhydramine", "therapeutic_class": "antihistamine", "keywords": ["diphenhydramine"]},
+    {"display": "Paxlovid", "therapeutic_class": "antiviral", "keywords": ["paxlovid", "nirmatrelvir"]},
+    {"display": "Remdesivir", "therapeutic_class": "antiviral", "keywords": ["remdesivir"]},
+    {"display": "Oseltamivir", "therapeutic_class": "antiviral", "keywords": ["oseltamivir"]},
+    {"display": "Zanamivir", "therapeutic_class": "antiviral", "keywords": ["zanamivir"]},
+    {"display": "Prednisone", "therapeutic_class": "glucocorticoid", "keywords": ["prednisone"]},
+    {"display": "Levothyroxine", "therapeutic_class": "thyroid_replacement", "keywords": ["levothyroxine"]},
+    {"display": "Omeprazole", "therapeutic_class": "ppi", "keywords": ["omeprazole"]},
+    {"display": "Ondansetron", "therapeutic_class": "antiemetic", "keywords": ["ondansetron"]},
+    {"display": "Cyclophosphamide", "therapeutic_class": "chemotherapy", "keywords": ["cyclophosphamide"]},
+    {"display": "Doxorubicin", "therapeutic_class": "chemotherapy", "keywords": ["doxorubicin"]},
+    {"display": "Paclitaxel", "therapeutic_class": "chemotherapy", "keywords": ["paclitaxel"]},
+    {"display": "Trastuzumab", "therapeutic_class": "targeted_therapy", "keywords": ["trastuzumab"]},
+    {"display": "Bevacizumab", "therapeutic_class": "targeted_therapy", "keywords": ["bevacizumab"]},
+]
+
+CURATED_LAB_TESTS = [
+    {
+        "name": "Prothrombin Time",
+        "loinc": "5902-2",
+        "units": "s",
+        "normal_range": (10, 13),
+        "critical_high": 20,
+        "panels": ["Coagulation_Panel"],
+    },
+    {
+        "name": "International Normalized Ratio",
+        "loinc": "34714-6",
+        "units": "ratio",
+        "normal_range": (0.9, 1.2),
+        "critical_low": 0.5,
+        "critical_high": 4.5,
+        "panels": ["Coagulation_Panel"],
+    },
+    {
+        "name": "Activated Partial Thromboplastin Time",
+        "loinc": "14979-9",
+        "units": "s",
+        "normal_range": (25, 35),
+        "critical_high": 80,
+        "panels": ["Coagulation_Panel"],
+    },
+    {
+        "name": "D-Dimer",
+        "loinc": "48065-7",
+        "units": "ng/mL",
+        "normal_range": (0, 500),
+        "critical_high": 1000,
+        "panels": ["Coagulation_Panel", "Inflammatory_Markers"],
+    },
+    {
+        "name": "B-Type Natriuretic Peptide",
+        "loinc": "30934-4",
+        "units": "pg/mL",
+        "normal_range": (0, 100),
+        "critical_high": 1000,
+        "panels": ["Cardiac_Markers", "Cardiology_Followup"],
+    },
+    {
+        "name": "N-terminal proBNP",
+        "loinc": "33762-6",
+        "units": "pg/mL",
+        "normal_range": (0, 125),
+        "critical_high": 5000,
+        "panels": ["Cardiac_Markers", "Cardiology_Followup"],
+    },
+    {
+        "name": "High Sensitivity Troponin I",
+        "loinc": "67151-1",
+        "units": "ng/L",
+        "normal_range": (0, 14),
+        "critical_high": 100,
+        "panels": ["Cardiac_Markers", "Cardiac_Markers_Advanced"],
+    },
+    {
+        "name": "Vitamin D 25-Hydroxy",
+        "loinc": "1989-3",
+        "units": "ng/mL",
+        "normal_range": (30, 100),
+        "critical_low": 10,
+        "panels": ["Metabolic_Nutrition"],
+    },
+    {
+        "name": "Ferritin",
+        "loinc": "2276-4",
+        "units": "ng/mL",
+        "normal_range": (30, 300),
+        "critical_low": 10,
+        "panels": ["Hematology_Iron"],
+    },
+    {
+        "name": "Serum Iron",
+        "loinc": "2498-4",
+        "units": "ug/dL",
+        "normal_range": (60, 170),
+        "critical_low": 30,
+        "critical_high": 300,
+        "panels": ["Hematology_Iron"],
+    },
+    {
+        "name": "Total Iron Binding Capacity",
+        "loinc": "2500-7",
+        "units": "ug/dL",
+        "normal_range": (240, 450),
+        "panels": ["Hematology_Iron"],
+    },
+    {
+        "name": "Transferrin",
+        "loinc": "3034-6",
+        "units": "mg/dL",
+        "normal_range": (200, 350),
+        "panels": ["Hematology_Iron"],
+    },
+    {
+        "name": "C-Reactive Protein High Sensitivity",
+        "loinc": "30522-7",
+        "units": "mg/L",
+        "normal_range": (0, 3),
+        "critical_high": 50,
+        "panels": ["Inflammatory_Markers"],
+    },
+    {
+        "name": "TSH Receptor Antibody",
+        "loinc": "5385-0",
+        "units": "IU/L",
+        "normal_range": (0, 1.75),
+        "panels": ["Thyroid_Function"],
+    },
+    {
+        "name": "Free T3",
+        "loinc": "3051-0",
+        "units": "pg/mL",
+        "normal_range": (2.0, 4.4),
+        "panels": ["Thyroid_Function", "Endocrine"]
+    },
+    {
+        "name": "Cortisol",
+        "loinc": "2153-8",
+        "units": "ug/dL",
+        "normal_range": (5, 23),
+        "panels": ["Endocrine"],
+    },
+    {
+        "name": "Lactate",
+        "loinc": "2519-7",
+        "units": "mmol/L",
+        "normal_range": (0.5, 2.2),
+        "critical_high": 4.0,
+        "panels": ["Sepsis_Markers"],
+    },
+    {
+        "name": "Procalcitonin",
+        "loinc": "33959-8",
+        "units": "ng/mL",
+        "normal_range": (0, 0.5),
+        "critical_high": 10,
+        "panels": ["Sepsis_Markers", "Inflammatory_Markers"],
+    },
+]
 
 def load_allergen_entries(
     root: Optional[str] = None,
@@ -517,6 +756,83 @@ def load_allergen_entries(
     return ordered
 
 
+def load_medication_entries(
+    root: Optional[str] = None,
+) -> List[TerminologyEntry]:
+    frame = _load_rxnorm_frame(root)
+    if frame is None or frame.is_empty():
+        return []
+
+    frame = frame.with_columns(
+        pl.col("rxnorm_cui").cast(pl.Utf8),
+        pl.col("ingredient_name").str.strip_chars()
+    )
+
+    lowercase_name = pl.col("ingredient_name").str.to_lowercase()
+    entries: Dict[str, TerminologyEntry] = {}
+
+    def _find_row(keywords: List[str]) -> Optional[Dict[str, Any]]:
+        expr = None
+        for keyword in keywords:
+            keyword_lower = keyword.lower()
+            condition = lowercase_name.str.contains(keyword_lower)
+            expr = condition if expr is None else expr | condition
+        matches = frame.filter(expr) if expr is not None else None
+        if matches is None or matches.is_empty():
+            for keyword in keywords:
+                exact_matches = frame.filter(lowercase_name == keyword.lower())
+                if not exact_matches.is_empty():
+                    matches = exact_matches
+                    break
+        if matches is None or matches.is_empty():
+            return None
+        return matches.row(0, named=True)
+
+    for item in CURATED_MEDICATIONS:
+        display = item["display"]
+        keywords = item.get("keywords") or [display]
+        row = _find_row(keywords)
+        metadata: Dict[str, str] = {
+            "therapeutic_class": item.get("therapeutic_class", ""),
+        }
+        code = display
+        if row:
+            code = str(row.get("rxnorm_cui") or display)
+            metadata["rxnorm_name"] = row.get("ingredient_name", display)
+            if row.get("ndc_example"):
+                metadata["ndc_example"] = str(row["ndc_example"])
+            if row.get("ncbi_url"):
+                metadata["ncbi_url"] = str(row["ncbi_url"])
+        metadata["aliases"] = [display, display.replace(" ", "_")]
+        entries[display] = TerminologyEntry(code=code, display=display, metadata=metadata)
+
+    return list(entries.values())
+
+
+def load_lab_test_entries(root: Optional[str] = None) -> List[Dict[str, Any]]:
+    path = _resolve_path("loinc/loinc_full.csv", root)
+    frame = None
+    if path.exists():
+        frame = pl.read_csv(path)
+        frame = frame.with_columns(
+            pl.col("loinc_code").cast(pl.Utf8),
+            pl.col("long_common_name").str.strip_chars(),
+        )
+    entries: List[Dict[str, Any]] = []
+
+    for test in CURATED_LAB_TESTS:
+        entry = test.copy()
+        loinc_code = test.get("loinc")
+        if frame is not None and loinc_code:
+            match = frame.filter(pl.col("loinc_code") == loinc_code)
+            if not match.is_empty():
+                row = match.row(0, named=True)
+                entry.setdefault("long_name", row.get("long_common_name"))
+        entries.append(entry)
+
+    return entries
+
+
 def load_allergy_reaction_entries(root: Optional[str] = None) -> List[Dict[str, str]]:
     snomed_frame = _load_snomed_frame(root)
     reactions: List[Dict[str, str]] = []
@@ -653,6 +969,7 @@ __all__ = [
     "load_icd10_conditions",
     "load_loinc_labs",
     "load_snomed_conditions",
+    "load_snomed_icd10_crosswalk",
     "load_rxnorm_medications",
     "load_vsac_value_sets",
     "load_umls_concepts",

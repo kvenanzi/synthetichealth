@@ -1,36 +1,831 @@
 """Lifecycle clinical generation helpers extracted from synthetic_patient_generator."""
 from __future__ import annotations
 
+import difflib
 import random
+import re
 import uuid
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from faker import Faker
 
 from ..constants import (
+    AGE_BINS,
+    AGE_BIN_LABELS,
     CONDITION_STATUSES,
     ENCOUNTER_REASONS,
     ENCOUNTER_TYPES,
 )
 from ...terminology_catalogs import (
     CONDITIONS as CONDITION_TERMS,
-    MEDICATIONS as MEDICATION_TERMS,
+    MEDICATIONS as FALLBACK_MEDICATION_TERMS,
     IMMUNIZATIONS as IMMUNIZATION_TERMS,
     ALLERGENS as FALLBACK_ALLERGEN_TERMS,
     PROCEDURES as PROCEDURE_TERMS,
 )
-from ...terminology.loaders import load_allergen_entries, load_allergy_reaction_entries
+from ...terminology.loaders import (
+    load_allergen_entries,
+    load_allergy_reaction_entries,
+    load_icd10_conditions,
+    load_lab_test_entries,
+    load_medication_entries,
+    load_snomed_conditions,
+    load_snomed_icd10_crosswalk,
+)
 
 
-CONDITION_CATALOG = {entry["display"]: entry for entry in CONDITION_TERMS}
-MEDICATION_CATALOG = {entry["display"]: entry for entry in MEDICATION_TERMS}
+CURATED_CONDITION_ENTRIES = {entry["display"]: entry for entry in CONDITION_TERMS}
+CURATED_CONDITION_LOOKUP = {
+    re.sub(r"[^a-z0-9]+", " ", entry["display"].lower()).strip(): entry
+    for entry in CONDITION_TERMS
+}
+
+ICD10_CATEGORY_LABELS = {
+    "infectious_disease": "Certain infectious and parasitic diseases",
+    "oncology": "Neoplasms",
+    "hematologic": "Diseases of the blood and immune mechanism",
+    "endocrine": "Endocrine, nutritional and metabolic diseases",
+    "mental_health": "Mental, behavioral and neurodevelopmental disorders",
+    "neurology": "Diseases of the nervous system",
+    "ophthalmology_otology": "Diseases of the eye and adnexa; ear and mastoid process",
+    "cardiovascular": "Diseases of the circulatory system",
+    "respiratory": "Diseases of the respiratory system",
+    "gastroenterology": "Diseases of the digestive system",
+    "dermatology": "Diseases of the skin and subcutaneous tissue",
+    "musculoskeletal": "Diseases of the musculoskeletal system and connective tissue",
+    "genitourinary": "Diseases of the genitourinary system",
+    "obstetrics": "Pregnancy, childbirth and the puerperium",
+    "perinatal": "Certain conditions originating in the perinatal period",
+    "congenital": "Congenital malformations, deformations and chromosomal abnormalities",
+    "symptoms": "Symptoms, signs and abnormal clinical findings",
+    "injury": "Injury, poisoning and certain other consequences of external causes",
+    "factors_influencing": "Factors influencing health status and contact with health services",
+    "transport": "External causes - transport",
+    "external_causes": "External causes of morbidity",
+    "misc": "Other conditions",
+}
+
+CATEGORY_BASE_PREVALENCE = {
+    "infectious_disease": 0.08,
+    "oncology": 0.035,
+    "hematologic": 0.05,
+    "endocrine": 0.12,
+    "mental_health": 0.16,
+    "neurology": 0.07,
+    "ophthalmology_otology": 0.05,
+    "cardiovascular": 0.2,
+    "respiratory": 0.12,
+    "gastroenterology": 0.1,
+    "dermatology": 0.06,
+    "musculoskeletal": 0.14,
+    "genitourinary": 0.08,
+    "obstetrics": 0.06,
+    "perinatal": 0.02,
+    "congenital": 0.03,
+    "symptoms": 0.05,
+    "injury": 0.07,
+    "factors_influencing": 0.04,
+    "transport": 0.0,
+    "external_causes": 0.0,
+    "misc": 0.03,
+}
+
+CATEGORY_AGE_WEIGHTS = {
+    "infectious_disease": {"0-18": 0.25, "19-40": 0.35, "41-65": 0.25, "66-120": 0.15},
+    "oncology": {"0-18": 0.02, "19-40": 0.08, "41-65": 0.3, "66-120": 0.6},
+    "hematologic": {"0-18": 0.08, "19-40": 0.22, "41-65": 0.35, "66-120": 0.35},
+    "endocrine": {"0-18": 0.05, "19-40": 0.35, "41-65": 0.4, "66-120": 0.2},
+    "mental_health": {"0-18": 0.22, "19-40": 0.4, "41-65": 0.25, "66-120": 0.13},
+    "neurology": {"0-18": 0.05, "19-40": 0.15, "41-65": 0.4, "66-120": 0.4},
+    "ophthalmology_otology": {"0-18": 0.05, "19-40": 0.2, "41-65": 0.35, "66-120": 0.4},
+    "cardiovascular": {"0-18": 0.01, "19-40": 0.09, "41-65": 0.35, "66-120": 0.55},
+    "respiratory": {"0-18": 0.25, "19-40": 0.35, "41-65": 0.25, "66-120": 0.15},
+    "gastroenterology": {"0-18": 0.1, "19-40": 0.35, "41-65": 0.35, "66-120": 0.2},
+    "dermatology": {"0-18": 0.2, "19-40": 0.4, "41-65": 0.25, "66-120": 0.15},
+    "musculoskeletal": {"0-18": 0.05, "19-40": 0.25, "41-65": 0.35, "66-120": 0.35},
+    "genitourinary": {"0-18": 0.05, "19-40": 0.35, "41-65": 0.35, "66-120": 0.25},
+    "obstetrics": {"0-18": 0.02, "19-40": 0.9, "41-65": 0.08, "66-120": 0.0},
+    "perinatal": {"0-18": 1.0, "19-40": 0.0, "41-65": 0.0, "66-120": 0.0},
+    "congenital": {"0-18": 0.7, "19-40": 0.2, "41-65": 0.08, "66-120": 0.02},
+    "symptoms": {"0-18": 0.25, "19-40": 0.35, "41-65": 0.25, "66-120": 0.15},
+    "injury": {"0-18": 0.3, "19-40": 0.4, "41-65": 0.2, "66-120": 0.1},
+    "factors_influencing": {"0-18": 0.15, "19-40": 0.35, "41-65": 0.3, "66-120": 0.2},
+    "misc": {"0-18": 0.2, "19-40": 0.35, "41-65": 0.3, "66-120": 0.15},
+}
+
+CATEGORY_SEX_BIASES = {
+    "cardiovascular": {"male": 0.55, "female": 0.45, "other": 0.1},
+    "oncology": {"male": 0.5, "female": 0.5, "other": 0.1},
+    "mental_health": {"male": 0.45, "female": 0.55, "other": 0.2},
+    "obstetrics": {"male": 0.0, "female": 0.98, "other": 0.02},
+    "perinatal": {"male": 0.5, "female": 0.5, "other": 0.1},
+}
+
+KEYWORD_PREVALENCE_OVERRIDES = [
+    ("hypertens", 0.28),
+    ("type 2 diabetes", 0.18),
+    ("type ii diabetes", 0.18),
+    ("diabetes mellitus", 0.16),
+    ("obesity", 0.22),
+    ("hyperlipidemia", 0.18),
+    ("heart failure", 0.14),
+    ("ischemic heart disease", 0.14),
+    ("ischaemic heart disease", 0.14),
+    ("depress", 0.15),
+    ("anxiety", 0.16),
+    ("copd", 0.12),
+    ("asthma", 0.12),
+    ("chronic kidney disease", 0.12),
+    ("kidney disease", 0.1),
+    ("pregnancy", 0.08),
+    ("gestational", 0.08),
+    ("anemia", 0.1),
+]
+
+EXCLUDED_CATEGORIES = {"external_causes", "transport"}
+
+CONDITION_SEVERITY_PROFILES: Dict[str, Dict[str, Any]] = {
+    "heart_failure": {
+        "type": "nyha_class",
+        "code_system": "http://snomed.info/sct",
+        "levels": [
+            {"code": "449868002", "display": "NYHA class I"},
+            {"code": "449869005", "display": "NYHA class II"},
+            {"code": "449870006", "display": "NYHA class III"},
+            {"code": "449871005", "display": "NYHA class IV"},
+        ],
+    },
+    "asthma": {
+        "type": "asthma_severity",
+        "code_system": "http://snomed.info/sct",
+        "levels": [
+            {"code": "370219009", "display": "Mild intermittent asthma"},
+            {"code": "370220003", "display": "Mild persistent asthma"},
+            {"code": "370221004", "display": "Moderate persistent asthma"},
+            {"code": "370222006", "display": "Severe persistent asthma"},
+        ],
+    },
+    "copd": {
+        "type": "gold_stage",
+        "code_system": "http://snomed.info/sct",
+        "levels": [
+            {"code": "460050000", "display": "GOLD stage 1 mild COPD"},
+            {"code": "460060004", "display": "GOLD stage 2 moderate COPD"},
+            {"code": "460061000", "display": "GOLD stage 3 severe COPD"},
+            {"code": "460062007", "display": "GOLD stage 4 very severe COPD"},
+        ],
+    },
+    "ckd": {
+        "type": "ckd_stage",
+        "code_system": "http://snomed.info/sct",
+        "levels": [
+            {"code": "431855005", "display": "Chronic kidney disease stage 1"},
+            {"code": "431856006", "display": "Chronic kidney disease stage 2"},
+            {"code": "431857002", "display": "Chronic kidney disease stage 3"},
+            {"code": "431858007", "display": "Chronic kidney disease stage 4"},
+            {"code": "431859004", "display": "Chronic kidney disease stage 5"},
+        ],
+    },
+    "cancer_stage": {
+        "type": "cancer_stage",
+        "code_system": "http://snomed.info/sct",
+        "levels": [
+            {"code": "260998006", "display": "Stage I malignant neoplasm"},
+            {"code": "260999003", "display": "Stage II malignant neoplasm"},
+            {"code": "261000000", "display": "Stage III malignant neoplasm"},
+            {"code": "261001001", "display": "Stage IV malignant neoplasm"},
+        ],
+    },
+    "depression_severity": {
+        "type": "depression_severity",
+        "code_system": "http://snomed.info/sct",
+        "levels": [
+            {"code": "162561002", "display": "Mild depression"},
+            {"code": "162562009", "display": "Moderate depression"},
+            {"code": "162563004", "display": "Severe depression"},
+        ],
+    },
+    "anxiety_severity": {
+        "type": "anxiety_severity",
+        "code_system": "http://snomed.info/sct",
+        "levels": [
+            {"code": "371924009", "display": "Mild anxiety"},
+            {"code": "371925005", "display": "Moderate anxiety"},
+            {"code": "371926006", "display": "Severe anxiety"},
+        ],
+    },
+    "diabetes_control": {
+        "type": "diabetes_control",
+        "code_system": "http://snomed.info/sct",
+        "levels": [
+            {"code": "165679004", "display": "Diabetes well controlled"},
+            {"code": "165680001", "display": "Diabetes reasonably controlled"},
+            {"code": "165681002", "display": "Diabetes poorly controlled"},
+        ],
+    },
+    "pregnancy_trimester": {
+        "type": "pregnancy_stage",
+        "code_system": "http://snomed.info/sct",
+        "levels": [
+            {"code": "71315007", "display": "First trimester of pregnancy"},
+            {"code": "28024001", "display": "Second trimester of pregnancy"},
+            {"code": "179049000", "display": "Third trimester of pregnancy"},
+        ],
+    },
+}
+
+CONDITION_SEVERITY_RULES = [
+    {"keywords": ["heart failure"], "profile": "heart_failure"},
+    {"keywords": ["chronic heart failure"], "profile": "heart_failure"},
+    {"keywords": ["asthma"], "profile": "asthma"},
+    {"keywords": ["chronic obstructive pulmonary disease"], "profile": "copd"},
+    {"keywords": ["copd"], "profile": "copd"},
+    {"keywords": ["chronic kidney disease"], "profile": "ckd"},
+    {"keywords": ["kidney disease"], "profile": "ckd"},
+    {"keywords": ["malignant neoplasm"], "profile": "cancer_stage"},
+    {"keywords": ["cancer"], "profile": "cancer_stage"},
+    {"keywords": ["depress"], "profile": "depression_severity"},
+    {"keywords": ["anxiety"], "profile": "anxiety_severity"},
+    {"keywords": ["diabetes"], "profile": "diabetes_control"},
+    {"keywords": ["pregnancy"], "profile": "pregnancy_trimester", "category": "obstetrics"},
+]
+
+
+STAGE_PROFILE_TYPES = {"nyha_class", "cancer_stage", "gold_stage", "ckd_stage", "pregnancy_stage"}
+
+VISIT_LOCATION_SUFFIXES = ["Clinic", "Medical Center", "Health Center", "Care Group", "Practice", "Institute"]
+
+ENCOUNTER_BLUEPRINTS: Dict[str, Dict[str, Any]] = {
+    "wellness": {
+        "type": "Wellness Visit",
+        "reason_options": [
+            "Annual preventive health exam",
+            "Preventive care assessment",
+            "Health maintenance check",
+        ],
+        "stop_code": "147",
+        "stop_description": "Preventive Medicine",
+        "service_category": "A",
+        "department": "Preventive Medicine",
+        "categories": [],
+    },
+    "primary_care": {
+        "type": "Primary Care Follow-up",
+        "reason_options": [
+            "Chronic disease management",
+            "Medication management",
+            "Multi-condition follow-up",
+        ],
+        "stop_code": "323",
+        "stop_description": "Primary Care",
+        "service_category": "A",
+        "department": "Primary Care",
+        "categories": [
+            "cardiometabolic",
+            "endocrine",
+            "respiratory",
+            "mental_health",
+            "gastroenterology",
+            "dermatology",
+            "musculoskeletal",
+            "genitourinary",
+            "infectious_disease",
+            "symptoms",
+            "factors_influencing",
+            "misc",
+        ],
+    },
+    "cardiology": {
+        "type": "Cardiology Clinic",
+        "reason_options": [
+            "Coronary artery disease follow-up",
+            "Heart failure management",
+            "Cardiac risk assessment",
+        ],
+        "stop_code": "303",
+        "stop_description": "Cardiology",
+        "service_category": "A",
+        "department": "Cardiology",
+        "categories": ["cardiometabolic", "cardiovascular"],
+    },
+    "endocrinology": {
+        "type": "Endocrinology Follow-up",
+        "reason_options": [
+            "Diabetes management",
+            "Thyroid disorder follow-up",
+        ],
+        "stop_code": "312",
+        "stop_description": "Endocrinology",
+        "service_category": "A",
+        "department": "Endocrinology",
+        "categories": ["endocrine"],
+    },
+    "pulmonology": {
+        "type": "Pulmonology Clinic",
+        "reason_options": [
+            "COPD management",
+            "Asthma control visit",
+            "Pulmonary function review",
+        ],
+        "stop_code": "332",
+        "stop_description": "Pulmonary Disease",
+        "service_category": "A",
+        "department": "Pulmonology",
+        "categories": ["respiratory"],
+    },
+    "behavioral_health": {
+        "type": "Behavioral Health Session",
+        "reason_options": [
+            "Psychotherapy session",
+            "Behavioral health follow-up",
+            "Medication management",
+        ],
+        "stop_code": "167",
+        "stop_description": "Mental Health Clinic",
+        "service_category": "A",
+        "department": "Behavioral Health",
+        "categories": ["mental_health"],
+    },
+    "neurology": {
+        "type": "Neurology Clinic",
+        "reason_options": [
+            "Seizure disorder follow-up",
+            "Neuropathy assessment",
+            "Stroke recovery visit",
+        ],
+        "stop_code": "345",
+        "stop_description": "Neurology",
+        "service_category": "A",
+        "department": "Neurology",
+        "categories": ["neurology"],
+    },
+    "ophthalmology": {
+        "type": "Ophthalmology Clinic",
+        "reason_options": [
+            "Diabetic retinal exam",
+            "Glaucoma monitoring",
+            "Vision change evaluation",
+        ],
+        "stop_code": "407",
+        "stop_description": "Ophthalmology",
+        "service_category": "A",
+        "department": "Ophthalmology",
+        "categories": ["ophthalmology_otology"],
+    },
+    "dermatology": {
+        "type": "Dermatology Clinic",
+        "reason_options": [
+            "Skin condition follow-up",
+            "Lesion assessment",
+        ],
+        "stop_code": "302",
+        "stop_description": "Dermatology",
+        "service_category": "A",
+        "department": "Dermatology",
+        "categories": ["dermatology"],
+    },
+    "gastroenterology": {
+        "type": "Gastroenterology Consult",
+        "reason_options": [
+            "IBD management",
+            "Liver disease follow-up",
+        ],
+        "stop_code": "316",
+        "stop_description": "Gastroenterology",
+        "service_category": "A",
+        "department": "Gastroenterology",
+        "categories": ["gastroenterology"],
+    },
+    "orthopedics": {
+        "type": "Orthopedic Visit",
+        "reason_options": [
+            "Joint pain evaluation",
+            "Post-injury assessment",
+        ],
+        "stop_code": "411",
+        "stop_description": "Orthopedics",
+        "service_category": "A",
+        "department": "Orthopedics",
+        "categories": ["musculoskeletal", "injury"],
+    },
+    "rehab": {
+        "type": "Rehabilitation Therapy",
+        "reason_options": [
+            "Physical therapy session",
+            "Post-stroke rehabilitation",
+        ],
+        "stop_code": "372",
+        "stop_description": "Rehabilitation Medicine",
+        "service_category": "A",
+        "department": "Rehabilitation Services",
+        "categories": ["musculoskeletal", "neurology"],
+    },
+    "urology": {
+        "type": "Urology Clinic",
+        "reason_options": [
+            "Renal stone follow-up",
+            "Benign prostatic hyperplasia consult",
+        ],
+        "stop_code": "436",
+        "stop_description": "Urology",
+        "service_category": "A",
+        "department": "Urology",
+        "categories": ["genitourinary"],
+    },
+    "nephrology": {
+        "type": "Nephrology Clinic",
+        "reason_options": [
+            "Chronic kidney disease management",
+            "Dialysis planning",
+        ],
+        "stop_code": "315",
+        "stop_description": "Nephrology",
+        "service_category": "A",
+        "department": "Nephrology",
+        "categories": ["genitourinary"],
+    },
+    "oncology": {
+        "type": "Oncology Visit",
+        "reason_options": [
+            "Treatment response assessment",
+            "Chemotherapy toxicity monitoring",
+        ],
+        "stop_code": "318",
+        "stop_description": "Oncology",
+        "service_category": "A",
+        "department": "Oncology",
+        "categories": ["oncology", "hematologic"],
+    },
+    "obstetrics": {
+        "type": "Obstetrics Prenatal Visit",
+        "reason_options": [
+            "Routine prenatal care",
+            "High-risk pregnancy management",
+        ],
+        "stop_code": "404",
+        "stop_description": "Obstetrics/Gynecology",
+        "service_category": "A",
+        "department": "Obstetrics",
+        "categories": ["obstetrics"],
+    },
+    "pediatrics": {
+        "type": "Pediatric Visit",
+        "reason_options": [
+            "Well-child visit",
+            "Developmental follow-up",
+            "Chronic condition management",
+        ],
+        "stop_code": "420",
+        "stop_description": "Pediatrics",
+        "service_category": "A",
+        "department": "Pediatrics",
+        "categories": ["perinatal", "congenital"],
+    },
+    "urgent_care": {
+        "type": "Urgent Care Visit",
+        "reason_options": [
+            "Acute symptom evaluation",
+            "Injury evaluation",
+        ],
+        "stop_code": "203",
+        "stop_description": "Urgent Care",
+        "service_category": "A",
+        "department": "Urgent Care",
+        "categories": ["injury", "symptoms", "infectious_disease"],
+    },
+    "emergency": {
+        "type": "Emergency Department Visit",
+        "reason_options": [
+            "Severe symptom evaluation",
+            "Acute exacerbation",
+        ],
+        "stop_code": "130",
+        "stop_description": "Emergency Department",
+        "service_category": "E",
+        "department": "Emergency Department",
+        "categories": ["injury", "infectious_disease", "respiratory", "cardiovascular"],
+    },
+    "telehealth": {
+        "type": "Telehealth Check-in",
+        "reason_options": [
+            "Remote monitoring",
+            "Medication adjustment",
+            "Care coordination",
+        ],
+        "stop_code": "179",
+        "stop_description": "Telehealth",
+        "service_category": "A",
+        "department": "Telehealth Services",
+        "categories": ["mental_health", "cardiometabolic", "factors_influencing"],
+        "mode": "virtual",
+    },
+    "lab": {
+        "type": "Laboratory Workup",
+        "reason_options": [
+            "Routine laboratory monitoring",
+            "Therapeutic drug monitoring",
+            "Diagnostic workup",
+        ],
+        "stop_code": "175",
+        "stop_description": "Laboratory",
+        "service_category": "A",
+        "department": "Laboratory",
+        "categories": [
+            "cardiometabolic",
+            "endocrine",
+            "oncology",
+            "hematologic",
+            "genitourinary",
+            "gastroenterology",
+        ],
+    },
+    "imaging": {
+        "type": "Imaging Study",
+        "reason_options": [
+            "Diagnostic imaging",
+            "Surveillance imaging",
+        ],
+        "stop_code": "324",
+        "stop_description": "Diagnostic Radiology",
+        "service_category": "A",
+        "department": "Imaging Services",
+        "categories": ["oncology", "neurology", "musculoskeletal", "gastroenterology"],
+    },
+}
+
+DEFAULT_VISIT_CONTRIBUTIONS: Dict[str, float] = {"primary_care": 0.5}
+
+CONDITION_CATEGORY_VISIT_CONTRIBUTIONS: Dict[str, Dict[str, float]] = {
+    "cardiometabolic": {"primary_care": 1.4, "cardiology": 0.6, "lab": 1.0, "telehealth": 0.3},
+    "cardiovascular": {"cardiology": 1.2, "primary_care": 0.6, "lab": 0.6},
+    "endocrine": {"primary_care": 0.8, "endocrinology": 1.0, "lab": 1.2},
+    "respiratory": {"primary_care": 0.8, "pulmonology": 1.0, "urgent_care": 0.3, "emergency": 0.2},
+    "mental_health": {"behavioral_health": 2.0, "telehealth": 1.1, "primary_care": 0.4},
+    "neurology": {"neurology": 1.0, "primary_care": 0.5, "imaging": 0.6, "rehab": 0.5},
+    "ophthalmology_otology": {"ophthalmology": 0.9, "primary_care": 0.3},
+    "oncology": {"oncology": 1.3, "lab": 1.2, "imaging": 0.8, "primary_care": 0.4},
+    "hematologic": {"oncology": 0.8, "lab": 1.3, "primary_care": 0.5},
+    "gastroenterology": {"gastroenterology": 0.9, "primary_care": 0.6, "lab": 0.5, "imaging": 0.3},
+    "dermatology": {"dermatology": 0.8, "primary_care": 0.4},
+    "musculoskeletal": {"orthopedics": 0.9, "rehab": 0.8, "primary_care": 0.5},
+    "genitourinary": {"urology": 0.9, "nephrology": 0.5, "primary_care": 0.6, "lab": 0.4},
+    "obstetrics": {"obstetrics": 2.1, "primary_care": 0.4, "lab": 0.7},
+    "perinatal": {"pediatrics": 1.5, "primary_care": 0.3},
+    "congenital": {"pediatrics": 1.0, "primary_care": 0.4},
+    "infectious_disease": {"primary_care": 0.7, "urgent_care": 0.4, "lab": 0.6},
+    "symptoms": {"primary_care": 0.6, "urgent_care": 0.3},
+    "injury": {"urgent_care": 0.7, "emergency": 0.3, "orthopedics": 0.6},
+    "factors_influencing": {"primary_care": 0.5, "telehealth": 0.4},
+    "misc": {"primary_care": 0.5},
+}
+
+
+def _normalize_condition_display(raw: str) -> str:
+    if not raw:
+        return ""
+    value = raw.strip()
+    value = value.replace("(disorder)", "").replace("(finding)", "")
+    value = re.sub(r"\s+", " ", value)
+    if value.isupper():
+        value = value.title()
+    return value.strip()
+
+
+def _normalize_text(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", " ", (value or "").lower()).strip()
+
+
+def _icd10_with_dot(code: str) -> str:
+    if not code:
+        return ""
+    normalized = code.strip().upper().replace(" ", "").replace(".", "")
+    if not normalized:
+        return ""
+    if normalized.endswith("-"):
+        normalized = normalized[:-1]
+    if len(normalized) <= 3:
+        return normalized
+    return f"{normalized[:3]}.{normalized[3:]}"
+
+
+def classify_icd10_category(code: str) -> str:
+    if not code:
+        return "misc"
+    prefix = code[0].upper()
+    if prefix in {"A", "B"}:
+        return "infectious_disease"
+    if prefix == "C":
+        return "oncology"
+    if prefix == "D":
+        if len(code) > 1 and code[1].isdigit() and int(code[1]) <= 4:
+            return "oncology"
+        return "hematologic"
+    if prefix == "E":
+        return "endocrine"
+    if prefix == "F":
+        return "mental_health"
+    if prefix == "G":
+        return "neurology"
+    if prefix == "H":
+        return "ophthalmology_otology"
+    if prefix == "I":
+        return "cardiovascular"
+    if prefix == "J":
+        return "respiratory"
+    if prefix == "K":
+        return "gastroenterology"
+    if prefix == "L":
+        return "dermatology"
+    if prefix == "M":
+        return "musculoskeletal"
+    if prefix == "N":
+        return "genitourinary"
+    if prefix == "O":
+        return "obstetrics"
+    if prefix == "P":
+        return "perinatal"
+    if prefix == "Q":
+        return "congenital"
+    if prefix == "R":
+        return "symptoms"
+    if prefix in {"S", "T"}:
+        return "injury"
+    if prefix == "V":
+        return "transport"
+    if prefix in {"W", "X", "Y"}:
+        return "external_causes"
+    if prefix == "Z":
+        return "factors_influencing"
+    return "misc"
+
+
+def _determine_base_prevalence(display: str, category: str) -> float:
+    base = CATEGORY_BASE_PREVALENCE.get(category, 0.05)
+    lowered = display.lower()
+    for keyword, override in KEYWORD_PREVALENCE_OVERRIDES:
+        if keyword in lowered:
+            base = max(base, override)
+    return round(min(base, 0.95), 4)
+
+
+def _determine_severity_template(display: str, category: str) -> Optional[Dict[str, Any]]:
+    lowered = display.lower()
+    for rule in CONDITION_SEVERITY_RULES:
+        if rule.get("category") and rule["category"] != category:
+            continue
+        if all(keyword in lowered for keyword in rule["keywords"]):
+            profile_key = rule["profile"]
+            profile = CONDITION_SEVERITY_PROFILES.get(profile_key)
+            if profile:
+                return profile
+    return None
+
+
+def _augment_condition_entry(
+    display: str,
+    icd10_code: str,
+    snomed_code: str,
+    category_hint: Optional[str] = None,
+    metadata: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    category = category_hint or classify_icd10_category(icd10_code)
+    entry = {
+        "display": display,
+        "icd10": icd10_code,
+        "snomed": snomed_code,
+        "category": category,
+        "chapter": ICD10_CATEGORY_LABELS.get(category, category),
+        "normalized": _normalize_text(display),
+        "base_prevalence": _determine_base_prevalence(display, category),
+        "age_weights": CATEGORY_AGE_WEIGHTS.get(category),
+        "sex_weights": CATEGORY_SEX_BIASES.get(category),
+        "severity_profile": _determine_severity_template(display, category),
+        "metadata": metadata or {},
+    }
+    return entry
+
+
+def _build_dynamic_condition_catalog() -> Dict[str, Dict[str, Any]]:
+    try:
+        icd_entries = load_icd10_conditions()
+    except Exception:
+        return {}
+
+    icd_lookup_by_code: Dict[str, TerminologyEntry] = {}
+    for entry in icd_entries:
+        code = _icd10_with_dot(entry.code)
+        if code and code not in icd_lookup_by_code:
+            icd_lookup_by_code[code] = entry
+
+    try:
+        snomed_entries = load_snomed_conditions()
+    except Exception:
+        snomed_entries = []
+
+    snomed_lookup: Dict[str, TerminologyEntry] = {}
+    if snomed_entries:
+        for entry in snomed_entries:
+            norm = _normalize_text(entry.display)
+            if not norm or norm in snomed_lookup:
+                continue
+            if len(entry.display) > 90:
+                continue
+            snomed_lookup[norm] = entry
+    snomed_keys = list(snomed_lookup.keys())
+
+    try:
+        crosswalk = load_snomed_icd10_crosswalk()
+    except Exception:
+        crosswalk = {}
+
+    catalog: Dict[str, Dict[str, Any]] = {}
+    category_counts: Dict[str, int] = defaultdict(int)
+
+    for curated in CONDITION_TERMS:
+        display = _normalize_condition_display(curated["display"])
+        icd_code = _icd10_with_dot(curated.get("icd10", ""))
+        snomed_code = curated.get("snomed", "")
+        metadata = {}
+        if icd_code and icd_code in icd_lookup_by_code:
+            metadata = dict(icd_lookup_by_code[icd_code].metadata)
+        entry = _augment_condition_entry(display, icd_code, snomed_code, curated.get("category"), metadata)
+        catalog[display] = entry
+        category_counts[entry["category"]] += 1
+
+    MAX_TOTAL = 600
+    MAX_PER_CATEGORY = 80
+
+    for entry in icd_entries:
+        icd_code = _icd10_with_dot(entry.code)
+        if not icd_code:
+            continue
+        display = _normalize_condition_display(entry.display)
+        if not display or display in catalog:
+            continue
+        level = entry.metadata.get("level") if isinstance(entry.metadata, dict) else None
+        if level and str(level).isdigit() and int(level) > 2:
+            continue
+        if len(display) > 140:
+            continue
+        category = classify_icd10_category(icd_code)
+        if category in EXCLUDED_CATEGORIES:
+            continue
+        if category_counts[category] >= MAX_PER_CATEGORY:
+            continue
+
+        snomed_code = ""
+        if icd_code in crosswalk and crosswalk[icd_code]:
+            snomed_code = crosswalk[icd_code][0].code
+        else:
+            normalized_display = _normalize_text(display)
+            curated_candidate = CURATED_CONDITION_LOOKUP.get(normalized_display)
+            if curated_candidate:
+                snomed_code = curated_candidate.get("snomed", "")
+            if not snomed_code and normalized_display in snomed_lookup:
+                snomed_code = snomed_lookup[normalized_display].code
+            if not snomed_code and snomed_keys:
+                best_match = difflib.get_close_matches(normalized_display, snomed_keys, n=1, cutoff=0.97)
+                if best_match:
+                    snomed_code = snomed_lookup[best_match[0]].code
+
+        catalog_entry = _augment_condition_entry(
+            display,
+            icd_code,
+            snomed_code,
+            category,
+            dict(entry.metadata),
+        )
+        catalog[display] = catalog_entry
+        category_counts[category] += 1
+        if len(catalog) >= MAX_TOTAL:
+            break
+
+    return catalog
+
+
+try:
+    CONDITION_CATALOG = _build_dynamic_condition_catalog()
+except Exception:
+    CONDITION_CATALOG = {}
+
+if not CONDITION_CATALOG:
+    CONDITION_CATALOG = {
+        _normalize_condition_display(entry["display"]): _augment_condition_entry(
+            _normalize_condition_display(entry["display"]),
+            _icd10_with_dot(entry.get("icd10", "")),
+            entry.get("snomed", ""),
+            entry.get("category"),
+            {},
+        )
+        for entry in CONDITION_TERMS
+    }
+
 IMMUNIZATION_CATALOG = {entry["display"]: entry for entry in IMMUNIZATION_TERMS}
 PROCEDURE_CATALOG = {entry["display"]: entry for entry in PROCEDURE_TERMS}
 
 CONDITION_NAMES = list(CONDITION_CATALOG.keys())
-MEDICATIONS = list(MEDICATION_CATALOG.keys())
 PROCEDURES = list(PROCEDURE_CATALOG.keys())
 IMMUNIZATIONS = list(IMMUNIZATION_CATALOG.keys())
 
@@ -91,6 +886,147 @@ ALLERGY_SEVERITIES = [
     {"display": "moderate", "code": "6736007", "system": "http://snomed.info/sct"},
     {"display": "severe", "code": "24484000", "system": "http://snomed.info/sct"},
 ]
+
+try:
+    _MEDICATION_LOADER_ENTRIES = load_medication_entries()
+except Exception:  # pragma: no cover - loader fallback
+    _MEDICATION_LOADER_ENTRIES = []
+
+MEDICATION_CATALOG: Dict[str, Dict[str, Any]] = {}
+if _MEDICATION_LOADER_ENTRIES:
+    for entry in _MEDICATION_LOADER_ENTRIES:
+        metadata = dict(entry.metadata)
+        med_record = {
+            "display": entry.display,
+            "rxnorm_code": entry.code,
+            "rxnorm": entry.code,
+            "ndc": metadata.get("ndc_example") or metadata.get("ndc"),
+            "ndc_example": metadata.get("ndc_example") or metadata.get("ndc"),
+            "therapeutic_class": metadata.get("therapeutic_class", ""),
+            "rxnorm_name": metadata.get("rxnorm_name", entry.display),
+        }
+        MEDICATION_CATALOG[entry.display] = med_record
+        alias = entry.display.replace(" ", "_")
+        MEDICATION_CATALOG.setdefault(alias, med_record)
+        for alias_name in metadata.get("aliases", []):
+            MEDICATION_CATALOG.setdefault(alias_name, med_record)
+else:
+    for item in FALLBACK_MEDICATION_TERMS:
+        display = item.get("display")
+        med_record = {
+            "display": display,
+            "rxnorm_code": str(item.get("rxnorm", "")) if item.get("rxnorm") else "",
+            "rxnorm": item.get("rxnorm"),
+            "ndc": item.get("ndc"),
+            "ndc_example": item.get("ndc"),
+            "therapeutic_class": item.get("therapeutic_class", ""),
+        }
+        MEDICATION_CATALOG[display] = med_record
+        MEDICATION_CATALOG.setdefault(display.replace(" ", "_"), med_record)
+
+for item in FALLBACK_MEDICATION_TERMS:
+    display = item.get("display")
+    if display not in MEDICATION_CATALOG:
+        med_record = {
+            "display": display,
+            "rxnorm_code": str(item.get("rxnorm", "")) if item.get("rxnorm") else "",
+            "rxnorm": item.get("rxnorm"),
+            "ndc": item.get("ndc"),
+            "ndc_example": item.get("ndc"),
+            "therapeutic_class": item.get("therapeutic_class", ""),
+        }
+        MEDICATION_CATALOG[display] = med_record
+        MEDICATION_CATALOG.setdefault(display.replace(" ", "_"), med_record)
+
+MEDICATIONS = sorted({record["display"] for record in MEDICATION_CATALOG.values()})
+
+try:
+    LAB_TEST_ENTRIES = load_lab_test_entries()
+except Exception:  # pragma: no cover - loader fallback
+    LAB_TEST_ENTRIES = []
+
+LAB_TEST_CATALOG = {entry["name"]: entry for entry in LAB_TEST_ENTRIES}
+
+
+def build_lab_test(
+    name: str,
+    *,
+    loinc: Optional[str] = None,
+    units: str = "",
+    normal_range: Optional[tuple[float, float]] = None,
+    critical_low: Optional[float] = None,
+    critical_high: Optional[float] = None,
+) -> Dict[str, Any]:
+    base = {
+        "name": name,
+        "loinc": loinc or "",
+        "units": units,
+        "normal_range": normal_range or (0, 1),
+        "critical_low": critical_low,
+        "critical_high": critical_high,
+    }
+    entry = LAB_TEST_CATALOG.get(name)
+    if entry:
+        base["loinc"] = entry.get("loinc", base["loinc"])
+        base["units"] = entry.get("units", base["units"])
+        base["normal_range"] = entry.get("normal_range", base["normal_range"])
+        base["critical_low"] = entry.get("critical_low", base["critical_low"])
+        base["critical_high"] = entry.get("critical_high", base["critical_high"])
+    return base
+
+
+def resolve_medication_entry(name: str) -> Tuple[str, Dict[str, Any]]:
+    candidates = [name, name.replace("_", " "), name.replace("-", " ")]
+    lower_candidates = [candidate.lower() for candidate in candidates]
+    for candidate in candidates:
+        entry = MEDICATION_CATALOG.get(candidate)
+        if entry:
+            return entry["display"], entry
+    for display, entry in MEDICATION_CATALOG.items():
+        if display.lower() in lower_candidates:
+            return entry["display"], entry
+    return name, {}
+
+
+THERAPEUTIC_CLASS_ROUTE_MAP = {
+    "inhaled_combo": "inhaled",
+    "inhaled_steroid": "inhaled",
+    "long_acting_anticholinergic": "inhaled",
+    "bronchodilator": "inhaled",
+    "basal_insulin": "subcutaneous",
+    "rapid_insulin": "subcutaneous",
+    "glp1_agonist": "subcutaneous",
+    "chemotherapy": "intravenous",
+    "targeted_therapy": "intravenous",
+    "biologic_dmard": "subcutaneous",
+    "emergency_anaphylaxis": "intramuscular",
+}
+
+MEDICATION_MONITORING_MAP = {
+    "anticoagulant": ["Coagulation_Panel"],
+    "antiplatelet": ["Coagulation_Panel"],
+    "statin": ["Lipid_Panel", "Liver_Function_Panel"],
+    "ace_inhibitor": ["Renal_Function_Panel"],
+    "arb": ["Renal_Function_Panel"],
+    "thiazide_diuretic": ["Renal_Function_Panel"],
+    "loop_diuretic": ["Renal_Function_Panel"],
+    "aldosterone_antagonist": ["Renal_Function_Panel"],
+    "sglt2_inhibitor": ["Diabetes_Monitoring"],
+    "basal_insulin": ["Diabetes_Monitoring"],
+    "rapid_insulin": ["Diabetes_Monitoring"],
+    "glp1_agonist": ["Diabetes_Monitoring"],
+    "beta_blocker": ["Cardiac_Markers"],
+    "chemotherapy": ["Oncology_Tumor_Markers", "Complete_Blood_Count"],
+    "targeted_therapy": ["Oncology_Tumor_Markers"],
+    "biologic_dmard": ["Inflammatory_Markers"],
+    "glucocorticoid": ["Inflammatory_Markers"],
+    "thyroid_replacement": ["Thyroid_Function"],
+    "bronchodilator": ["Pulmonary_Function"],
+    "inhaled_combo": ["Pulmonary_Function"],
+    "inhaled_steroid": ["Pulmonary_Function"],
+    "long_acting_anticholinergic": ["Pulmonary_Function"],
+    "antiviral": ["Inflammatory_Markers"],
+}
 # PHASE 2: Comprehensive laboratory panels with clinical accuracy
 COMPREHENSIVE_LAB_PANELS = {
     "Basic_Metabolic_Panel": {
@@ -230,6 +1166,183 @@ COMPREHENSIVE_LAB_PANELS = {
         "indications": ["copd_management", "asthma_monitoring"]
     }
 }
+
+COMPREHENSIVE_LAB_PANELS.update(
+    {
+        "Coagulation_Panel": {
+            "tests": [
+                build_lab_test(
+                    "Prothrombin Time",
+                    units="s",
+                    normal_range=(10, 13),
+                    critical_high=20,
+                ),
+                build_lab_test(
+                    "International Normalized Ratio",
+                    units="ratio",
+                    normal_range=(0.9, 1.2),
+                    critical_low=0.5,
+                    critical_high=4.5,
+                ),
+                build_lab_test(
+                    "Activated Partial Thromboplastin Time",
+                    units="s",
+                    normal_range=(25, 35),
+                    critical_high=80,
+                ),
+                build_lab_test(
+                    "D-Dimer",
+                    units="ng/mL",
+                    normal_range=(0, 500),
+                    critical_high=1000,
+                ),
+            ],
+            "frequency": "as_needed",
+            "indications": ["anticoagulant_monitoring", "thromboembolic_risk"],
+        },
+        "Cardiac_Markers_Advanced": {
+            "tests": [
+                build_lab_test(
+                    "B-Type Natriuretic Peptide",
+                    units="pg/mL",
+                    normal_range=(0, 100),
+                    critical_high=1000,
+                ),
+                build_lab_test(
+                    "N-terminal proBNP",
+                    units="pg/mL",
+                    normal_range=(0, 125),
+                    critical_high=5000,
+                ),
+                build_lab_test(
+                    "High Sensitivity Troponin I",
+                    units="ng/L",
+                    normal_range=(0, 14),
+                    critical_high=100,
+                ),
+            ],
+            "frequency": "as_needed",
+            "indications": ["heart_failure", "acute_coronary_syndrome"],
+        },
+        "Metabolic_Nutrition": {
+            "tests": [
+                build_lab_test(
+                    "Vitamin D 25-Hydroxy",
+                    units="ng/mL",
+                    normal_range=(30, 100),
+                    critical_low=10,
+                ),
+            ],
+            "frequency": "annual",
+            "indications": ["osteoporosis_risk", "malnutrition"],
+        },
+        "Renal_Function_Panel": {
+            "tests": [
+                build_lab_test(
+                    "Creatinine",
+                    units="mg/dL",
+                    normal_range=(0.7, 1.3),
+                    critical_high=10,
+                ),
+                build_lab_test(
+                    "BUN",
+                    units="mg/dL",
+                    normal_range=(7, 20),
+                    critical_high=100,
+                ),
+                build_lab_test(
+                    "eGFR",
+                    units="mL/min/1.73m²",
+                    normal_range=(90, 120),
+                    critical_low=15,
+                ),
+                build_lab_test(
+                    "Potassium",
+                    units="mmol/L",
+                    normal_range=(3.5, 5.1),
+                    critical_low=2.5,
+                    critical_high=6.5,
+                ),
+            ],
+            "frequency": "quarterly",
+            "indications": ["hypertension", "heart_failure", "diabetes"],
+        },
+        "Hematology_Iron": {
+            "tests": [
+                build_lab_test(
+                    "Ferritin",
+                    units="ng/mL",
+                    normal_range=(30, 300),
+                    critical_low=10,
+                ),
+                build_lab_test(
+                    "Serum Iron",
+                    units="ug/dL",
+                    normal_range=(60, 170),
+                    critical_low=30,
+                    critical_high=300,
+                ),
+                build_lab_test(
+                    "Total Iron Binding Capacity",
+                    units="ug/dL",
+                    normal_range=(240, 450),
+                ),
+                build_lab_test(
+                    "Transferrin",
+                    units="mg/dL",
+                    normal_range=(200, 350),
+                ),
+            ],
+            "frequency": "as_needed",
+            "indications": ["anemia_workup", "iron_deficiency"],
+        },
+        "Sepsis_Markers": {
+            "tests": [
+                build_lab_test(
+                    "Lactate",
+                    units="mmol/L",
+                    normal_range=(0.5, 2.2),
+                    critical_high=4.0,
+                ),
+                build_lab_test(
+                    "Procalcitonin",
+                    units="ng/mL",
+                    normal_range=(0, 0.5),
+                    critical_high=10,
+                ),
+                build_lab_test(
+                    "C-Reactive Protein High Sensitivity",
+                    units="mg/L",
+                    normal_range=(0, 3),
+                    critical_high=50,
+                ),
+            ],
+            "frequency": "as_needed",
+            "indications": ["sepsis", "systemic_inflammation"],
+        },
+        "Endocrine": {
+            "tests": [
+                build_lab_test(
+                    "Cortisol",
+                    units="ug/dL",
+                    normal_range=(5, 23),
+                ),
+                build_lab_test(
+                    "TSH Receptor Antibody",
+                    units="IU/L",
+                    normal_range=(0, 1.75),
+                ),
+                build_lab_test(
+                    "Free T3",
+                    units="pg/mL",
+                    normal_range=(2.0, 4.4),
+                ),
+            ],
+            "frequency": "as_needed",
+            "indications": ["endocrine_disorder", "thyroid_disorder"],
+        },
+    }
+)
 
 # Age and gender-specific reference range adjustments
 AGE_GENDER_ADJUSTMENTS = {
@@ -896,6 +2009,12 @@ def generate_sdoh_context(patient: Dict[str, Any]) -> Dict[str, Any]:
 def apply_sdoh_adjustments(condition: str, base_probability: float, patient: Dict[str, Any]) -> float:
     """Adjust condition probability based on social determinants of health."""
     modifiers = SDOH_CONDITION_MODIFIERS.get(condition, {})
+    normalized = condition.lower()
+    if not modifiers:
+        for key, value in SDOH_CONDITION_MODIFIERS.items():
+            if key.lower() in normalized:
+                modifiers = value
+                break
     if not modifiers:
         return base_probability
 
@@ -910,16 +2029,16 @@ def apply_sdoh_adjustments(condition: str, base_probability: float, patient: Dic
     language_barrier = patient.get("language_access_barrier", False)
     support_score = patient.get("social_support_score", 0.0)
 
-    if condition in {"Heart Disease", "Hypertension", "Diabetes"}:
+    if any(keyword in normalized for keyword in {"heart", "hypertens", "diabetes"}):
         weights = SDOH_CONTEXT_MODIFIERS["cardiometabolic"]
         adjusted += deprivation_index * weights["deprivation_weight"]
         adjusted += access_score * weights["access_weight"]
-    if condition in {"Cancer"}:
+    if "cancer" in normalized or "neoplasm" in normalized:
         weights = SDOH_CONTEXT_MODIFIERS["oncology"]
         if patient.get("sdoh_care_gaps"):
             adjusted += len(patient["sdoh_care_gaps"]) * weights["care_gap_penalty"] / 3
         adjusted += deprivation_index * weights["deprivation_weight"]
-    if condition in {"Depression", "Anxiety", "Major_Depressive_Disorder"}:
+    if any(keyword in normalized for keyword in {"depress", "anxiety", "mental"}):
         weights = SDOH_CONTEXT_MODIFIERS["behavioral"]
         if language_barrier:
             adjusted += weights["language_barrier_weight"]
@@ -1172,36 +2291,152 @@ CONDITION_OBSERVATIONS = {
 }
 # CONDITION_DEATH_CAUSES removed - replaced by CONDITION_MORTALITY_RISK with ICD-10-CM coding
 
-def assign_conditions(patient):
-    age = patient["age"]
-    gender = patient["gender"]
-    race = patient["race"]
-    smoking = patient["smoking_status"]
-    alcohol = patient["alcohol_use"]
 
-    # Phase 3: enrich patient risk profile prior to assigning conditions
+def _get_age_bin_label(age: int) -> str:
+    for (lower, upper), label in zip(AGE_BINS, AGE_BIN_LABELS):
+        if lower <= age <= upper:
+            return label
+    return AGE_BIN_LABELS[-1]
+
+
+def _calculate_condition_probability(
+    entry: Dict[str, Any],
+    patient: Dict[str, Any],
+    genetic_adjustments: Dict[str, float],
+) -> float:
+    base = entry.get("base_prevalence", 0.05)
+    age = patient.get("age", 0)
+    age_weights = entry.get("age_weights") or {}
+    if age_weights:
+        label = _get_age_bin_label(age)
+        weight = age_weights.get(label)
+        if weight is None and age_weights:
+            weight = sum(age_weights.values()) / len(age_weights)
+        if weight is not None:
+            base *= max(0.3, 0.5 + float(weight))
+
+    sex_weights = entry.get("sex_weights") or {}
+    if sex_weights:
+        gender_raw = (patient.get("gender") or "").lower()
+        if gender_raw.startswith("m"):
+            gender_key = "male"
+        elif gender_raw.startswith("f"):
+            gender_key = "female"
+        else:
+            gender_key = "other"
+        weight = sex_weights.get(gender_key, sex_weights.get("other", 0.05))
+        base *= max(0.3, 0.5 + float(weight))
+
+    base = apply_sdoh_adjustments(entry.get("display", ""), base, patient)
+
+    normalized_entry = entry.get("normalized", "")
+    display_lower = entry.get("display", "").lower()
+    for risk_condition, boost in genetic_adjustments.items():
+        risk_lower = risk_condition.lower()
+        if risk_lower and (risk_lower in display_lower or risk_lower in normalized_entry):
+            base += boost
+
+    sdoh_risk = patient.get("sdoh_risk_score", 0.0)
+    if sdoh_risk:
+        base *= 1 + min(sdoh_risk * 0.25, 0.3)
+
+    return min(base, 0.95)
+
+
+def _determine_condition_target(patient: Dict[str, Any], candidate_count: int) -> int:
+    age = patient.get("age", 0)
+    sdoh_risk = patient.get("sdoh_risk_score", 0.0)
+    genetic_risk = patient.get("genetic_risk_score", 0.0)
+
+    target = 1
+    if age >= 18:
+        target += 1
+    if age >= 40:
+        target += 1
+    if age >= 65:
+        target += 1
+    if sdoh_risk > 0.4:
+        target += 1
+    if sdoh_risk > 0.7:
+        target += 1
+    if genetic_risk > 1.5:
+        target += 1
+    if patient.get("smoking_status") == "Current":
+        target += 1
+
+    target = min(target, max(1, candidate_count))
+    return min(target, 8)
+
+
+def assign_conditions(patient: Dict[str, Any]) -> List[str]:
+    # Enrich patient risk profile prior to assigning conditions
     calculate_sdoh_risk(patient)
     genetic_adjustments = determine_genetic_risk(patient)
 
-    assigned = []
-    for cond, rules in CONDITION_PREVALENCE.items():
-        prob = 0.0
-        for rule in rules:
-            amin, amax, g, r, s, a, w = rule
-            if amin <= age <= amax:
-                if (g is None or g == gender) and (r is None or r == race) and (s is None or s == smoking) and (a is None or a == alcohol):
-                    prob = max(prob, w)
+    candidates: List[Tuple[str, float, Dict[str, Any]]] = []
+    for name, entry in CONDITION_CATALOG.items():
+        probability = _calculate_condition_probability(entry, patient, genetic_adjustments)
+        if probability <= 0.005:
+            continue
+        candidates.append((name, probability, entry))
 
-        prob = apply_sdoh_adjustments(cond, prob, patient)
-        prob += genetic_adjustments.get(cond, 0.0)
-        prob = min(prob, 0.95)
+    if not candidates:
+        fallback = random.choice(list(CONDITION_CATALOG.keys()))
+        patient["condition_profile"] = [fallback]
+        return [fallback]
 
-        if random.random() < prob:
-            assigned.append(cond)
+    candidates.sort(key=lambda item: item[1], reverse=True)
+    target = _determine_condition_target(patient, len(candidates))
+
+    assigned: List[str] = []
+    category_cap = Counter()
+    for name, probability, entry in candidates:
+        if len(assigned) >= target:
+            break
+        category = entry.get("category", "misc")
+        cap = 3 if category in {"infectious_disease", "symptoms"} else 2
+        if category_cap[category] >= cap:
+            continue
+        threshold = min(0.95, probability)
+        if random.random() < threshold:
+            assigned.append(name)
+            category_cap[category] += 1
+
+    if not assigned:
+        assigned.append(candidates[0][0])
+
+    # Add occasional acute events for additional realism
+    acute_pool = [
+        name
+        for name, _, entry in candidates
+        if entry.get("category") in {"infectious_disease", "injury", "symptoms"}
+        and name not in assigned
+    ]
+    if acute_pool and random.random() < 0.35:
+        assigned.append(random.choice(acute_pool))
 
     assigned = apply_comorbidity_relationships(assigned, patient)
     patient["condition_profile"] = assigned
     return assigned
+
+def _sample_condition_profile(entry: Dict[str, Any]) -> Tuple[Optional[Dict[str, str]], Optional[Dict[str, str]]]:
+    profile = entry.get("severity_profile")
+    if not profile:
+        return None, None
+    levels = profile.get("levels") or []
+    if not levels:
+        return None, None
+    choice = random.choice(levels)
+    coding = {
+        "system": profile.get("code_system", "http://snomed.info/sct"),
+        "code": choice.get("code", ""),
+        "display": choice.get("display", ""),
+        "type": profile.get("type"),
+    }
+    if profile.get("type") in STAGE_PROFILE_TYPES:
+        return coding, None
+    return None, coding
+
 
 def parse_distribution(dist_str, valid_keys, value_type="str", default_dist=None):
     if not dist_str:
@@ -1277,68 +2512,304 @@ def generate_patient(_):
     
     return patient
 
-def generate_encounters(patient, conditions=None, min_enc=1, max_enc=8):
-    # More chronic conditions = more encounters
-    n = random.randint(min_enc, max_enc)
-    if conditions:
-        n += int(len([c for c in conditions if c["name"] in CONDITION_MEDICATIONS]) * 1.5)
-    encounters = []
-    start_date = datetime.strptime(patient["birthdate"], "%Y-%m-%d")
-    for _ in range(n):
-        days_offset = random.randint(0, (datetime.now() - start_date).days)
-        encounter_date = start_date + timedelta(days=days_offset)
-        encounters.append({
+def generate_encounters(
+    patient: Dict[str, Any],
+    conditions: Optional[List[Dict[str, Any]]] = None,
+    min_enc: int = 1,
+    max_enc: int = 8,
+    preassigned_conditions: Optional[List[str]] = None,
+) -> List[Dict[str, Any]]:
+    """Generate encounters driven by condition burden and care pathways."""
+
+    age = int(patient.get("age", 0) or 0)
+    birthdate_str = patient.get("birthdate")
+    try:
+        birthdate = datetime.strptime(str(birthdate_str), "%Y-%m-%d").date()
+    except Exception:
+        birthdate = datetime.now().date() - timedelta(days=age * 365)
+
+    today = datetime.now().date()
+    max_history_days = max((today - birthdate).days, 30)
+    history_years = min(max(age // 20 + 1, 1), 5)
+    history_days = min(history_years * 365, max_history_days)
+
+    def _iter_condition_names() -> List[str]:
+        names: List[str] = []
+        if preassigned_conditions:
+            names.extend(preassigned_conditions)
+        elif patient.get("preassigned_conditions"):
+            names.extend(patient.get("preassigned_conditions", []))
+        elif patient.get("condition_profile"):
+            names.extend(patient.get("condition_profile", []))
+
+        if conditions:
+            for cond in conditions:
+                if isinstance(cond, str):
+                    names.append(cond)
+                elif isinstance(cond, dict):
+                    name = cond.get("name") or cond.get("condition") or cond.get("display")
+                    if name:
+                        names.append(name)
+        cleaned: List[str] = []
+        seen: set[str] = set()
+        for name in names:
+            if not name:
+                continue
+            normalized = _normalize_condition_display(name)
+            entry = CONDITION_CATALOG.get(normalized) or CONDITION_CATALOG.get(name)
+            canonical = entry["display"] if entry else normalized or name
+            if canonical not in seen:
+                cleaned.append(canonical)
+                seen.add(canonical)
+        return cleaned
+
+    assigned_conditions = _iter_condition_names()
+
+    visit_weights: Dict[str, float] = defaultdict(float)
+    visit_weights["wellness"] = 1.0 if age >= 2 else 0.3
+    if age < 18:
+        visit_weights["pediatrics"] += 0.8
+    if age >= 65:
+        visit_weights["primary_care"] += 0.6
+
+    patient_transport = patient.get("transportation_access")
+    if patient_transport == "limited":
+        visit_weights["telehealth"] += 0.4
+
+    category_condition_map: Dict[str, List[str]] = defaultdict(list)
+
+    for condition_name in assigned_conditions:
+        catalog_entry = CONDITION_CATALOG.get(condition_name)
+        if not catalog_entry:
+            normalized = _normalize_condition_display(condition_name)
+            catalog_entry = CONDITION_CATALOG.get(normalized)
+            if catalog_entry is None:
+                continue
+            condition_name = catalog_entry["display"]
+
+        category = catalog_entry.get("category", "misc")
+        category_condition_map[category].append(condition_name)
+
+        contributions = CONDITION_CATEGORY_VISIT_CONTRIBUTIONS.get(category, DEFAULT_VISIT_CONTRIBUTIONS)
+        severity_multiplier = 1.0
+        if catalog_entry.get("severity_profile"):
+            severity_multiplier += 0.2
+        base_prev = float(catalog_entry.get("base_prevalence", 0) or 0)
+        if base_prev >= 0.20:
+            severity_multiplier += 0.1
+
+        for blueprint_key, weight in contributions.items():
+            visit_weights[blueprint_key] += weight * severity_multiplier
+
+    if not assigned_conditions and age >= 18:
+        visit_weights["primary_care"] += 0.4
+
+    planned_blueprints: List[str] = []
+    for blueprint_key, weight in visit_weights.items():
+        blueprint = ENCOUNTER_BLUEPRINTS.get(blueprint_key)
+        if not blueprint or weight <= 0:
+            continue
+        expected = weight * max(1.0, history_years)
+        if blueprint_key == "wellness":
+            expected = max(expected, history_years * 0.9)
+        expected = min(expected, history_years * 4)
+        count = max(0, int(expected))
+        remainder = expected - count
+        if random.random() < remainder:
+            count += 1
+        if blueprint_key == "wellness":
+            count = max(count, 1)
+        for _ in range(count):
+            planned_blueprints.append(blueprint_key)
+
+    if not planned_blueprints:
+        planned_blueprints.append("primary_care")
+
+    if len(planned_blueprints) < min_enc:
+        planned_blueprints.extend(["primary_care"] * (min_enc - len(planned_blueprints)))
+
+    soft_cap = max(max_enc, min(len(planned_blueprints), max_enc + max(0, len(assigned_conditions) // 2)))
+    essential = {"wellness", "primary_care"}
+    while len(planned_blueprints) > soft_cap:
+        removed = False
+        for idx, key in enumerate(planned_blueprints):
+            if key not in essential:
+                planned_blueprints.pop(idx)
+                removed = True
+                break
+        if not removed:
+            planned_blueprints = planned_blueprints[:soft_cap]
+            break
+
+    random.shuffle(planned_blueprints)
+
+    def _pick_reason(blueprint_key: str, blueprint: Dict[str, Any]) -> str:
+        options = blueprint.get("reason_options") or [blueprint.get("type", "Encounter")]
+        reason = random.choice(options)
+        categories = blueprint.get("categories") or []
+        related: List[str] = []
+        for cat in categories:
+            related.extend(category_condition_map.get(cat, []))
+        related = [cond for cond in related if cond]
+        if related:
+            focus = random.choice(related)
+            return f"{reason} for {focus}"
+        return reason
+
+    def _build_location(department: str) -> str:
+        suffix = random.choice(VISIT_LOCATION_SUFFIXES)
+        return f"{department} - {fake.city()} {suffix}"
+
+    def _build_provider(blueprint_key: str, department: str) -> str:
+        if blueprint_key == "lab":
+            return f"{fake.last_name()} Laboratory Technologist"
+        if blueprint_key == "imaging":
+            return f"{fake.last_name()} Imaging Specialist"
+        if blueprint_key == "telehealth":
+            return f"{fake.last_name()} Telehealth Clinician"
+        if blueprint_key == "rehab":
+            return f"{fake.last_name()} Physical Therapist"
+        if blueprint_key == "behavioral_health":
+            return f"{fake.last_name()} Behavioral Health Counselor"
+        if blueprint_key == "urgent_care":
+            return f"{fake.last_name()} Urgent Care PA"
+        if blueprint_key == "emergency":
+            return f"Dr. {fake.last_name()} (Emergency Medicine)"
+        return f"Dr. {fake.last_name()}"
+
+    encounters: List[Dict[str, Any]] = []
+    for blueprint_key in planned_blueprints:
+        blueprint = ENCOUNTER_BLUEPRINTS.get(blueprint_key)
+        if not blueprint:
+            continue
+
+        offset_days = random.randint(0, max(1, history_days))
+        encounter_date = today - timedelta(days=offset_days)
+        if encounter_date < birthdate:
+            encounter_date = birthdate + timedelta(days=random.randint(0, 30))
+
+        if blueprint.get("service_category") == "E":
+            hour = random.randint(0, 23)
+        else:
+            hour = random.randint(8, 17)
+        minute = random.choice([0, 15, 30, 45])
+        time_value = f"{hour:02d}:{minute:02d}"
+
+        encounter = {
             "encounter_id": str(uuid.uuid4()),
             "patient_id": patient["patient_id"],
-            "date": encounter_date.date().isoformat(),
-            "type": random.choice(ENCOUNTER_TYPES),
-            "reason": random.choice(ENCOUNTER_REASONS),
-            "provider": fake.company(),
-            "location": fake.city(),
-        })
+            "date": encounter_date.isoformat(),
+            "time": time_value,
+            "type": blueprint["type"],
+            "reason": _pick_reason(blueprint_key, blueprint),
+            "provider": _build_provider(blueprint_key, blueprint["department"]),
+            "location": _build_location(blueprint["department"]),
+            "clinic_stop": blueprint["stop_code"],
+            "clinic_stop_description": blueprint.get("stop_description", ""),
+            "service_category": blueprint.get("service_category", "A"),
+            "department": blueprint["department"],
+            "mode": blueprint.get("mode", "in-person"),
+        }
+
+        encounter["encounter_class"] = (
+            "emergency"
+            if encounter["service_category"] == "E"
+            else "inpatient"
+            if encounter["service_category"] == "I"
+            else "ambulatory"
+        )
+
+        if blueprint_key in {"lab", "imaging"}:
+            encounter["duration_minutes"] = random.randint(30, 90)
+        elif blueprint_key == "emergency":
+            encounter["duration_minutes"] = random.randint(120, 360)
+        else:
+            encounter["duration_minutes"] = random.randint(25, 75)
+
+        categories = blueprint.get("categories") or []
+        related: List[str] = []
+        for cat in categories:
+            related.extend(category_condition_map.get(cat, []))
+        if related:
+            encounter["related_conditions"] = ", ".join(sorted(set(related)))
+
+        encounters.append(encounter)
+
+    encounters.sort(key=lambda item: (item.get("date"), item.get("time", "")))
     return encounters
 
-def generate_conditions(patient, encounters, min_cond=1, max_cond=5):
-    # Use assigned conditions for realism
-    assigned = assign_conditions(patient)
-    n = max(min_cond, len(assigned))
-    conditions = []
+def generate_conditions(
+    patient: Dict[str, Any],
+    encounters: List[Dict[str, Any]],
+    min_cond: int = 1,
+    max_cond: int = 5,
+    preassigned_conditions: Optional[List[str]] = None,
+) -> List[Dict[str, Any]]:
+    """Instantiate condition records using pre-assigned condition names."""
+
+    assigned: List[str]
+    if preassigned_conditions:
+        assigned = list(preassigned_conditions)
+    elif patient.get("preassigned_conditions"):
+        assigned = list(patient.get("preassigned_conditions", []))
+    else:
+        assigned = assign_conditions(patient)
+        patient["preassigned_conditions"] = assigned
+
+    if len(assigned) > max_cond:
+        assigned = assigned[:max_cond]
+
+    condition_records: List[Dict[str, Any]] = []
     for cond in assigned:
+        catalog_entry = CONDITION_CATALOG.get(cond) or CONDITION_CATALOG.get(_normalize_condition_display(cond), {})
         enc = random.choice(encounters) if encounters else None
-        onset_date = enc["date"] if enc else patient["birthdate"]
-        catalog_entry = CONDITION_CATALOG.get(cond, {})
-        conditions.append({
+        if enc is None and encounters:
+            enc = encounters[0]
+        encounter_id = enc.get("encounter_id") if enc else None
+        onset_date = enc.get("date") if enc else patient.get("birthdate")
+        stage_detail, severity_detail = _sample_condition_profile(catalog_entry)
+        condition_records.append({
             "condition_id": str(uuid.uuid4()),
             "patient_id": patient["patient_id"],
-            "encounter_id": enc["encounter_id"] if enc else None,
-            "name": cond,
+            "encounter_id": encounter_id,
+            "name": catalog_entry.get("display", cond),
             "status": random.choice(CONDITION_STATUSES),
             "onset_date": onset_date,
             "icd10_code": catalog_entry.get("icd10"),
             "snomed_code": catalog_entry.get("snomed"),
-            "condition_category": catalog_entry.get("category")
-        })
-    # Add a few random acute conditions
-    for _ in range(random.randint(0, 2)):
-        cond = random.choice([c for c in CONDITION_NAMES if c not in assigned])
-        enc = random.choice(encounters) if encounters else None
-        onset_date = enc["date"] if enc else patient["birthdate"]
-        catalog_entry = CONDITION_CATALOG.get(cond, {})
-        conditions.append({
-            "condition_id": str(uuid.uuid4()),
-            "patient_id": patient["patient_id"],
-            "encounter_id": enc["encounter_id"] if enc else None,
-            "name": cond,
-            "status": random.choice(CONDITION_STATUSES),
-            "onset_date": onset_date,
-            "icd10_code": catalog_entry.get("icd10"),
-            "snomed_code": catalog_entry.get("snomed"),
-            "condition_category": catalog_entry.get("category")
+            "condition_category": catalog_entry.get("category"),
+            "stage_detail": stage_detail,
+            "severity_detail": severity_detail,
         })
 
-    # Phase 3: assign precision medicine markers for relevant conditions
-    assign_precision_markers(patient, conditions)
-    return conditions
+    if len(condition_records) < min_cond and CONDITION_NAMES:
+        fallback_candidates = [c for c in CONDITION_NAMES if c not in assigned]
+        if fallback_candidates:
+            cond = random.choice(fallback_candidates)
+            catalog_entry = CONDITION_CATALOG.get(cond, {})
+            enc = random.choice(encounters) if encounters else None
+            encounter_id = enc.get("encounter_id") if enc else None
+            onset_date = enc.get("date") if enc else patient.get("birthdate")
+            stage_detail, severity_detail = _sample_condition_profile(catalog_entry)
+            condition_records.append({
+                "condition_id": str(uuid.uuid4()),
+                "patient_id": patient["patient_id"],
+                "encounter_id": encounter_id,
+                "name": cond,
+                "status": random.choice(CONDITION_STATUSES),
+                "onset_date": onset_date,
+                "icd10_code": catalog_entry.get("icd10"),
+                "snomed_code": catalog_entry.get("snomed"),
+                "condition_category": catalog_entry.get("category"),
+                "stage_detail": stage_detail,
+                "severity_detail": severity_detail,
+            })
+
+    patient["condition_profile"] = [record["name"] for record in condition_records]
+    patient["preassigned_conditions"] = patient.get("condition_profile", [])
+
+    assign_precision_markers(patient, condition_records)
+    return condition_records
 
 # PHASE 1: Evidence-based medication generation with contraindication checking
 def generate_medications(patient, encounters, conditions=None, min_med=0, max_med=4):
@@ -1467,13 +2938,15 @@ def prescribe_evidence_based_medication(patient, condition, encounters, contrain
 def select_safe_medication(medication_list, contraindications):
     """Select a medication that doesn't have contraindications"""
     safe_medications = []
-    
+
     for med in medication_list:
         med_contraindications = MEDICATION_CONTRAINDICATIONS.get(med, [])
+        if not med_contraindications and "_" in med:
+            med_contraindications = MEDICATION_CONTRAINDICATIONS.get(med.replace("_", " "), [])
         is_safe = not any(contra in contraindications for contra in med_contraindications)
         if is_safe:
             safe_medications.append(med)
-    
+
     return random.choice(safe_medications) if safe_medications else None
 
 def create_medication_record(patient, condition, encounters, medication_name, therapy_category):
@@ -1497,20 +2970,28 @@ def create_medication_record(patient, condition, encounters, medication_name, th
         else:
             end_date = None
 
-    med_entry = MEDICATION_CATALOG.get(medication_name, {})
+    resolved_name, med_entry = resolve_medication_entry(medication_name)
+    therapeutic_class = med_entry.get("therapeutic_class") if med_entry else ""
+    route = THERAPEUTIC_CLASS_ROUTE_MAP.get(therapeutic_class, "oral")
+    if therapeutic_class in {"chemotherapy", "targeted_therapy"}:
+        route = "intravenous"
+    monitoring_panels = MEDICATION_MONITORING_MAP.get(therapeutic_class, [])
 
     return {
         "medication_id": str(uuid.uuid4()),
         "patient_id": patient["patient_id"],
         "encounter_id": enc["encounter_id"] if enc else None,
-        "name": medication_name,
+        "name": resolved_name,
         "indication": condition["name"],
         "therapy_category": therapy_category,
         "start_date": start_date,
         "end_date": end_date,
-        "rxnorm_code": med_entry.get("rxnorm"),
-        "ndc_code": med_entry.get("ndc"),
-        "therapeutic_class": med_entry.get("therapeutic_class")
+        "rxnorm_code": med_entry.get("rxnorm_code") if med_entry else med_entry.get("rxnorm") if med_entry else None,
+        "ndc_code": med_entry.get("ndc") if med_entry else med_entry.get("ndc_code") if med_entry else None,
+        "therapeutic_class": therapeutic_class,
+        "route": route,
+        "monitoring_panels": monitoring_panels,
+        "status": "active" if not end_date else "completed",
     }
 
 def generate_allergies(patient, min_all=0, max_all=2):
@@ -1762,13 +3243,13 @@ def generate_immunizations(patient, encounters, min_imm=0, max_imm=3):
     return immunizations
 
 # PHASE 2: Enhanced observation generation with comprehensive lab panels
-def generate_observations(patient, encounters, conditions=None, min_obs=1, max_obs=8):
+def generate_observations(patient, encounters, conditions=None, medications=None, min_obs=1, max_obs=8):
     observations = []
     age = patient.get("age", 30)
     gender = patient.get("gender", "")
     
     # Determine appropriate lab panels based on conditions and demographics
-    required_panels = determine_lab_panels(patient, conditions)
+    required_panels = determine_lab_panels(patient, conditions, medications)
     
     # Generate condition-specific lab panels
     for panel_name in required_panels:
@@ -1781,7 +3262,7 @@ def generate_observations(patient, encounters, conditions=None, min_obs=1, max_o
     
     return observations
 
-def determine_lab_panels(patient, conditions):
+def determine_lab_panels(patient, conditions, medications=None):
     """Determine which lab panels are clinically appropriate"""
     panels = set()
     age = patient.get("age", 30)
@@ -1819,6 +3300,35 @@ def determine_lab_panels(patient, conditions):
             if condition_name in ["Depression", "Anxiety", "Major_Depressive_Disorder"]:
                 panels.add("Behavioral_Health_Assessments")
     
+    med_classes = set()
+    if medications:
+        for med in medications:
+            med_class = (med.get("therapeutic_class") or "").lower()
+            if med_class:
+                med_classes.add(med_class)
+            for panel in med.get("monitoring_panels", []):
+                if panel:
+                    panels.add(panel)
+        med_names = {(med.get("name") or "").lower() for med in medications}
+        if med_classes.intersection({"anticoagulant", "antiplatelet"}) or any(name in med_names for name in {"warfarin", "apixaban", "rivaroxaban"}):
+            panels.add("Coagulation_Panel")
+        if med_classes.intersection({"statin", "ace_inhibitor", "arb", "thiazide_diuretic", "loop_diuretic", "aldosterone_antagonist"}):
+            panels.add("Renal_Function_Panel")
+            panels.add("Lipid_Panel")
+        if med_classes.intersection({"sglt2_inhibitor", "basal_insulin", "rapid_insulin", "glp1_agonist", "sulfonylurea"}):
+            panels.add("Diabetes_Monitoring")
+        if med_classes.intersection({"bronchodilator", "inhaled_combo", "inhaled_steroid", "long_acting_anticholinergic"}):
+            panels.add("Pulmonary_Function")
+        if med_classes.intersection({"chemotherapy", "targeted_therapy"}):
+            panels.add("Oncology_Tumor_Markers")
+            panels.add("Complete_Blood_Count")
+        if med_classes.intersection({"anticoagulant", "chemotherapy"}):
+            panels.add("Cardiac_Markers_Advanced")
+        if med_classes.intersection({"glucocorticoid", "antiviral", "antibiotic"}):
+            panels.add("Inflammatory_Markers")
+        if med_classes.intersection({"thyroid_replacement"}):
+            panels.add("Thyroid_Function")
+
     # Random additional panels (simulate clinical judgment)
     if random.random() < 0.3:  # 30% chance of inflammatory markers
         panels.add("Inflammatory_Markers")
