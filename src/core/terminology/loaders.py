@@ -12,6 +12,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
+import polars as pl
+
 try:  # optional dependency for DuckDB-backed lookups
     import duckdb  # type: ignore
 except ModuleNotFoundError:  # pragma: no cover - optional import
@@ -100,6 +102,27 @@ def _fetch_table_records(table: str, root_override: Optional[str]) -> Optional[L
     finally:
         con.close()
     return df.to_dict(orient="records") if not df.empty else []
+
+
+def _read_frame(
+    table: str,
+    csv_path: Path,
+    root_override: Optional[str],
+    required_columns: Optional[Dict[str, str]] = None,
+) -> Optional[pl.DataFrame]:
+    records = _fetch_table_records(table, root_override)
+    if records is not None:
+        return pl.DataFrame(records)
+    if not csv_path.exists():
+        return None
+    frame = pl.read_csv(csv_path)
+    if required_columns:
+        missing = {col: default for col, default in required_columns.items() if col not in frame.columns}
+        if missing:
+            frame = frame.with_columns(
+                [pl.lit(default).alias(col) for col, default in missing.items()]
+            )
+    return frame
 
 
 def _load_from_db(
@@ -205,6 +228,332 @@ def load_rxnorm_medications(root: Optional[str] = None) -> List[TerminologyEntry
     else:
         path = _resolve_path("rxnorm/rxnorm_medications.csv", root)
     return _load_csv(path, code_field="rxnorm_cui", display_field="ingredient_name")
+
+
+def _load_rxnorm_frame(root_override: Optional[str] = None) -> Optional[pl.DataFrame]:
+    path = _resolve_path("rxnorm/rxnorm_full.csv", root_override)
+    required = {
+        "rxnorm_cui": "",
+        "tty": "",
+        "ingredient_name": "",
+        "source_code": "",
+        "sab": "",
+        "ndc_example": "",
+        "ncbi_url": "",
+    }
+    return _read_frame("rxnorm", path, root_override, required)
+
+
+def _load_snomed_frame(root_override: Optional[str] = None) -> Optional[pl.DataFrame]:
+    path = _resolve_path("snomed/snomed_full.csv", root_override)
+    required = {
+        "snomed_id": "",
+        "pt_name": "",
+        "definition_status_id": "",
+        "icd10_mapping": "",
+        "ncbi_url": "",
+    }
+    return _read_frame("snomed", path, root_override, required)
+
+
+def _clean_allergen_display(raw: str) -> str:
+    name = raw.strip()
+    lowered = name.lower()
+    replacements = {
+        "allergenic extract": "",
+        "venom protein": "venom",
+        "dander extract": "dander",
+        "hair extract": "hair",
+        "pollen extract": "pollen",
+        "extract": "",
+    }
+    for old, new in replacements.items():
+        if old in lowered:
+            lowered = lowered.replace(old, new)
+    lowered = lowered.replace("  ", " ")
+    cleaned = " ".join(part for part in lowered.split() if part)
+    if not cleaned:
+        cleaned = raw.strip()
+    display = cleaned.title()
+    title_fixes = {
+        "Ace": "ACE",
+        "Arb": "ARB",
+        "Ig": "Ig",
+        "Ii": "II",
+    }
+    for needle, replacement in title_fixes.items():
+        display = display.replace(needle, replacement)
+    return display
+
+
+def _classify_allergen(raw: str, default: str = "environment") -> str:
+    lowered = raw.lower()
+    food_terms = [
+        "peanut",
+        "shellfish",
+        "shrimp",
+        "crab",
+        "lobster",
+        "fish",
+        "salmon",
+        "tuna",
+        "cod",
+        "halibut",
+        "egg",
+        "milk",
+        "soy",
+        "wheat",
+        "almond",
+        "cashew",
+        "hazelnut",
+        "pistachio",
+        "walnut",
+        "pecan",
+        "sesame",
+        "banana",
+        "strawberry",
+        "avocado",
+    ]
+    insect_terms = [
+        "venom",
+        "bee",
+        "wasp",
+        "hornet",
+        "yellow jacket",
+    ]
+    environment_terms = [
+        "dander",
+        "hair",
+        "pollen",
+        "dust",
+        "mite",
+        "mold",
+        "fungus",
+        "smut",
+    ]
+
+    if any(term in lowered for term in food_terms):
+        return "food"
+    if any(term in lowered for term in insect_terms):
+        return "insect"
+    if any(term in lowered for term in environment_terms):
+        return "environment"
+    return default
+
+
+def load_allergen_entries(
+    root: Optional[str] = None,
+    *,
+    max_allergens: int = 120,
+) -> List[TerminologyEntry]:
+    frame = _load_rxnorm_frame(root)
+    if frame is None or frame.is_empty():
+        return []
+
+    frame = frame.with_columns(
+        pl.col("rxnorm_cui").cast(pl.Utf8),
+        pl.col("ingredient_name").str.strip_chars(),
+    )
+    frame = frame.filter(pl.col("ingredient_name").is_not_null() & (pl.col("ingredient_name") != ""))
+
+    allergens: Dict[str, TerminologyEntry] = {}
+
+    def _add_entry(row: Dict[str, Any], category: str, preferred_display: Optional[str] = None) -> None:
+        if row is None:
+            return
+        raw_name = row.get("ingredient_name") or ""
+        if not raw_name:
+            return
+        display = preferred_display or raw_name
+        cleaned = _clean_allergen_display(display)
+        key = cleaned.lower()
+        if key in allergens:
+            return
+        code = str(row.get("rxnorm_cui") or cleaned)
+        metadata = {
+            "category": category,
+            "rxnorm_name": raw_name,
+        }
+        if row.get("ndc_example"):
+            metadata["ndc_example"] = str(row["ndc_example"])
+        if row.get("ncbi_url"):
+            metadata["ncbi_url"] = str(row["ncbi_url"])
+        allergens[key] = TerminologyEntry(code=code, display=cleaned, metadata=metadata)
+
+    lowercase_name = pl.col("ingredient_name").str.to_lowercase()
+    candidates: List[pl.DataFrame] = [
+        frame.filter(lowercase_name.str.contains("allergenic extract")),
+        frame.filter(lowercase_name.str.contains("venom")),
+        frame.filter(lowercase_name.str.contains("dander")),
+        frame.filter(lowercase_name.str.contains("pollen")),
+        frame.filter(lowercase_name.str.contains("mite")),
+    ]
+
+    for candidate in candidates:
+        if candidate.is_empty():
+            continue
+        for row in candidate.to_dicts():
+            category = _classify_allergen(row.get("ingredient_name", ""), "environment")
+            _add_entry(row, category)
+
+    curated_drugs = [
+        "penicillin g",
+        "penicillin v",
+        "amoxicillin",
+        "ampicillin",
+        "cephalexin",
+        "ceftriaxone",
+        "sulfamethoxazole",
+        "trimethoprim",
+        "azithromycin",
+        "erythromycin",
+        "ibuprofen",
+        "acetaminophen",
+        "aspirin",
+        "ketorolac",
+        "naproxen",
+        "lisinopril",
+        "losartan",
+        "metformin",
+        "insulin lispro",
+        "hydrochlorothiazide",
+        "morphine",
+        "oxycodone",
+        "ondansetron",
+        "piperacillin",
+        "clindamycin",
+        "vancomycin",
+    ]
+
+    lower_name = pl.col("ingredient_name").str.to_lowercase()
+    for term in curated_drugs:
+        matches = frame.filter(lower_name == term)
+        if matches.is_empty():
+            matches = frame.filter(lower_name.str.contains(term))
+        if matches.is_empty():
+            continue
+        row = matches.row(0, named=True)
+        _add_entry(row, "drug")
+
+    food_terms = [
+        "peanut allergenic extract",
+        "egg white (chicken) allergenic extract",
+        "egg yolk (chicken) allergenic extract",
+        "goat milk allergenic extract",
+        "cow milk allergenic extract",
+        "soybean allergenic extract",
+        "wheat allergenic extract",
+        "shrimp allergenic extract",
+        "crab allergenic extract",
+        "lobster allergenic extract",
+        "tuna allergenic extract",
+        "salmon allergenic extract",
+        "cashew nut allergenic extract",
+        "pistachio nut allergenic extract",
+        "almond allergenic extract",
+        "hazelnut allergenic extract",
+        "pecan allergenic extract",
+        "walnut allergenic extract",
+        "sesame seed allergenic extract",
+        "banana allergenic extract",
+        "strawberry allergenic extract",
+        "avocado allergenic extract",
+    ]
+
+    for term in food_terms:
+        matches = frame.filter(lower_name == term)
+        if matches.is_empty():
+            matches = frame.filter(lower_name.str.contains(term.split()[0]))
+        if matches.is_empty():
+            continue
+        row = matches.row(0, named=True)
+        _add_entry(row, "food")
+
+    # Manual additions for common allergens not present in RxNorm ingredient list
+    manual_allergens = [
+        TerminologyEntry(
+            code="latex",
+            display="Natural Rubber Latex",
+            metadata={
+                "category": "environment",
+                "snomed_code": "1003754000",
+            },
+        ),
+    ]
+
+    for entry in manual_allergens:
+        key = entry.display.lower()
+        if key not in allergens:
+            allergens[key] = entry
+
+    category_groups: Dict[str, List[TerminologyEntry]] = {}
+    for entry in allergens.values():
+        category = entry.metadata.get("category", "environment")
+        category_groups.setdefault(category, []).append(entry)
+
+    for bucket in category_groups.values():
+        bucket.sort(key=lambda item: item.display)
+
+    total_entries = sum(len(bucket) for bucket in category_groups.values())
+    if max_allergens and total_entries > max_allergens:
+        selected: List[TerminologyEntry] = []
+        categories = [cat for cat, bucket in category_groups.items() if bucket]
+        index = 0
+        while categories and len(selected) < max_allergens:
+            category = categories[index % len(categories)]
+            bucket = category_groups[category]
+            if bucket:
+                selected.append(bucket.pop(0))
+            if not bucket:
+                categories = [cat for cat in categories if category_groups[cat]]
+                index = 0
+                continue
+            index += 1
+        return selected
+
+    ordered: List[TerminologyEntry] = []
+    for category in sorted(category_groups.keys()):
+        ordered.extend(category_groups[category])
+    return ordered
+
+
+def load_allergy_reaction_entries(root: Optional[str] = None) -> List[Dict[str, str]]:
+    snomed_frame = _load_snomed_frame(root)
+    reactions: List[Dict[str, str]] = []
+
+    reaction_definitions = [
+        ("Anaphylaxis", "39579001"),
+        ("Urticaria", "126485001"),
+        ("Angioedema", "41291007"),
+        ("Bronchospasm", "427461000"),
+        ("Wheezing", "56018004"),
+        ("Shortness of breath", "267036007"),
+        ("Nausea", "422587007"),
+        ("Vomiting", "422400008"),
+        ("Rash", "271807003"),
+        ("Itching", "418290006"),
+        ("Hypotension", "45007003"),
+        ("Tachycardia", "3424008"),
+    ]
+
+    valid_codes: Dict[str, str] = {}
+    if snomed_frame is not None and not snomed_frame.is_empty():
+        snomed_frame = snomed_frame.with_columns(pl.col("snomed_id").cast(pl.Utf8))
+        lookup = {row[0]: row[1] for row in snomed_frame.select(["snomed_id", "pt_name"]).to_numpy()}
+        valid_codes = lookup
+
+    for display, code in reaction_definitions:
+        if valid_codes and code not in valid_codes:
+            continue
+        reactions.append(
+            {
+                "display": display,
+                "code": code,
+                "system": "http://snomed.info/sct",
+            }
+        )
+
+    return reactions
 
 
 def load_vsac_value_sets(root: Optional[str] = None) -> List[ValueSetMember]:

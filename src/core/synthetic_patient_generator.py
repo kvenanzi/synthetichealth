@@ -396,6 +396,146 @@ class FHIRFormatter:
                 )
         return coding_entry
 
+    def create_allergy_intolerance_resource(
+        self,
+        patient_id: str,
+        allergy: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        allergy_id = allergy.get("allergy_id", str(uuid.uuid4()))
+        substance_display = allergy.get("substance", "Unknown Allergen")
+        substance_coding: List[Dict[str, Any]] = []
+
+        rxnorm_code = allergy.get("rxnorm_code")
+        if rxnorm_code:
+            substance_coding.append(
+                self._build_coding(
+                    "http://www.nlm.nih.gov/research/umls/rxnorm",
+                    rxnorm_code,
+                    substance_display,
+                )
+            )
+
+        snomed_substance = allergy.get("snomed_code")
+        if snomed_substance:
+            substance_coding.append(
+                self._build_coding(
+                    "http://snomed.info/sct",
+                    snomed_substance,
+                    substance_display,
+                )
+            )
+
+        if not substance_coding:
+            substance_coding.append(
+                {
+                    "system": "http://terminology.hl7.org/CodeSystem/data-absent-reason",
+                    "code": "unknown",
+                    "display": substance_display,
+                }
+            )
+
+        category_map = {
+            "drug": "medication",
+            "food": "food",
+            "environment": "environment",
+            "insect": "biologic",
+        }
+        category_value = None
+        category = allergy.get("category")
+        if category:
+            category_value = category_map.get(category)
+
+        reaction_entry: Dict[str, Any] = {"manifestation": []}
+        reaction_text = allergy.get("reaction")
+        reaction_code = allergy.get("reaction_code")
+        reaction_system = allergy.get("reaction_system", "http://snomed.info/sct")
+        if reaction_code:
+            reaction_entry["manifestation"].append(
+                {
+                    "coding": [
+                        self._build_coding(
+                            reaction_system,
+                            reaction_code,
+                            reaction_text or "Allergic reaction",
+                        )
+                    ],
+                    "text": reaction_text or "Allergic reaction",
+                }
+            )
+        else:
+            reaction_entry["manifestation"].append(
+                {"text": reaction_text or "Allergic reaction"}
+            )
+
+        severity = allergy.get("severity")
+        if severity:
+            reaction_entry["severity"] = severity.lower()
+
+        clinical_status = {
+            "coding": [
+                {
+                    "system": "http://terminology.hl7.org/CodeSystem/allergyintolerance-clinical",
+                    "code": "active",
+                }
+            ]
+        }
+        verification_status = {
+            "coding": [
+                {
+                    "system": "http://terminology.hl7.org/CodeSystem/allergyintolerance-verification",
+                    "code": "confirmed",
+                }
+            ]
+        }
+
+        severity_code = allergy.get("severity_code")
+        severity_system = allergy.get("severity_system", "http://snomed.info/sct")
+        criticality = None
+        if severity:
+            severity_lower = severity.lower()
+            if severity_lower == "severe":
+                criticality = "high"
+            elif severity_lower in {"moderate", "mild"}:
+                criticality = "low"
+
+        resource: Dict[str, Any] = {
+            "resourceType": "AllergyIntolerance",
+            "id": allergy_id,
+            "patient": {"reference": f"Patient/{patient_id}"},
+            "code": {
+                "coding": substance_coding,
+                "text": substance_display,
+            },
+            "clinicalStatus": clinical_status,
+            "verificationStatus": verification_status,
+            "reaction": [reaction_entry],
+        }
+
+        recorded_date = allergy.get("recorded_date")
+        if recorded_date:
+            resource["recordedDate"] = recorded_date
+        if category_value:
+            resource["category"] = [category_value]
+        if criticality:
+            resource["criticality"] = criticality
+        if severity_code:
+            resource.setdefault("extension", []).append(
+                {
+                    "url": "http://hl7.org/fhir/StructureDefinition/allergyintolerance-severity",
+                    "valueCodeableConcept": {
+                        "coding": [
+                            {
+                                "system": severity_system,
+                                "code": severity_code,
+                                "display": severity,
+                            }
+                        ]
+                    },
+                }
+            )
+
+        return resource
+
     def create_medication_statement_resource(
         self,
         patient_id: str,
@@ -658,7 +798,27 @@ class HL7v2Formatter:
         
         pid = "|".join(pid_segments)
         segments.append(pid)
-        
+
+        allergies: List[Dict[str, Any]] = []
+        if isinstance(patient_record, LifecyclePatient):
+            allergies = getattr(patient_record, "allergies", []) or []
+        else:
+            allergies = getattr(patient_record, "allergies", []) or []
+
+        type_map = {"drug": "DA", "food": "FA", "environment": "EA", "insect": "EA"}
+        for idx, allergy in enumerate(allergies, start=1):
+            severity = (allergy.get("severity") or "").upper()
+            reaction = allergy.get("reaction", "")
+            substance = allergy.get("substance", "")
+            rx_code = allergy.get("rxnorm_code") or allergy.get("snomed_code") or ""
+            coding_system = "RXN" if allergy.get("rxnorm_code") else "SCT" if allergy.get("snomed_code") else "TEXT"
+            if not rx_code:
+                rx_code = substance[:12].upper() if substance else "UNKNOWN"
+            allergen_type = allergy.get("category", "")
+            allergen_type_code = type_map.get(allergen_type, "MA")
+            al1 = f"AL1|{idx}|{allergen_type_code}|{rx_code}^{substance}^{coding_system}|{severity}|{reaction}|"
+            segments.append(al1)
+
         # PV1 - Patient Visit (if encounter provided)
         if encounter:
             pv1_segments = [
@@ -2388,6 +2548,16 @@ def main():
                     patient.patient_id, condition
                 )
                 bundle_entries.append({"resource": condition_resource})
+
+        # Add AllergyIntolerance resources
+        for patient in tqdm(patients_list, desc="Creating FHIR Allergy resources", unit="patients"):
+            if not isinstance(patient, LifecyclePatient):
+                continue
+            for allergy in patient.allergies:
+                allergy_resource = fhir_formatter.create_allergy_intolerance_resource(
+                    patient.patient_id, allergy
+                )
+                bundle_entries.append({"resource": allergy_resource})
 
         # Add MedicationStatement resources
         for patient in tqdm(patients_list, desc="Creating FHIR Medication resources", unit="patients"):

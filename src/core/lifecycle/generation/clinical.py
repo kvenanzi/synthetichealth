@@ -18,24 +18,79 @@ from ...terminology_catalogs import (
     CONDITIONS as CONDITION_TERMS,
     MEDICATIONS as MEDICATION_TERMS,
     IMMUNIZATIONS as IMMUNIZATION_TERMS,
-    ALLERGENS as ALLERGEN_TERMS,
+    ALLERGENS as FALLBACK_ALLERGEN_TERMS,
     PROCEDURES as PROCEDURE_TERMS,
 )
+from ...terminology.loaders import load_allergen_entries, load_allergy_reaction_entries
 
 
 CONDITION_CATALOG = {entry["display"]: entry for entry in CONDITION_TERMS}
 MEDICATION_CATALOG = {entry["display"]: entry for entry in MEDICATION_TERMS}
 IMMUNIZATION_CATALOG = {entry["display"]: entry for entry in IMMUNIZATION_TERMS}
-ALLERGEN_CATALOG = {entry["display"]: entry for entry in ALLERGEN_TERMS}
 PROCEDURE_CATALOG = {entry["display"]: entry for entry in PROCEDURE_TERMS}
 
 CONDITION_NAMES = list(CONDITION_CATALOG.keys())
 MEDICATIONS = list(MEDICATION_CATALOG.keys())
-ALLERGY_SUBSTANCES = list(ALLERGEN_CATALOG.keys())
-ALLERGY_REACTIONS = ["Rash", "Anaphylaxis", "Hives", "Swelling", "Nausea", "Vomiting"]
-ALLERGY_SEVERITIES = ["mild", "moderate", "severe"]
 PROCEDURES = list(PROCEDURE_CATALOG.keys())
 IMMUNIZATIONS = list(IMMUNIZATION_CATALOG.keys())
+
+try:
+    _ALLERGEN_LOADER_ENTRIES = load_allergen_entries()
+except Exception:  # pragma: no cover - loader fallback
+    _ALLERGEN_LOADER_ENTRIES = []
+
+if _ALLERGEN_LOADER_ENTRIES:
+    ALLERGEN_ENTRIES = [
+        {
+            "display": entry.display,
+            "rxnorm_code": str(entry.code) if entry.code else "",
+            "unii_code": entry.metadata.get("unii", ""),
+            "category": entry.metadata.get("category", ""),
+            "snomed_code": entry.metadata.get("snomed_code", ""),
+            "rxnorm_name": entry.metadata.get("rxnorm_name", entry.display),
+        }
+        for entry in _ALLERGEN_LOADER_ENTRIES
+    ]
+else:
+    ALLERGEN_ENTRIES = [
+        {
+            "display": item.get("display"),
+            "rxnorm_code": str(item.get("rxnorm", "")),
+            "unii_code": item.get("unii", ""),
+            "category": item.get("category", "fallback"),
+            "snomed_code": item.get("snomed", ""),
+            "rxnorm_name": item.get("display"),
+        }
+        for item in FALLBACK_ALLERGEN_TERMS
+    ]
+
+ALLERGEN_CATALOG = {entry["display"]: entry for entry in ALLERGEN_ENTRIES}
+ALLERGY_SUBSTANCES = list(ALLERGEN_CATALOG.keys())
+
+try:
+    _ALLERGY_REACTIONS = load_allergy_reaction_entries()
+except Exception:  # pragma: no cover - loader fallback
+    _ALLERGY_REACTIONS = []
+
+if not _ALLERGY_REACTIONS:
+    _ALLERGY_REACTIONS = [
+        {"display": "Anaphylaxis", "code": "", "system": ""},
+        {"display": "Urticaria", "code": "", "system": ""},
+        {"display": "Angioedema", "code": "", "system": ""},
+        {"display": "Wheezing", "code": "", "system": ""},
+        {"display": "Shortness of breath", "code": "", "system": ""},
+        {"display": "Nausea", "code": "", "system": ""},
+        {"display": "Vomiting", "code": "", "system": ""},
+        {"display": "Rash", "code": "", "system": ""},
+        {"display": "Itching", "code": "", "system": ""},
+    ]
+
+ALLERGY_REACTIONS = _ALLERGY_REACTIONS
+ALLERGY_SEVERITIES = [
+    {"display": "mild", "code": "255604002", "system": "http://snomed.info/sct"},
+    {"display": "moderate", "code": "6736007", "system": "http://snomed.info/sct"},
+    {"display": "severe", "code": "24484000", "system": "http://snomed.info/sct"},
+]
 # PHASE 2: Comprehensive laboratory panels with clinical accuracy
 COMPREHENSIVE_LAB_PANELS = {
     "Basic_Metabolic_Panel": {
@@ -1460,19 +1515,47 @@ def create_medication_record(patient, condition, encounters, medication_name, th
 
 def generate_allergies(patient, min_all=0, max_all=2):
     n = random.randint(min_all, max_all)
+    if not ALLERGEN_ENTRIES or n <= 0:
+        return []
+
     allergies = []
+    birthdate = patient.get("birthdate")
+    today = datetime.now().date()
+    birth_dt = None
+    if birthdate:
+        try:
+            birth_dt = datetime.strptime(birthdate, "%Y-%m-%d").date()
+        except ValueError:
+            birth_dt = None
+
     for _ in range(n):
-        allergen_name = random.choice(ALLERGY_SUBSTANCES)
-        allergen_entry = ALLERGEN_CATALOG.get(allergen_name, {})
+        allergen = random.choice(ALLERGEN_ENTRIES)
+        reaction = random.choice(ALLERGY_REACTIONS)
+        severity = random.choice(ALLERGY_SEVERITIES)
+
+        recorded_date = None
+        if birth_dt:
+            delta_days = max((today - birth_dt).days, 1)
+            random_offset = random.randint(0, delta_days)
+            recorded_date = (birth_dt + timedelta(days=random_offset)).isoformat()
+
         allergies.append({
             "allergy_id": str(uuid.uuid4()),
             "patient_id": patient["patient_id"],
-            "substance": allergen_name,
-            "reaction": random.choice(ALLERGY_REACTIONS),
-            "severity": random.choice(ALLERGY_SEVERITIES),
-            "rxnorm_code": allergen_entry.get("rxnorm"),
-            "unii_code": allergen_entry.get("unii")
+            "substance": allergen["display"],
+            "category": allergen.get("category"),
+            "reaction": reaction["display"],
+            "reaction_code": reaction.get("code"),
+            "reaction_system": reaction.get("system"),
+            "severity": severity["display"],
+            "severity_code": severity.get("code"),
+            "severity_system": severity.get("system"),
+            "rxnorm_code": allergen.get("rxnorm_code"),
+            "unii_code": allergen.get("unii_code"),
+            "snomed_code": allergen.get("snomed_code"),
+            "recorded_date": recorded_date,
         })
+
     return allergies
 
 # PHASE 2: Enhanced procedure generation with clinical appropriateness and CPT coding

@@ -63,6 +63,236 @@ This document captures the current state and near-term priorities for the simula
 ## Phase 3B – Synthea‑Level Realism (Plan)
 See `docs/phase_3b_synthea_parity_plan.md` for the full end‑to‑end plan to extend the DSL, engine, provenance, and validation to match Synthea’s module detail (attributes, conditional transitions, submodules, symptom modeling, and evidence‑backed parameters).
 
+## Allergy & Hypersensitivity Realism (Plan)
+Objective: expand allergens and reactions beyond the current seeds and drive clinically appropriate tests, procedures, and medications with authoritative codes (SNOMED CT, RxNorm, LOINC, CPT) so outputs reflect realistic clinical workflows.
+
+Data Sources
+- VSAC value sets (via `data/terminology/vsac/…` and DuckDB table `vsac_value_sets`): harvest curated sets for drug allergies, food allergies, and environmental allergens.
+- RxNorm (normalized `rxnorm_full.csv` / DuckDB): map allergen substances to RxNorm CUIs and optional NDC exemplars.
+- SNOMED CT (normalized `snomed_full.csv` / DuckDB): surface allergen substance concepts and reaction/clinical finding terms.
+- UMLS (optional): crosswalk SNOMED ↔ RxNorm for gaps and enrich reaction terminology.
+
+Model & Catalog Changes
+- Replace the hard-coded `ALLERGENS` seed with a generator that samples from the normalized warehouse:
+  - Build an `AllergenRegistry` at runtime using RxNorm ingredients and VSAC membership; persist a deterministic subset for reproducibility in tests.
+  - Expand to at least 40–100 common allergens (drug, food, latex, insect venom, environmental) with RxNorm and UNII where available.
+- Expand `ALLERGY_REACTIONS` using SNOMED CT reaction findings (e.g., rash, urticaria, angioedema, anaphylaxis, nausea, vomiting, wheeze, dyspnea):
+  - Keep display strings but store SNOMED codes alongside for FHIR Condition/AllergyIntolerance `reaction.manifestation` and VistA narratives.
+- Severity: map to SNOMED severities (mild, moderate, severe) while preserving FileMan-compatible text in VistA node `3`.
+
+Clinical Workflow Mapping (evidence-driven)
+- When an allergy is recorded, attach appropriate orders/observations and care steps:
+  - Drug allergy (e.g., penicillin): CPT skin testing (95018/95076/95079), oral challenge pathway, LOINC specific IgE tests where appropriate; avoid future prescribing of related agents (therapeutic class rules via RxNorm relationships).
+  - Food allergy (peanut, shellfish): LOINC specific IgE (e.g., 39517-9 Peanut IgE), oral food challenge (document as procedure), epinephrine autoinjector prescription for anaphylaxis history.
+  - Latex allergy: perioperative alerts, latex-avoidance flag; no testing orders unless indicated.
+  - Insect venom allergy: venom-specific IgE (LOINC), referral to desensitization (CPT immunotherapy codes) for severe reactions.
+- Medications: add clinically appropriate prescriptions tied to severity and context (e.g., epinephrine 0.3 mg autoinjector for anaphylaxis, cetirizine/loratadine for urticaria, intranasal steroids for allergic rhinitis). Use RxNorm CUIs on outputs.
+
+Exporter Consistency
+- FHIR: emit AllergyIntolerance with `code` (substance), `reaction.manifestation` (SNOMED), `severity`, and `category`; propagate RxNorm/SNOMED codes.
+- HL7 v2: include AL1 segments with code/coding system and severity where supported.
+- VistA: continue writing `^GMR(120.8)` entries; ensure `^GMR(120.82)` allergen dictionary contains all selected substances; keep reactions in node `1` and severities in node `3`.
+
+Implementation Steps
+1. Add a warehouse-backed allergen/reaction loader:
+   - Prefer VSAC sets for substance lists; fall back to RxNorm ingredient list filtered by allergen classes.
+   - Pull a curated set of reaction terms from SNOMED CT; expose via loader API.
+2. Replace `ALLERGENS` and `ALLERGY_REACTIONS` seeds with dynamic catalogs built at startup (configurable cap for cohort realism vs. performance).
+3. Update `generate_allergies` to sample from the expanded catalogs and attach severity; add optional downstream orders (procedures, labs, meds) based on substance and severity.
+4. Wire new catalogs to exporters:
+   - FHIR: enrich AllergyIntolerance + associated resources (MedicationRequest, ServiceRequest/Procedure, Observation) with correct codes.
+   - VistA: ensure `^PSDRUG`, `^LAB(60)`, and `^GMR(120.82)` contain pointer targets for every generated entry.
+5. Validation:
+   - Unit tests that verify minimum allergen count (>40), presence of coded reactions, and exporter integrity across CSV/FHIR/VistA/HL7.
+   - Monte Carlo check: distribution of allergens, reactions, and severities across cohorts looks plausible.
+
+Acceptance Criteria
+- >40 distinct allergens available per run (configurable) with RxNorm/UNII (where available) and VSAC provenance.
+- Reactions include at least rash, urticaria, angioedema, anaphylaxis, wheeze/dyspnea, nausea/vomiting, each mapped to SNOMED and exported.
+- Appropriate downstream tests/procedures/meds are emitted for severe cases (e.g., epinephrine for anaphylaxis, IgE labs for food/drug allergies) with the correct LOINC/CPT/RxNorm codes.
+- All exporters remain internally consistent (pointers in VistA, codings in FHIR/HL7, normalized CSV tables).
+
+## Medication & Laboratory Realism (Plan)
+Objective: expand drug variety, dosing patterns, therapeutic classes, and monitoring labs; increase lab panel breadth and result realism with condition‑driven ordering and LOINC coverage. Ensure end‑to‑end coding integrity (RxNorm/VA class/ATC for meds; LOINC/UCUM for labs) and precise VistA pointer mapping.
+
+Data Sources
+- RxNorm (normalized `rxnorm_full.csv` / DuckDB): ingredients, clinical drugs, brand mappings, VA class (if available) and relationships for class‑based rules (e.g., ACEi/ARB, statins, SABA/ICS/LABA).
+- VSAC medication/value sets: condition‑specific inclusion lists to bias evidence‑based picks (e.g., diabetes oral agents, anticoagulants, asthma controllers).
+- LOINC (normalized `loinc_full.csv` / DuckDB): test definitions, preferred units (UCUM), and common panels beyond the current catalog.
+- SNOMED CT: indication codes and problem→lab associations for ordering rules.
+
+Model & Generator Changes
+- Medications
+  - Replace the static `MEDICATIONS` seed with a dynamic catalog hydrated from RxNorm; track ingredient → class mapping and typical dose forms/strengths.
+  - Enforce condition‑driven therapeutic choices with contraindications (extend current rules) and simple drug–drug interaction checks for high‑risk combos.
+  - Emit realistic start/stop patterns (e.g., acute antibiotics 5–10 days; statins chronic; taper patterns for steroids where appropriate).
+  - Tie follow‑up labs to meds (e.g., statins→LFT/lipids, ACEi→BMP/potassium, warfarin→INR) with timing windows.
+- Labs
+  - Expand COMPREHENSIVE_LAB_PANELS with additional panels (coagulation, iron studies, renal, hepatic viral serologies, cardiac enzymes HS, thyroid antibodies) using LOINC codes and UCUM units.
+  - Calibrate value distributions: age/sex‑specific reference ranges; skewed distributions for disease cohorts (e.g., A1c in diabetes); correlated results (e.g., anemia trios: Hgb/Hct/MCV).
+  - Increase order logic coverage: map conditions and meds to standing labs and episodic orders; attach to nearest visit and set FileMan timestamps.
+
+Exporter Consistency
+- VistA: ensure every emitted med has a `^PSDRUG` pointer and every lab has a `^LAB(60)` pointer; keep visit and patient cross‑refs (`"V"`, `"B"`, `"AE"`) and zero nodes internal only.
+- FHIR: prefer `MedicationRequest` + contained `Medication` with RxNorm code, `Observation` with LOINC and UCUM, and `ServiceRequest/Procedure` for non‑lab orders (e.g., oral challenge, skin test).
+- HL7 v2: continue ADT/ORU; consider ORM for orders when enabled.
+
+Implementation Steps
+1. Add `medications_loader` that builds a therapeutic catalog from RxNorm with class tags; add configuration to cap breadth (e.g., top N per class) for performance.
+2. Replace static medication picks with catalog sampling constrained by condition class rules and contraindications; emit dose form metadata and durations where feasible.
+3. Extend lab panel registry with additional LOINC tests; add age/sex‑aware reference ranges and disease‑biased distributions; wire order logic from condition/meds.
+4. Update VistA registries if needed (e.g., support dose text nodes later) and verify pointer integrity for all new entries.
+5. Tests: unit tests for (a) med variety per 100 pts, (b) class coverage by condition, (c) lab breadth and LOINC/unit integrity, (d) VistA pointer/xref correctness; Monte Carlo checks for plausible distributions.
+
+Acceptance Criteria
+- Medication variety: ≥25 distinct ingredients across cohorts, with class‑appropriate selection and no contraindicated picks in rule scenarios.
+- Lab breadth: ≥50 distinct LOINC tests across panels with correct UCUM units and age/sex‑appropriate reference ranges.
+- Orders reflect clinical logic: meds trigger monitoring labs; conditions map to guideline panels; timing windows look plausible.
+- Exporters remain consistent (FileMan pointers, FHIR/HL7 coding), and regression tests pass.
+
+## Conditions Realism (Plan)
+Objective: expand condition variety and fidelity beyond the current curated set; drive prevalence by age/sex/SDOH, add severity/staging where relevant, and ensure consistent coding (ICD‑10 + SNOMED) across exporters.
+
+Data Sources
+- ICD‑10 (normalized `icd10_full.csv` / DuckDB) for diagnosis coding and chapter‑level sampling.
+- SNOMED CT (normalized `snomed_full.csv` / DuckDB) for problem list concepts, staging/severity findings.
+- VSAC value sets (DuckDB) to bias selection toward clinically relevant cohorts (e.g., diabetes, COPD, ischemic heart disease).
+
+Model & Generator Changes
+- Build a dynamic condition catalog: sample top conditions per age/sex from ICD‑10 chapters and map to SNOMED preferred terms.
+- Add severity/staging flags for select conditions (e.g., heart failure NYHA class, asthma severity, cancer staging placeholders) using SNOMED findings.
+- Refine prevalence engine: incorporate SDOH, comorbidity lift, and genetics; ensure probability caps and mutually exclusive conditions where needed.
+
+Exporter Consistency
+- FHIR Condition: include `code` (ICD‑10 + SNOMED where available), `clinicalStatus`, `verificationStatus`, `stage` or `abatementDate` when applicable.
+- VistA: continue to emit `^AUPNPROB` with internal pointers and synced `"ICD"` and `"S"` xrefs.
+- HL7 v2: expose problems in ORU/OBX context when included, or in summary segments where applicable.
+
+Implementation Steps
+1. Add condition loader using DuckDB (ICD‑10 + SNOMED + optional VSAC filters).
+2. Replace/augment `CONDITION_CATALOG` with loader output under configurable breadth per cohort.
+3. Add optional severity/staging attributes per condition; wire to exporters.
+4. Tests: ensure breadth (≥40 distinct conditions across 1k pts), coding integrity, and stable exporter behavior.
+
+Acceptance Criteria
+- ≥40 distinct conditions across cohorts; age/sex/SDOH distributions look plausible.
+- Severity/staging captured for supported conditions and exported.
+- Exporters remain consistent (CSV/FHIR/VistA/HL7).
+
+## Encounters Realism (Plan)
+Objective: generate realistic visit types/frequencies, tie visits to active conditions and care steps, and map to clinic stops/locations consistently.
+
+Data Sources
+- Existing clinic stop mapping (`^DIC(40.7)`) and internal encounter types.
+- VSAC/SNOMED for reason codes and care pathways influencing visit cadence.
+
+Model & Generator Changes
+- Frequency model: derive visit counts from condition burden, care plans, and medication monitoring windows; add bursts for acute events (ED/urgent care).
+- Type mix: calibrate primary care vs specialty vs ED vs inpatient; set service category (A/E/I) appropriately.
+- Scheduling: attach labs/procedures/med follow‑ups to nearest appropriate visit.
+
+Exporter Consistency
+- VistA: maintain `^AUPNVSIT` with FileMan datetimes, clinic stop pointers, and `.06` location; keep `"B"/"D"/"GUID"` xrefs.
+- FHIR/HL7: maintain Encounter resources/ADT coverage; ensure reason codes present when available.
+
+Implementation Steps
+1. Add encounter cadence rules driven by conditions/care plans.
+2. Expand mapping from internal encounter types to clinic stops.
+3. Tests: per‑patient visit distribution by condition burden; stop code validity; exporter pointer integrity.
+
+Acceptance Criteria
+- Visit counts correlate with condition severity and care plans.
+- Stop codes and locations valid; datetimes properly formatted.
+
+## Immunizations Realism (Plan)
+Objective: add age‑appropriate immunization schedules, codes, and titers; support catch‑up and contraindications, and export to VistA where applicable.
+
+Data Sources
+- VSAC immunization value sets (CVX codes within VSAC extracts when available) and RxNorm vaccine products.
+- LOINC for serology/titer tests (e.g., Hep B surface antibody), SNOMED immunization procedures.
+
+Model & Generator Changes
+- Add schedule logic (child/adult/older adult) with ACIP‑like timing heuristics; generate catch‑up doses.
+- Contraindications: integrate from allergy registry (e.g., egg allergy for certain flu vaccines) and pregnancy flags when relevant.
+- Add optional serology labs pre/post vaccination with LOINC + UCUM units.
+
+Exporter Consistency
+- CSV/FHIR: emit Immunization resources with CVX (via VSAC) and/or RxNorm; add Observation records for titers.
+- VistA: plan to emit `^AUPNVIMM` (V Immunization #9000010.11) entries with pointers to vaccine dictionary stubs if present (phase‑in after core schedule).
+
+Implementation Steps
+1. Hydrate immunization catalog from VSAC/RxNorm; define schedule templates.
+2. Generate doses by age and scenario; attach contraindications and titer observations.
+3. Tests: verify coverage across age bands; code integrity; (optional) VistA `^AUPNVIMM` pilot.
+
+Acceptance Criteria
+- Age‑appropriate series for common vaccines; valid CVX/RxNorm codings; titer LOINC where applicable.
+- (If enabled) valid `^AUPNVIMM` entries with internal pointers.
+
+## Care Plans Realism (Plan)
+Objective: deepen specialty pathways with timed milestones, metrics, and team roles; reflect guideline‑based care steps and monitoring.
+
+Data Sources
+- VSAC quality/measure value sets for metric targets.
+- SNOMED procedures and LOINC monitoring tests aligned to conditions.
+
+Model & Generator Changes
+- Enrich `SPECIALTY_CARE_PATHWAYS` with milestones per condition (dates, metrics, responsible role), e.g., cardiac rehab, oncology staging/restaging, COPD exacerbation prevention.
+- Add automated order generation tied to milestones (procedures, labs, meds).
+
+Exporter Consistency
+- FHIR: emit CarePlan with activities linked to ServiceRequest/Procedure/Observation; track status updates.
+- CSV: persist schedule and status; VistA export may remain out of scope unless a specific file is chosen.
+
+Implementation Steps
+1. Expand pathway templates; add scheduling engine to project dates relative to encounters.
+2. Wire activities to order/obs generation; update summaries.
+3. Tests: presence of milestones per condition; activity linkage; schedule plausibility.
+
+Acceptance Criteria
+- Condition cohorts show structured, timed care activities with appropriate orders and metrics.
+
+## Family History Realism (Plan)
+Objective: generate realistic family history entries with relation, age at onset, and mapped codes; propagate risk to the patient’s condition probabilities.
+
+Data Sources
+- SNOMED family history concepts; UMLS cross‑refs.
+
+Model & Generator Changes
+- Build a family history catalog by condition; sample relations (mother/father/sibling), age at onset, and outcome.
+- Feed risk increments into the condition assignment stage.
+
+Exporter Consistency
+- CSV/FHIR: output FamilyMemberHistory with SNOMED codes.
+- VistA: out of scope unless a target file is identified; keep CSV/FHIR authoritative.
+
+Implementation Steps
+1. Add family history loader and generator; tie to patient risk adjustments.
+2. Tests: include codes, relations, and plausible ages at onset; verify risk propagation.
+
+Acceptance Criteria
+- Family history present for a realistic share of patients; codes/relations accurate; risk effects observable in condition prevalence.
+
+## Mortality/Deaths Realism (Plan)
+Objective: assign underlying cause of death with ICD‑10 coding consistent with the patient’s conditions and age; output realistic time of death.
+
+Data Sources
+- ICD‑10 for cause‑of‑death coding; internal mortality risk model driven by age, conditions, and severity.
+
+Model & Generator Changes
+- Choose underlying cause from the patient’s condition set (or age‑appropriate leading causes) and assign a death date/time; flag immediate/contributing causes optionally.
+
+Exporter Consistency
+- CSV/FHIR: populate death records and Patient.deceased.[x].
+- VistA: ensure demographics death fields are populated (`^DPT` death date if modeled), optional additional globals out of scope.
+
+Implementation Steps
+1. Extend death generator to map causes to ICD‑10 and pick realistic timing.
+2. Tests: cause coherence with conditions; age distribution checks.
+
+Acceptance Criteria
+- Underlying cause aligns with condition burden; coding/exporters consistent.
+
 ## VistA Export – RXs, Labs, Allergies (Plan)
 Objective: extend the VistA MUMPS exporter to include FileMan‑correct medication, laboratory, and allergy data alongside patients (^DPT), visits (^AUPNVSIT), and problems (^AUPNPROB).
 
@@ -132,14 +362,29 @@ Acceptance Criteria
 - Tests pass (`pytest`), and smoke output shows patients > 0, meds > 0, labs > 0, allergies > 0.
 
 ## Immediate Next Steps
-1. **Extend module catalogue**
-   - Implement remaining backlog scenarios (geriatrics, sepsis survivorship, HIV/PrEP) using the established authoring pattern.
-   - Add scenario wiring plus regression tests mirroring `tests/test_module_engine.py` for every new module.
-2. **Broaden validation coverage**
-   - Build a module linter CLI (under `tools/`) that wraps `validate_module_definition` and checks terminology bindings.
-   - Add Monte Carlo outcome assertions and exporter parity tests once multiple modules coexist.
-3. **Baseline performance safeguards**
-   - Capture generator runtime metrics with ≥3 modules enabled and persist results for regression comparison.
+1. **Allergy realism expansion** (scope above)
+    - Implement warehouse-backed allergen/reaction loaders and swap in the expanded catalogs; add evidence-based orders for severe reactions.
+    - Add tests ensuring minimum allergen count and exporter correctness (CSV/FHIR/VistA/HL7).
+2. **Medication & laboratory realism expansion** (scope above)
+   - Hydrate medication catalog from RxNorm; expand lab panels from LOINC; wire indication/monitoring rules.
+   - Add tests to verify breadth, coding integrity, contraindication enforcement, and plausible distributions.
+3. **Conditions & encounters realism expansion** (scopes above)
+   - Replace static condition catalog with loader-based sampling and severity; add encounter cadence rules tied to care plans.
+   - Tests for distribution plausibility and pointer/coding integrity.
+4. **Immunizations realism expansion** (scope above)
+   - Add CVX/RxNorm-backed schedules and (optional) VistA `^AUPNVIMM` pilot; include serology LOINC observations.
+5. **Care plan realism expansion** (scope above)
+   - Enrich pathways, activities, and metrics; wire to orders/obs.
+6. **Family history & mortality realism** (scopes above)
+   - Add realistic FamilyMemberHistory and ICD‑10 coded causes of death with timing.
+7. **Extend module catalogue**
+    - Implement remaining backlog scenarios (geriatrics, sepsis survivorship, HIV/PrEP) using the established authoring pattern.
+    - Add scenario wiring plus regression tests mirroring `tests/test_module_engine.py` for every new module.
+8. **Broaden validation coverage**
+    - Build a module linter CLI (under `tools/`) that wraps `validate_module_definition` and checks terminology bindings.
+    - Add Monte Carlo outcome assertions and exporter parity tests once multiple modules coexist.
+9. **Baseline performance safeguards**
+    - Capture generator runtime metrics with ≥3 modules enabled and persist results for regression comparison.
 
 ## Reminders
 - Keep this document updated whenever milestones land; it is the authoritative checklist for the pivot.

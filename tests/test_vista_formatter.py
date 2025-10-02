@@ -75,8 +75,14 @@ def test_fileman_internal_generates_numeric_pointers(tmp_path):
         "allergy_id": "allergy-1",
         "substance": "Peanuts",
         "reaction": "Anaphylaxis",
+        "reaction_code": "39579001",
+        "reaction_system": "http://snomed.info/sct",
         "severity": "severe",
+        "severity_code": "24484000",
+        "severity_system": "http://snomed.info/sct",
         "rxnorm_code": "12345",
+        "category": "food",
+        "recorded_date": "2023-11-01",
     }
 
     output_file = tmp_path / "vista_globals.mumps"
