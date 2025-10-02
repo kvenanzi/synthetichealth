@@ -12,6 +12,18 @@
 - Default exporter detail (`--vista-mode fileman_internal`): DOB values are **FileMan dates** (`YYYMMDD` with `YYY = year-1700`), encounters use FileMan datetimes (`YYYMMDD.HHMMSS`).
 - Legacy mode (`--vista-mode legacy`) retains the earlier day-offset encoding. Use only when reproducing historical artifacts.
 - Frequent fields: `.02` sex (M/F/U), `.03` DOB (FileMan date), `.09` SSN, `.11` address (state stored as a pointer IEN), `.13` phone.
+- VistA exporter now bundles clinical data:
+  - `^AUPNVMED` (V Medication #9000010.14) ties patients to `^PSDRUG` entries and encounters, storing FileMan start/stop dates and standard `"B"/"V"/"AA"` xrefs.
+  - `^AUPNVLAB` (V Laboratory #9000010.09) records lab values with `^LAB(60)` pointers, FileMan datetimes, units, and reference ranges along `"B"/"V"/"AE"` indexes.
+  - `^GMR(120.8)` (Patient Allergies) references `^GMR(120.82)` allergen definitions and captures reaction/severity text with internal IENs only.
+
+## Minimal File Layout
+- **Patients (`^DPT`)** – demographics, address (.11), phone (.13), with `"B"`, `"SSN"`, `"DOB"` cross-references.
+- **Visits (`^AUPNVSIT`)** – zero node `DFN^FMDateTime^ServiceCategory^ClinicStop`, `.06` location pointer, and `"B"/"D"/"GUID"` indexes.
+- **Problems (`^AUPNPROB`)** – problem record `DFN^NarrativeIEN^Status^FMOnset^ICDIEN`, `.05` narrative pointer, `"S"` status and `"ICD"` diagnosis indexes.
+- **Medications (`^AUPNVMED`)** – `DFN^DrugIEN^VisitIEN^FMStart^Status` (optional stop date at node `5101`, indication at `13`) with `"B"` (patient), `"V"` (visit), and `"AA"` (drug) cross-references; minimal drug entries are emitted under `^PSDRUG(IEN,0)=<NAME>^<RxNorm>` with `"B"` index.
+- **Labs (`^AUPNVLAB`)** – `DFN^TestIEN^VisitIEN^Value^Units^Status^FMDatetime` plus node `11` (reference range) and `12` (panel). Pointer stubs live at `^LAB(60,IEN,0)=<NAME>^<LOINC>` with `"B"` xrefs.
+- **Allergies (`^GMR(120.8)`)** – `DFN^AllergenIEN^^o^FMRecorded` plus reaction node `1` and severity node `3`, with `"B"` (patient) and `"C"` (allergen) indices; supporting dictionary entries are added to `^GMR(120.82)`.
 
 ## Date Conversion Helpers
 ```python

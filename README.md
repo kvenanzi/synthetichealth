@@ -161,6 +161,9 @@ synthetichealth/
   - Locations `^AUTTLOC(IEN,0)="<name>"`
   - Patient state pointers in `^DPT(DFN,.11)` piece 3 point to `^DIC(5)` IENs
   - Phones are quoted strings in `^DPT(DFN,.13)`
+  - Medications populate `^AUPNVMED` with numeric drug/visit pointers and create matching `^PSDRUG` stubs
+  - Labs populate `^AUPNVLAB` with numeric test pointers and emit `^LAB(60)` definitions with LOINC mappings
+  - Allergies populate `^GMR(120.8)` with internal allergen pointers and create `^GMR(120.82)` dictionary entries
   - Visit GUIDs stored safely as `^AUPNVSIT("GUID",VisitIEN)="<uuid>"`
 - Legacy (`--vista-mode legacy`) preserves earlier text-oriented encoding (not pointer-clean). Use only to reproduce historical artifacts.
 
@@ -177,6 +180,7 @@ python -m src.core.synthetic_patient_generator \
 - FileMan dates use YYYMMDD with YYY = year−1700; visits use `YYYMMDD.HHMMSS`.
 - Globals are written as `S ^GLOBAL(...)=<value>`; strip the leading `S` and surrounding quotes when parsing.
 - Patient state in `^DPT(DFN,.11)` is a pointer to `^DIC(5)`; phones in `.13` are quoted strings.
+- V Medication (`^AUPNVMED`), V Laboratory (`^AUPNVLAB`), and Patient Allergies (`^GMR(120.8)`) entries are emitted with FileMan dates/times and only internal IEN pointers—use the accompanying `^PSDRUG`, `^LAB(60)`, and `^GMR(120.82)` stubs when resolving display text.
 
 ### Analytics formats
 - **CSV/Parquet**: Normalized relational tables for research and analytics workflows

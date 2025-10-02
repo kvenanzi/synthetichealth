@@ -944,9 +944,15 @@ class VistaReferenceRegistry:
         self.narrative_lookup: Dict[str, str] = {}
         self.location_lookup: Dict[str, str] = {}
         self.stop_code_lookup: Dict[str, str] = {}
+        self.drug_lookup: Dict[str, Dict[str, str]] = {}
+        self.lab_lookup: Dict[str, Dict[str, str]] = {}
+        self.allergen_lookup: Dict[str, Dict[str, str]] = {}
         self._icd_counter = 400000
         self._narrative_counter = 500000
         self._location_counter = 600000
+        self._drug_counter = 700000
+        self._lab_counter = 800000
+        self._allergen_counter = 900000
 
     def _allocate(self, counter_attr: str) -> str:
         value = getattr(self, counter_attr)
@@ -988,6 +994,66 @@ class VistaReferenceRegistry:
             self.stop_code_lookup[normalized] = description
         return normalized
 
+    def get_drug_ien(self, name: Optional[str], rxnorm: Optional[str] = None) -> str:
+        if not name and not rxnorm:
+            return ""
+        display_name = name or (f"Drug {rxnorm}" if rxnorm else "Unknown Drug")
+        key = (rxnorm or display_name).upper()
+        entry = self.drug_lookup.get(key)
+        if entry is None:
+            ien = self._allocate("_drug_counter")
+            self.drug_lookup[key] = {
+                "ien": ien,
+                "name": display_name,
+                "rxnorm": rxnorm or "",
+            }
+            return ien
+        if name and not entry.get("name"):
+            entry["name"] = name
+        return entry["ien"]
+
+    def get_lab_test_ien(self, name: Optional[str], loinc: Optional[str] = None) -> str:
+        if not name and not loinc:
+            return ""
+        display_name = name or (f"LOINC {loinc}" if loinc else "Unknown Test")
+        key = (loinc or display_name).upper()
+        entry = self.lab_lookup.get(key)
+        if entry is None:
+            ien = self._allocate("_lab_counter")
+            self.lab_lookup[key] = {
+                "ien": ien,
+                "name": display_name,
+                "loinc": loinc or "",
+            }
+            return ien
+        if name and not entry.get("name"):
+            entry["name"] = name
+        return entry["ien"]
+
+    def get_allergen_ien(
+        self,
+        name: Optional[str],
+        rxnorm: Optional[str] = None,
+        unii: Optional[str] = None,
+    ) -> str:
+        if not name and not rxnorm and not unii:
+            return ""
+        display_name = name or rxnorm or unii or "Unknown Allergen"
+        key = "|".join(filter(None, [rxnorm, unii, display_name])).upper()
+        entry = self.allergen_lookup.get(key)
+        if entry is None:
+            ien = self._allocate("_allergen_counter")
+            self.allergen_lookup[key] = {
+                "ien": ien,
+                "name": display_name,
+                "rxnorm": rxnorm or "",
+                "unii": unii or "",
+            }
+            return ien
+        if name and not entry.get("name"):
+            entry["name"] = name
+        return entry["ien"]
+
     def build_reference_globals(self, sanitize: Callable[[str], str]) -> Dict[str, str]:
         globals_dict: Dict[str, str] = {}
         for code, ien in self.icd10_lookup.items():
@@ -999,6 +1065,26 @@ class VistaReferenceRegistry:
         for code, description in self.stop_code_lookup.items():
             sanitized = sanitize(description) or "Unknown Clinic"
             globals_dict[f"^DIC(40.7,{code},0)"] = f"{code}^{sanitized}"
+            globals_dict[f'^DIC(40.7,"B","{sanitized}",{code})'] = ""
+        for entry in self.drug_lookup.values():
+            ien = entry["ien"]
+            name = sanitize(entry.get("name", "")) or f"DRUG {ien}"
+            node_value = f"{name}^{entry.get('rxnorm', '')}"
+            globals_dict[f"^PSDRUG({ien},0)"] = node_value
+            globals_dict[f'^PSDRUG("B","{name}",{ien})'] = ""
+        for entry in self.lab_lookup.values():
+            ien = entry["ien"]
+            name = sanitize(entry.get("name", "")) or f"LAB {ien}"
+            node_value = f"{name}^{entry.get('loinc', '')}"
+            globals_dict[f"^LAB(60,{ien},0)"] = node_value
+            globals_dict[f'^LAB(60,"B","{name}",{ien})'] = ""
+        for entry in self.allergen_lookup.values():
+            ien = entry["ien"]
+            name = sanitize(entry.get("name", "")) or f"ALLERGEN {ien}"
+            metadata = entry.get("rxnorm") or entry.get("unii") or ""
+            node_value = f"{name}^{metadata}"
+            globals_dict[f"^GMR(120.82,{ien},0)"] = node_value
+            globals_dict[f'^GMR(120.82,"B","{name}",{ien})'] = ""
         return globals_dict
 
     def header_entries(self, fm_date: str) -> Dict[str, str]:
@@ -1013,6 +1099,12 @@ class VistaReferenceRegistry:
             numeric_codes = [int(code) for code in self.stop_code_lookup.keys() if str(code).isdigit()]
             if numeric_codes:
                 headers["^DIC(40.7,0)"] = f"CLINIC STOP^40.7^{max(numeric_codes)}^{fm_date}"
+        if self.drug_lookup:
+            headers["^PSDRUG(0)"] = f"DRUG^50^{max(int(entry['ien']) for entry in self.drug_lookup.values())}^{fm_date}"
+        if self.lab_lookup:
+            headers["^LAB(60,0)"] = f"LAB TEST^60^{max(int(entry['ien']) for entry in self.lab_lookup.values())}^{fm_date}"
+        if self.allergen_lookup:
+            headers["^GMR(120.82,0)"] = f"ALLERGEN^120.82^{max(int(entry['ien']) for entry in self.allergen_lookup.values())}^{fm_date}"
         return headers
 
 
@@ -1381,6 +1473,9 @@ class VistaFormatter:
         patients: List[PatientRecord],
         encounters: List[Dict],
         conditions: List[Dict],
+        medications: List[Dict],
+        observations: List[Dict],
+        allergies: List[Dict],
         output_file: str,
     ) -> Dict[str, int]:
         print(f"Generating VistA MUMPS globals for {len(patients)} patients (FileMan mode)...")
@@ -1393,6 +1488,15 @@ class VistaFormatter:
         problem_iens: Set[int] = set()
         visit_map: Dict[str, str] = {}
         problem_map: Dict[str, str] = {}
+        medication_iens: Set[int] = set()
+        lab_iens: Set[int] = set()
+        allergy_iens: Set[int] = set()
+        medication_map: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+        observation_map: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+        allergy_map: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+        medication_vista_map: Dict[str, str] = {}
+        lab_vista_map: Dict[str, str] = {}
+        allergy_vista_map: Dict[str, str] = {}
 
         def _ensure_unique_ien(target_set: Set[int]) -> str:
             candidate = VistaFormatter.generate_vista_ien()
@@ -1400,6 +1504,21 @@ class VistaFormatter:
                 candidate = VistaFormatter.generate_vista_ien()
             target_set.add(int(candidate))
             return candidate
+
+        for medication in medications or []:
+            patient_id = medication.get('patient_id')
+            if patient_id:
+                medication_map[patient_id].append(medication)
+
+        for observation in observations or []:
+            patient_id = observation.get('patient_id')
+            if patient_id:
+                observation_map[patient_id].append(observation)
+
+        for allergy in allergies or []:
+            patient_id = allergy.get('patient_id')
+            if patient_id:
+                allergy_map[patient_id].append(allergy)
 
         # Patient structures
         for patient in tqdm(patients, desc="Creating VistA patient globals", unit="patients"):
@@ -1495,6 +1614,148 @@ class VistaFormatter:
                 if encounter.get('encounter_id'):
                     all_globals[f'^AUPNVSIT("GUID",{visit_ien})'] = encounter['encounter_id']
 
+        status_lookup = {"normal": "N", "abnormal": "A", "critical": "C"}
+        current_date_iso = date.today().isoformat()
+        for patient in tqdm(patients, desc="Creating VistA medication/lab/allergy globals", unit="patients"):
+            vista_ien = patient.vista_id or patient.generate_vista_id()
+
+            for medication in medication_map.get(patient.patient_id, []):
+                med_key = (
+                    medication.get('medication_id')
+                    or medication.get('id')
+                    or f"{medication.get('name', '')}-{medication.get('start_date', '')}"
+                )
+                med_ien = medication_vista_map.setdefault(med_key, _ensure_unique_ien(medication_iens))
+                drug_ien = registry.get_drug_ien(medication.get('name'), medication.get('rxnorm_code'))
+                visit_ien = ""
+                encounter_ref = medication.get('encounter_id')
+                if encounter_ref:
+                    visit_ien = visit_map.get(encounter_ref, "")
+                start_date = VistaFormatter.fileman_date_format(medication.get('start_date'))
+                stop_date = VistaFormatter.fileman_date_format(medication.get('end_date')) if medication.get('end_date') else ""
+                status_flag = "D" if medication.get('end_date') else "A"
+                segments = [
+                    str(vista_ien or ""),
+                    str(drug_ien or ""),
+                    str(visit_ien or ""),
+                    str(start_date or ""),
+                    status_flag,
+                    "",
+                    "",
+                    "",
+                ]
+                all_globals[f"^AUPNVMED({med_ien},0)"] = "^".join(segments)
+                if stop_date:
+                    all_globals[f"^AUPNVMED({med_ien},5101)"] = stop_date
+                indication = medication.get('indication')
+                if indication:
+                    all_globals[f"^AUPNVMED({med_ien},13)"] = VistaFormatter.sanitize_mumps_string(indication)
+                all_globals[f'^AUPNVMED("B",{vista_ien},{med_ien})'] = ""
+                if visit_ien:
+                    all_globals[f'^AUPNVMED("V",{visit_ien},{med_ien})'] = ""
+                if drug_ien:
+                    all_globals[f'^AUPNVMED("AA",{drug_ien},{med_ien})'] = ""
+
+            for observation in observation_map.get(patient.patient_id, []):
+                obs_key = (
+                    observation.get('observation_id')
+                    or observation.get('id')
+                    or f"{observation.get('type', '')}-{observation.get('date', '')}-{observation.get('value', '')}"
+                )
+                lab_ien = lab_vista_map.setdefault(obs_key, _ensure_unique_ien(lab_iens))
+                test_name = (
+                    observation.get('type')
+                    or observation.get('name')
+                    or observation.get('observation_name')
+                )
+                loinc_code = observation.get('loinc_code') or observation.get('loinc')
+                test_ien = registry.get_lab_test_ien(test_name, loinc_code)
+                visit_ien = ""
+                encounter_ref = observation.get('encounter_id')
+                if encounter_ref:
+                    visit_ien = visit_map.get(encounter_ref, "")
+                raw_value = observation.get('value')
+                if raw_value is None and observation.get('value_numeric') is not None:
+                    raw_value = observation.get('value_numeric')
+                value_str = VistaFormatter.sanitize_mumps_string(str(raw_value)) if raw_value is not None else ""
+                units = VistaFormatter.sanitize_mumps_string(observation.get('units', ''))
+                status_flag = status_lookup.get(str(observation.get('status', '')).lower(), "U")
+                obs_date = (
+                    observation.get('date')
+                    or observation.get('observation_date')
+                    or observation.get('effective_date')
+                )
+                obs_time: Optional[str] = None
+                effective_datetime = observation.get('effective_datetime') or observation.get('timestamp')
+                if effective_datetime:
+                    try:
+                        parsed_dt = datetime.fromisoformat(str(effective_datetime).replace('Z', ''))
+                        obs_date = parsed_dt.date().isoformat()
+                        obs_time = parsed_dt.time().strftime('%H:%M:%S')
+                    except ValueError:
+                        pass
+                if not obs_date:
+                    obs_date = current_date_iso
+                obs_datetime = VistaFormatter.fileman_datetime_format(obs_date, obs_time)
+                segments = [
+                    str(vista_ien or ""),
+                    str(test_ien or ""),
+                    str(visit_ien or ""),
+                    value_str,
+                    units,
+                    status_flag,
+                    obs_datetime,
+                ]
+                all_globals[f"^AUPNVLAB({lab_ien},0)"] = "^".join(segments)
+                ref_range = observation.get('reference_range')
+                if ref_range:
+                    all_globals[f"^AUPNVLAB({lab_ien},11)"] = VistaFormatter.sanitize_mumps_string(ref_range)
+                panel_name = observation.get('panel')
+                if panel_name:
+                    all_globals[f"^AUPNVLAB({lab_ien},12)"] = VistaFormatter.sanitize_mumps_string(panel_name)
+                all_globals[f'^AUPNVLAB("B",{vista_ien},{lab_ien})'] = ""
+                if visit_ien:
+                    all_globals[f'^AUPNVLAB("V",{visit_ien},{lab_ien})'] = ""
+                if test_ien:
+                    all_globals[f'^AUPNVLAB("AE",{test_ien},{lab_ien})'] = ""
+
+            for allergy in allergy_map.get(patient.patient_id, []):
+                allergy_key = (
+                    allergy.get('allergy_id')
+                    or allergy.get('id')
+                    or f"{allergy.get('substance', '')}-{allergy.get('reaction', '')}"
+                )
+                allergy_ien = allergy_vista_map.setdefault(allergy_key, _ensure_unique_ien(allergy_iens))
+                allergen_ien = registry.get_allergen_ien(
+                    allergy.get('substance'),
+                    allergy.get('rxnorm_code'),
+                    allergy.get('unii_code'),
+                )
+                recorded_date = (
+                    allergy.get('recorded_date')
+                    or allergy.get('noted_date')
+                    or allergy.get('start_date')
+                    or current_date_iso
+                )
+                allergy_date = VistaFormatter.fileman_date_format(recorded_date)
+                reaction_text = VistaFormatter.sanitize_mumps_string(allergy.get('reaction', ''))
+                severity_text = VistaFormatter.sanitize_mumps_string(allergy.get('severity', '')).upper()
+                segments = [
+                    str(vista_ien or ""),
+                    str(allergen_ien or ""),
+                    "",
+                    "o",
+                    allergy_date or VistaFormatter.fileman_date_format(current_date_iso),
+                ]
+                all_globals[f"^GMR(120.8,{allergy_ien},0)"] = "^".join(segments)
+                all_globals[f'^GMR(120.8,"B",{vista_ien},{allergy_ien})'] = ""
+                if allergen_ien:
+                    all_globals[f'^GMR(120.8,"C",{allergen_ien},{allergy_ien})'] = ""
+                if reaction_text:
+                    all_globals[f"^GMR(120.8,{allergy_ien},1)"] = reaction_text
+                if severity_text:
+                    all_globals[f"^GMR(120.8,{allergy_ien},3)"] = severity_text
+
         # Index conditions by patient
         condition_map: Dict[str, List[Dict[str, Any]]] = {}
         for condition in conditions:
@@ -1546,6 +1807,12 @@ class VistaFormatter:
             all_globals["^AUPNVSIT(0)"] = f"VISIT^9000010^{max(visit_iens)}^{fileman_date_today}"
         if problem_iens:
             all_globals["^AUPNPROB(0)"] = f"PROBLEM^9000011^{max(problem_iens)}^{fileman_date_today}"
+        if medication_iens:
+            all_globals["^AUPNVMED(0)"] = f"V MEDICATION^9000010.14^{max(medication_iens)}^{fileman_date_today}"
+        if lab_iens:
+            all_globals["^AUPNVLAB(0)"] = f"V LAB^9000010.09^{max(lab_iens)}^{fileman_date_today}"
+        if allergy_iens:
+            all_globals["^GMR(120.8,0)"] = f"PATIENT ALLERGIES^120.8^{max(allergy_iens)}^{fileman_date_today}"
         all_globals.update(registry.header_entries(fileman_date_today))
 
         with open(output_file, 'w') as handle:
@@ -1564,15 +1831,31 @@ class VistaFormatter:
 
         print(f"VistA MUMPS globals exported to {output_file} ({len(all_globals)} global nodes)")
 
-        dpt_count = sum(1 for k in all_globals if k.startswith("^DPT(") and ",0)" in k)
-        visit_count = sum(1 for k in all_globals if k.startswith("^AUPNVSIT(") and ",0)" in k)
-        problem_count = sum(1 for k in all_globals if k.startswith("^AUPNPROB(") and ",0)" in k)
+        patient_record_pattern = re.compile(r"^\^DPT\(\d+,0\)$")
+        visit_record_pattern = re.compile(r"^\^AUPNVSIT\(\d+,0\)$")
+        problem_record_pattern = re.compile(r"^\^AUPNPROB\(\d+,0\)$")
+        medication_record_pattern = re.compile(r"^\^AUPNVMED\(\d+,0\)$")
+        lab_record_pattern = re.compile(r"^\^AUPNVLAB\(\d+,0\)$")
+        allergy_record_pattern = re.compile(r"^\^GMR\(120\.8,\d+,0\)$")
+
+        dpt_count = sum(1 for k in all_globals if patient_record_pattern.match(k))
+        visit_count = sum(1 for k in all_globals if visit_record_pattern.match(k))
+        problem_count = sum(1 for k in all_globals if problem_record_pattern.match(k))
+        medication_count = sum(1 for k in all_globals if medication_record_pattern.match(k))
+        lab_count = sum(1 for k in all_globals if lab_record_pattern.match(k))
+        allergy_count = sum(1 for k in all_globals if allergy_record_pattern.match(k))
+        cross_reference_nodes = len(all_globals) - (
+            dpt_count + visit_count + problem_count + medication_count + lab_count + allergy_count
+        )
         return {
             "total_globals": len(all_globals),
             "patient_records": dpt_count,
             "visit_records": visit_count,
             "problem_records": problem_count,
-            "cross_references": len(all_globals) - dpt_count - visit_count - problem_count,
+            "medication_records": medication_count,
+            "lab_records": lab_count,
+            "allergy_records": allergy_count,
+            "cross_references": cross_reference_nodes,
         }
 
     @staticmethod
@@ -1580,6 +1863,9 @@ class VistaFormatter:
         patients: List[PatientRecord],
         encounters: List[Dict],
         conditions: List[Dict],
+        medications: List[Dict],
+        observations: List[Dict],
+        allergies: List[Dict],
         output_file: str,
         export_mode: str = FILEMAN_INTERNAL_MODE,
     ) -> Dict[str, int]:
@@ -1587,7 +1873,15 @@ class VistaFormatter:
         if mode == VistaFormatter.LEGACY_MODE:
             return VistaFormatter._export_legacy(patients, encounters, conditions, output_file)
         if mode == VistaFormatter.FILEMAN_INTERNAL_MODE:
-            return VistaFormatter._export_fileman_internal(patients, encounters, conditions, output_file)
+            return VistaFormatter._export_fileman_internal(
+                patients,
+                encounters,
+                conditions,
+                medications,
+                observations,
+                allergies,
+                output_file,
+            )
         raise ValueError(f"Unsupported VistA export mode: {export_mode}")
 
 class HL7MessageValidator:
@@ -2307,6 +2601,9 @@ def main():
         patients,
         all_encounters,
         all_conditions,
+        all_medications,
+        all_observations,
+        all_allergies,
         vista_output_file,
         export_mode=vista_mode,
     )
