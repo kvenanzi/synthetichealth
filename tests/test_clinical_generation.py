@@ -1,5 +1,6 @@
 import random
 from collections import Counter
+from datetime import datetime, timedelta
 from unittest.mock import patch
 
 from faker import Faker
@@ -29,6 +30,15 @@ def base_patient() -> dict:
     }
 
 
+def find_condition_display(keyword: str) -> str:
+    lowered = keyword.lower()
+    for entry in clinical.CONDITION_CATALOG.values():
+        display = entry.get("display", "")
+        if lowered in display.lower():
+            return entry["display"]
+    raise AssertionError(f"Condition containing '{keyword}' not found in catalog")
+
+
 def test_generate_conditions_and_care_plans_summary():
     patient = base_patient()
     patient["birthdate"] = "1990-01-01"
@@ -42,7 +52,7 @@ def test_generate_conditions_and_care_plans_summary():
             "onset_date": "2024-01-01",
             "icd10_code": "F33.1",
             "snomed_code": "370143000",
-            "condition_category": "behavioral_health",
+            "condition_category": "mental_health",
         }
     ]
     encounters = [
@@ -196,6 +206,91 @@ def test_generate_encounters_includes_stop_codes():
         assert encounter.get("service_category") in {"A", "E", "I"}
         assert encounter.get("encounter_class") in {"ambulatory", "emergency", "inpatient"}
         assert "duration_minutes" in encounter
+
+
+def test_condition_assignment_has_breadth_and_severity_profiles():
+    seed_random(314)
+    today = datetime.now().date()
+    unique_conditions = set()
+    severity_or_stage_counter = 0
+
+    for idx in range(60):
+        patient = base_patient()
+        patient["patient_id"] = f"patient-{idx}"
+        age = random.randint(2, 90)
+        patient["age"] = age
+        patient["birthdate"] = (today - timedelta(days=age * 365)).isoformat()
+        patient["gender"] = random.choice(["male", "female"])
+        patient["sdoh_risk_score"] = random.uniform(0.0, 0.9)
+        patient["genetic_risk_score"] = random.uniform(0.0, 2.0)
+
+        assigned = clinical.assign_conditions(patient)
+        condition_records = clinical.generate_conditions(
+            patient,
+            encounters=[],
+            preassigned_conditions=assigned,
+            min_cond=1,
+            max_cond=6,
+        )
+        unique_conditions.update(
+            record["name"] for record in condition_records if record.get("name")
+        )
+        if any(record.get("stage_detail") or record.get("severity_detail") for record in condition_records):
+            severity_or_stage_counter += 1
+
+    assert len(unique_conditions) >= 40, f"Expected >= 40 conditions, got {len(unique_conditions)}"
+    assert severity_or_stage_counter > 0, "Expected at least one condition with stage or severity detail"
+
+
+def test_encounter_volume_scales_with_condition_burden():
+    seed_random(902)
+    today = datetime.now().date()
+
+    low_patient = base_patient()
+    low_patient["patient_id"] = "patient-low"
+    low_patient["age"] = 35
+    low_patient["birthdate"] = (today - timedelta(days=35 * 365)).isoformat()
+    low_patient["sdoh_risk_score"] = 0.1
+    low_patient["genetic_risk_score"] = 0.3
+    low_conditions = clinical.assign_conditions(low_patient)[:1]
+    low_encounters = clinical.generate_encounters(
+        low_patient,
+        preassigned_conditions=low_conditions,
+        max_enc=6,
+    )
+
+    seed_random(903)
+    high_patient = base_patient()
+    high_patient["patient_id"] = "patient-high"
+    high_patient["age"] = 72
+    high_patient["birthdate"] = (today - timedelta(days=72 * 365)).isoformat()
+    high_patient["sdoh_risk_score"] = 0.85
+    high_patient["genetic_risk_score"] = 2.1
+    high_patient["transportation_access"] = "limited"
+    high_conditions = [
+        find_condition_display("heart failure"),
+        find_condition_display("chronic kidney disease"),
+        find_condition_display("copd"),
+        find_condition_display("diabetes"),
+        find_condition_display("hypertension"),
+        find_condition_display("depression"),
+    ]
+    high_encounters = clinical.generate_encounters(
+        high_patient,
+        preassigned_conditions=high_conditions,
+        max_enc=30,
+    )
+
+    assert len(high_encounters) >= len(low_encounters) + 5
+
+    non_primary_departments = {
+        enc.get("department")
+        for enc in high_encounters
+        if enc.get("department") not in {"Primary Care", "Preventive Medicine"}
+    }
+    assert "Behavioral Health" in non_primary_departments, "Behavioral health specialty visits expected"
+    assert "Pulmonology" in non_primary_departments, "Pulmonology encounters expected for COPD"
+    assert any(enc.get("related_conditions") for enc in high_encounters), "Related conditions should annotate encounters"
 
 
 def test_generate_death_with_forced_probability():

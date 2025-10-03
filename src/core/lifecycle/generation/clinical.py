@@ -125,6 +125,13 @@ CATEGORY_SEX_BIASES = {
     "perinatal": {"male": 0.5, "female": 0.5, "other": 0.1},
 }
 
+CATEGORY_ALIASES = {
+    "cardiology": "cardiovascular",
+    "pulmonology": "respiratory",
+    "behavioral_health": "mental_health",
+    "immunology": "factors_influencing",
+}
+
 KEYWORD_PREVALENCE_OVERRIDES = [
     ("hypertens", 0.28),
     ("type 2 diabetes", 0.18),
@@ -685,6 +692,13 @@ def _determine_severity_template(display: str, category: str) -> Optional[Dict[s
     return None
 
 
+def _normalize_condition_category(category: Optional[str]) -> str:
+    if not category:
+        return "misc"
+    normalized = CATEGORY_ALIASES.get(category.lower(), category.lower())
+    return normalized
+
+
 def _augment_condition_entry(
     display: str,
     icd10_code: str,
@@ -692,12 +706,14 @@ def _augment_condition_entry(
     category_hint: Optional[str] = None,
     metadata: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
-    category = category_hint or classify_icd10_category(icd10_code)
+    source_category = (category_hint or classify_icd10_category(icd10_code)) or "misc"
+    category = _normalize_condition_category(source_category)
     entry = {
         "display": display,
         "icd10": icd10_code,
         "snomed": snomed_code,
         "category": category,
+        "source_category": source_category,
         "chapter": ICD10_CATEGORY_LABELS.get(category, category),
         "normalized": _normalize_text(display),
         "base_prevalence": _determine_base_prevalence(display, category),
@@ -2338,7 +2354,7 @@ FAMILY_HISTORY_PROFILES = [
     },
     {
         "condition": "Depression",
-        "category": "behavioral_health",
+        "category": "mental_health",
         "base_rate": 0.20,
         "risk_boost": 0.05,
         "onset_mean": 32,
@@ -2349,7 +2365,7 @@ FAMILY_HISTORY_PROFILES = [
     },
     {
         "condition": "Anxiety",
-        "category": "behavioral_health",
+        "category": "mental_health",
         "base_rate": 0.18,
         "risk_boost": 0.04,
         "onset_mean": 25,

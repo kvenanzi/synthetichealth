@@ -21,13 +21,13 @@ CONDITIONS = [
         "display": "Heart Disease",
         "icd10": "I25.10",
         "snomed": "53741008",
-        "category": "cardiology"
+        "category": "cardiovascular"
     },
     {
         "display": "Heart Failure",
         "icd10": "I50.9",
         "snomed": "84114007",
-        "category": "cardiology"
+        "category": "cardiovascular"
     },
     {
         "display": "Obesity",
@@ -39,25 +39,25 @@ CONDITIONS = [
         "display": "COPD",
         "icd10": "J44.1",
         "snomed": "13645005",
-        "category": "pulmonology"
+        "category": "respiratory"
     },
     {
         "display": "Asthma",
         "icd10": "J45.909",
         "snomed": "195967001",
-        "category": "pulmonology"
+        "category": "respiratory"
     },
     {
         "display": "Depression",
         "icd10": "F33.1",
         "snomed": "370143000",
-        "category": "behavioral_health"
+        "category": "mental_health"
     },
     {
         "display": "Anxiety",
         "icd10": "F41.1",
         "snomed": "21897009",
-        "category": "behavioral_health"
+        "category": "mental_health"
     },
     {
         "display": "Cancer",
@@ -81,7 +81,7 @@ CONDITIONS = [
         "display": "Allergy",
         "icd10": "T78.40XA",
         "snomed": "419199007",
-        "category": "immunology"
+        "category": "factors_influencing"
     },
     {
         "display": "Migraine",
