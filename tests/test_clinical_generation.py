@@ -210,6 +210,33 @@ def test_generate_death_with_forced_probability():
     assert death_record["primary_cause_code"]
 
 
+def test_generate_death_incorporates_family_history_risk():
+    seed_random(5)
+    patient = base_patient()
+    patient["age"] = 72
+    patient["birthdate"] = "1951-01-01"
+    family_history = [
+        {
+            "patient_id": patient["patient_id"],
+            "condition": "Heart Disease",
+            "condition_display": "Heart Disease",
+            "risk_modifier": 0.2,
+            "recorded_date": "2020-01-01",
+        }
+    ]
+    conditions = [{"name": "Hypertension"}]
+
+    with patch("src.core.lifecycle.generation.clinical.random.random", return_value=0.0), patch(
+        "src.core.lifecycle.generation.clinical.random.uniform", return_value=0.0
+    ), patch("src.core.lifecycle.generation.clinical.random.randint", return_value=1), patch(
+        "src.core.lifecycle.generation.clinical.random.gauss", side_effect=lambda mean, _: mean
+    ):
+        death_record = clinical.generate_death(patient, conditions=conditions, family_history=family_history)
+
+    assert death_record is not None
+    assert death_record["risk_multiplier"] > 1.0
+
+
 def test_parse_distribution_accepts_mapping():
     distribution = {"a": 0.5, "b": 0.5}
     parsed = clinical.parse_distribution(distribution, ["a", "b"], default_dist=None)
@@ -242,3 +269,39 @@ def test_generate_immunizations_schedule():
     assert immunizations, "Expected schedule-driven immunizations"
     assert all(record.get("cvx_code") for record in immunizations)
     assert len(followups) <= len(immunizations)
+
+
+def test_generate_family_history_returns_entries_and_adjustments():
+    seed_random(100)
+    patient = base_patient()
+    patient["age"] = 55
+    def pick(options):
+        if isinstance(options, (list, tuple)):
+            return options[0]
+        if isinstance(options, set):
+            return next(iter(options))
+        return options
+
+    with patch("src.core.lifecycle.generation.clinical.random.random", return_value=0.0), patch(
+        "src.core.lifecycle.generation.clinical.random.choice",
+        side_effect=pick,
+    ):
+        entries, adjustments = clinical.generate_family_history(patient, min_fam=1, max_fam=1)
+
+    assert entries, "Expected at least one family history entry"
+    entry = entries[0]
+    assert entry["patient_id"] == patient["patient_id"]
+    assert entry.get("relation")
+    assert entry.get("condition")
+    assert adjustments, "Expected risk adjustments"
+    assert any(value > 0 for value in adjustments.values())
+
+
+def test_assign_conditions_respects_family_history_adjustments():
+    seed_random(200)
+    patient = base_patient()
+    patient["family_history_adjustments"] = {"Heart Disease": 0.5}
+    with patch("src.core.lifecycle.generation.clinical.random.random", return_value=0.0):
+        assigned = clinical.assign_conditions(patient)
+
+    assert "Heart Disease" in assigned

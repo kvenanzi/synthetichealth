@@ -25,6 +25,8 @@ class LifecycleOrchestrator:
         observations: List[Dict[str, Any]],
         allergies: List[Dict[str, Any]],
         procedures: List[Dict[str, Any]],
+        family_history: Optional[List[Dict[str, Any]]] = None,
+        death: Optional[Dict[str, Any]] = None,
         metadata: Optional[Dict[str, Any]] = None,
     ) -> LifecyclePatient:
         """Assemble a `LifecyclePatient` enriched with scenario metadata."""
@@ -54,5 +56,7 @@ class LifecycleOrchestrator:
             observations=observations,
             allergies=allergies,
             procedures=procedures,
+            family_history=family_history,
+            death=death,
             metadata=merged_metadata,
         )

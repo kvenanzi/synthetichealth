@@ -6,6 +6,7 @@ This document captures the current state and near-term priorities for the simula
 - **Lifecycle engine (Phase 1)**: completed; generator uses lifecycle modules, orchestrator, and scenario configs.
 - **Terminology platform (Phase 2)**: LOINC, ICD-10, SNOMED, RxNorm, VSAC, and UMLS importers are automated; loaders prefer normalized CSVs or the DuckDB warehouse while lightweight seeds remain for CI.
 - **Exports**: FHIR/HL7/VistA/CSV/Parquet remain in sync; FHIR now emits Observation resources with VSAC value set references and appends UMLS concept extensions (alongside NCBI links) when terminology metadata is available.
+- **Family history & mortality realism**: lifecycle generator produces structured FamilyMemberHistory entries with risk adjustments, and the mortality model now selects ICD-10-coded primary causes with VistA/FHIR/HL7 propagation.
 
 ## Phase Roadmap
 
@@ -146,12 +147,40 @@ Implementation Steps
 
 Acceptance Criteria
 - Medication variety: ≥25 distinct ingredients across cohorts, with class‑appropriate selection and no contraindicated picks in rule scenarios.
-- Lab breadth: ≥50 distinct LOINC tests across panels with correct UCUM units and age/sex‑appropriate reference ranges.
+- Lab breadth: ≥50 distinct LOINC tests across panels with correct UCUM units and age/sex-appropriate reference ranges.
 - Orders reflect clinical logic: meds trigger monitoring labs; conditions map to guideline panels; timing windows look plausible.
 - Exporters remain consistent (FileMan pointers, FHIR/HL7 coding), and regression tests pass.
 
+## Family History Realism (Completed)
+Objective: generate clinically plausible family history entries that influence condition propensity and persist across CSV/FHIR/HL7/VistA outputs with correct coding.
+
+Highlights
+- Added a curated family history profile catalog covering cardiometabolic, behavioral health, respiratory, neurology, and oncology traits with relation weights, onset distributions, and risk boosts.
+- `generate_family_history` now returns structured entries (relation + v3 RoleCode, condition + SNOMED/ICD pointers, onset age, notes) and calculates per-condition risk adjustments that feed back into `assign_conditions`.
+- Family history entries surface in CSV, FHIR (`FamilyMemberHistory` resources), HL7 (AL1 context remains per allergy; FH data planned for ORU notes), and VistA (`^AUPNFH` file with patient, relation, and ICD pointers plus headers/xrefs) with FileMan-clean nodes.
+- Lifecycle patients persist entries/adjustments for downstream analytics; smoke runs verified pointer integrity and resource counts.
+
+Follow-ups
+- Expand catalog breadth with additional profiles sourced from VSAC familial risk sets (e.g., breast/ovarian BRCA, colon polyposis syndromes) and allow scenario-specific overrides.
+- Consider linking family history profiles to condition staging/severity (e.g., early-onset CAD) and patient education care plan entries.
+- Explore optional genealogical modeling (multiple relatives per branch) once household simulation is introduced.
+
+## Mortality Realism (Completed)
+Objective: improve mortality timing and ICD-10 coding, incorporate comorbidity/family history risk, and bring exporter parity (FHIR deceased flag, HL7 PID-29/30, VistA death nodes).
+
+Highlights
+- Replaced the fixed 10 % mortality chance with an age/sex baseline probability blended with SDOH, smoking/alcohol status, active conditions, and family history risk modifiers.
+- Mortality engine samples ICD-10-CM causes (condition-weighted and age-appropriate) and records manner of death; outputs include risk multiplier metadata for analytics.
+- Pipeline now flags patients as deceased, stores death certificates in lifecycle metadata, updates FHIR Patient `deceasedDateTime`, and populates HL7 PID-29/30 along with VistA `^DPT(.35/.351/.352/.353)` nodes (FM dates + ICD pointers).
+- Death records persist in CSV (`deceased`, `death_date`, `death_primary_cause`) and VistA headers, with smoke validation confirming pointer targets and exporter summaries reporting counts.
+
+Follow-ups
+- Enrich mortality causes with CDC leading-cause distributions by demographic slice and add contributing ICD-10 codes to HL7 OBX segments if downstream systems expect them.
+- Integrate hospice/discharge events and care plan closure when mortality occurs; consider death certificate observations in FHIR (e.g., `Observation` or `Condition` for cause sequence).
+- Add regression tests covering high-risk cohorts (e.g., dual diagnosis, multi-comorbidity) and ensure mortality impacts future encounter/care-plan generation in long-running simulations.
+
 ## Conditions Realism (Plan)
-Objective: expand condition variety and fidelity beyond the current curated set; drive prevalence by age/sex/SDOH, add severity/staging where relevant, and ensure consistent coding (ICD‑10 + SNOMED) across exporters.
+Objective: expand condition variety and fidelity beyond the current curated set; drive prevalence by age/sex/SDOH, add severity/staging where relevant, and ensure consistent coding (ICD-10 + SNOMED) across exporters.
 
 Data Sources
 - ICD‑10 (normalized `icd10_full.csv` / DuckDB) for diagnosis coding and chapter‑level sampling.
@@ -362,12 +391,8 @@ Acceptance Criteria
 - Tests pass (`pytest`), and smoke output shows patients > 0, meds > 0, labs > 0, allergies > 0.
 
 ## Immediate Next Steps
-1. **Allergy realism expansion** (scope above)
-    - Implement warehouse-backed allergen/reaction loaders and swap in the expanded catalogs; add evidence-based orders for severe reactions.
-    - Add tests ensuring minimum allergen count and exporter correctness (CSV/FHIR/VistA/HL7).
-2. **Medication & laboratory realism expansion** (scope above)
-   - Hydrate medication catalog from RxNorm; expand lab panels from LOINC; wire indication/monitoring rules.
-   - Add tests to verify breadth, coding integrity, contraindication enforcement, and plausible distributions.
+1. ✅ **Allergy realism expansion** — loaders, catalog swap, downstream orders, and exporter/tests completed.
+2. ✅ **Medication & laboratory realism expansion** — RxNorm/LOINC catalogs with monitoring logic and regression tests in place.
 3. **Conditions & encounters realism expansion** (scopes above)
    - Replace static condition catalog with loader-based sampling and severity; add encounter cadence rules tied to care plans.
    - Tests for distribution plausibility and pointer/coding integrity.
@@ -375,8 +400,7 @@ Acceptance Criteria
    - Add CVX/RxNorm-backed schedules and (optional) VistA `^AUPNVIMM` pilot; include serology LOINC observations.
 5. **Care plan realism expansion** (scope above)
    - Enrich pathways, activities, and metrics; wire to orders/obs.
-6. **Family history & mortality realism** (scopes above)
-   - Add realistic FamilyMemberHistory and ICD‑10 coded causes of death with timing.
+6. ✅ **Family history & mortality realism** — risk-adjusted family history and ICD-10 mortality pipeline shipped across exports.
 7. **Extend module catalogue**
     - Implement remaining backlog scenarios (geriatrics, sepsis survivorship, HIV/PrEP) using the established authoring pattern.
     - Add scenario wiring plus regression tests mirroring `tests/test_module_engine.py` for every new module.

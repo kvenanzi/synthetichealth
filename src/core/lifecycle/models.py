@@ -266,6 +266,112 @@ class CarePlanSummary:
 
 
 @dataclass
+class FamilyHistoryEntry:
+    family_history_id: str
+    patient_id: str
+    relation: str
+    condition: str
+    condition_display: Optional[str] = None
+    relation_code: Optional[str] = None
+    condition_code: Optional[str] = None
+    condition_system: Optional[str] = None
+    icd10_code: Optional[str] = None
+    onset_age: Optional[int] = None
+    recorded_date: Optional[date] = None
+    risk_modifier: Optional[float] = None
+    notes: Optional[str] = None
+    source: Optional[str] = None
+    genetic_marker: Optional[str] = None
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    @classmethod
+    def from_legacy(cls, data: Dict[str, Any]) -> "FamilyHistoryEntry":
+        metadata = {
+            key: value
+            for key, value in data.items()
+            if key
+            not in {
+                "family_history_id",
+                "patient_id",
+                "relation",
+                "relation_code",
+                "condition",
+                "condition_display",
+                "condition_code",
+                "condition_system",
+                "icd10_code",
+                "onset_age",
+                "recorded_date",
+                "risk_modifier",
+                "notes",
+                "source",
+                "genetic_marker",
+            }
+        }
+
+        return cls(
+            family_history_id=str(data.get("family_history_id", "")),
+            patient_id=str(data.get("patient_id", "")),
+            relation=data.get("relation", ""),
+            condition=data.get("condition", ""),
+            condition_display=data.get("condition_display"),
+            relation_code=data.get("relation_code"),
+            condition_code=data.get("condition_code"),
+            condition_system=data.get("condition_system"),
+            icd10_code=data.get("icd10_code"),
+            onset_age=data.get("onset_age"),
+            recorded_date=_parse_date(data.get("recorded_date")),
+            risk_modifier=data.get("risk_modifier"),
+            notes=data.get("notes"),
+            source=data.get("source"),
+            genetic_marker=data.get("genetic_marker"),
+            metadata=metadata,
+        )
+
+
+@dataclass
+class DeathRecord:
+    patient_id: str
+    death_date: Optional[date]
+    age_at_death: Optional[int]
+    primary_cause_code: str
+    primary_cause_description: Optional[str] = None
+    contributing_causes: Optional[str] = None
+    manner_of_death: Optional[str] = None
+    death_certificate_type: Optional[str] = None
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    @classmethod
+    def from_legacy(cls, data: Dict[str, Any]) -> "DeathRecord":
+        metadata = {
+            key: value
+            for key, value in data.items()
+            if key
+            not in {
+                "patient_id",
+                "death_date",
+                "age_at_death",
+                "primary_cause_code",
+                "primary_cause_description",
+                "contributing_causes",
+                "manner_of_death",
+                "death_certificate_type",
+            }
+        }
+        return cls(
+            patient_id=str(data.get("patient_id", "")),
+            death_date=_parse_date(data.get("death_date")),
+            age_at_death=data.get("age_at_death"),
+            primary_cause_code=data.get("primary_cause_code", ""),
+            primary_cause_description=data.get("primary_cause_description"),
+            contributing_causes=data.get("contributing_causes"),
+            manner_of_death=data.get("manner_of_death"),
+            death_certificate_type=data.get("death_certificate_type"),
+            metadata=metadata,
+        )
+
+
+@dataclass
 class Patient:
     patient_id: str
     first_name: str
@@ -291,6 +397,8 @@ class Patient:
     care_plans: List[Dict[str, Any]] = field(default_factory=list)
     care_plan: CarePlanSummary = field(default_factory=CarePlanSummary)
     metadata: Dict[str, Any] = field(default_factory=dict)
+    family_history: List[FamilyHistoryEntry] = field(default_factory=list)
+    death: Optional[DeathRecord] = None
 
     @classmethod
     def from_legacy(
@@ -304,6 +412,8 @@ class Patient:
         observations: List[Dict[str, Any]],
         allergies: List[Dict[str, Any]],
         procedures: List[Dict[str, Any]],
+        family_history: Optional[List[Dict[str, Any]]] = None,
+        death: Optional[Dict[str, Any]] = None,
         metadata: Optional[Dict[str, Any]] = None,
     ) -> "Patient":
         birth_date = _parse_date(patient.get("birthdate")) or date.today()
@@ -354,6 +464,22 @@ class Patient:
         care_plan_details = metadata.get("care_plan_details") if metadata else None
         if not care_plan_details:
             care_plan_details = patient.get("care_plans") or []
+        family_history_payload: List[FamilyHistoryEntry] = []
+        source_family_history = family_history if family_history is not None else patient.get("family_history") or patient.get("family_history_entries")
+        if source_family_history:
+            for entry in source_family_history:
+                if isinstance(entry, FamilyHistoryEntry):
+                    family_history_payload.append(entry)
+                elif isinstance(entry, dict):
+                    family_history_payload.append(FamilyHistoryEntry.from_legacy(entry))
+
+        death_record: Optional[DeathRecord] = None
+        source_death = death if death is not None else patient.get("death") or patient.get("death_record")
+        if isinstance(source_death, DeathRecord):
+            death_record = source_death
+        elif isinstance(source_death, dict):
+            death_record = DeathRecord.from_legacy(source_death)
+
         return cls(
             patient_id=patient.get("patient_id", ""),
             first_name=patient.get("first_name", ""),
@@ -379,6 +505,8 @@ class Patient:
             care_plans=care_plan_details,
             care_plan=care_plan,
             metadata=metadata or {},
+            family_history=family_history_payload,
+            death=death_record,
         )
 
     def to_serializable_dict(self) -> Dict[str, Any]:
@@ -402,4 +530,12 @@ class Patient:
             eff = observation.get("effective_datetime")
             if eff:
                 observation["effective_datetime"] = eff.isoformat()
+        for entry in payload.get("family_history", []):
+            recorded = entry.get("recorded_date")
+            if isinstance(recorded, date):
+                entry["recorded_date"] = recorded.isoformat()
+        death_record = payload.get("death")
+        if isinstance(death_record, dict) and death_record.get("death_date"):
+            if isinstance(death_record["death_date"], date):
+                death_record["death_date"] = death_record["death_date"].isoformat()
         return payload

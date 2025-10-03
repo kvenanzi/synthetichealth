@@ -8,6 +8,8 @@ from .models import (
     MedicationOrder,
     ImmunizationRecord,
     CarePlanSummary,
+    FamilyHistoryEntry,
+    DeathRecord,
     Patient,
 )
 from .records import PatientRecord
@@ -38,6 +40,8 @@ __all__ = [
     "MedicationOrder",
     "ImmunizationRecord",
     "CarePlanSummary",
+    "FamilyHistoryEntry",
+    "DeathRecord",
     "Patient",
     "PatientRecord",
     "GENDERS",

@@ -24,6 +24,7 @@ from .lifecycle import (
     Encounter as LifecycleEncounter,
     MedicationOrder as LifecycleMedicationOrder,
     ImmunizationRecord,
+     FamilyHistoryEntry,
     PatientRecord,
 )
 from .lifecycle.constants import (
@@ -222,6 +223,7 @@ class FHIRFormatter:
             birthdate = patient_record.birth_date.isoformat()
             given_names = [name for name in [patient_record.first_name, patient_record.middle_name] if name]
             phone = patient_record.contact.get("phone")
+            death_record = patient_record.death
         else:
             mrn = patient_record.mrn or patient_record.generate_mrn()
             ssn = patient_record.ssn
@@ -229,6 +231,7 @@ class FHIRFormatter:
             birthdate = patient_record.birthdate
             given_names = [patient_record.first_name]
             phone = getattr(patient_record, "phone", None)
+            death_record = patient_record.metadata.get("death_record") if hasattr(patient_record, "metadata") else None
 
         identifiers_payload = [
             {
@@ -276,7 +279,7 @@ class FHIRFormatter:
                     }
                 )
 
-        return {
+        resource = {
             "resourceType": "Patient",
             "id": patient_record.patient_id,
             "identifier": identifiers_payload,
@@ -293,6 +296,17 @@ class FHIRFormatter:
             "birthDate": birthdate,
             "address": address_payload,
         }
+
+        if death_record:
+            if isinstance(death_record, dict):
+                death_date_value = death_record.get("death_date")
+            else:
+                death_date_value = death_record.death_date.isoformat() if death_record.death_date else None
+            if death_date_value:
+                resource["deceasedDateTime"] = death_date_value
+                resource["active"] = False
+
+        return resource
     
     def create_condition_resource(
         self,
@@ -1113,6 +1127,72 @@ class FHIRFormatter:
 
         return observation_resource
 
+    def create_family_history_resource(
+        self,
+        patient_id: str,
+        entry: FamilyHistoryEntry,
+    ) -> Dict[str, Any]:
+        resource_id = entry.family_history_id or str(uuid.uuid4())
+        relation = entry.relation or "Unknown"
+        recorded_date = entry.recorded_date.isoformat() if entry.recorded_date else datetime.now().date().isoformat()
+
+        relationship_coding: List[Dict[str, Any]] = []
+        if entry.relation_code:
+            relationship_coding.append(
+                {
+                    "system": "http://terminology.hl7.org/CodeSystem/v3-RoleCode",
+                    "code": entry.relation_code,
+                    "display": relation,
+                }
+            )
+
+        resource: Dict[str, Any] = {
+            "resourceType": "FamilyMemberHistory",
+            "id": resource_id,
+            "status": "completed",
+            "patient": {"reference": f"Patient/{patient_id}"},
+            "date": recorded_date,
+            "name": relation,
+            "relationship": {
+                "text": relation,
+                "coding": relationship_coding,
+            },
+        }
+
+        condition_component: Dict[str, Any] = {}
+        if entry.condition_code:
+            condition_component["code"] = {
+                "coding": [
+                    {
+                        "system": entry.condition_system or "http://hl7.org/fhir/sid/icd-10-cm",
+                        "code": entry.condition_code,
+                        "display": entry.condition_display or entry.condition,
+                    }
+                ]
+            }
+        elif entry.condition or entry.condition_display:
+            condition_component["code"] = {
+                "text": entry.condition_display or entry.condition,
+            }
+
+        if entry.onset_age is not None:
+            condition_component["onsetAge"] = {"value": entry.onset_age, "unit": "years"}
+
+        notes: List[str] = []
+        if entry.notes:
+            notes.append(str(entry.notes))
+        if entry.genetic_marker:
+            notes.append(f"Genetic marker: {entry.genetic_marker}")
+        if entry.risk_modifier is not None:
+            notes.append(f"Risk modifier: {entry.risk_modifier}")
+        if notes:
+            condition_component["note"] = [{"text": "; ".join(notes)}]
+
+        if condition_component:
+            resource["condition"] = [condition_component]
+
+        return resource
+
 class HL7v2Formatter:
     """HL7 v2.x message formatter for Phase 2"""
     
@@ -1158,6 +1238,7 @@ class HL7v2Formatter:
             language = patient_record.language or ""
             marital_status = patient_record.marital_status or ""
             middle_name = patient_record.middle_name or ""
+            death_record = patient_record.death
         else:
             mrn = patient_record.mrn or patient_record.generate_mrn()
             ssn = patient_record.ssn or ""
@@ -1171,6 +1252,23 @@ class HL7v2Formatter:
             language = getattr(patient_record, "language", "")
             marital_status = getattr(patient_record, "marital_status", "")
             middle_name = getattr(patient_record, "middle_name", "")
+            metadata = getattr(patient_record, "metadata", {})
+            death_record = metadata.get("death_record") if isinstance(metadata, dict) else None
+
+        death_indicator = "N"
+        death_date_field = ""
+        if death_record:
+            if isinstance(death_record, dict):
+                death_value = death_record.get("death_date")
+            else:
+                death_value = death_record.death_date.isoformat() if death_record.death_date else None
+            if death_value:
+                death_indicator = "Y"
+                if isinstance(death_value, str):
+                    cleaned = death_value.replace("-", "").replace(":", "").replace("T", "")
+                    death_date_field = cleaned[:8]
+                else:
+                    death_date_field = death_value.strftime("%Y%m%d")
 
         # MSH - Message Header
         msh = (f"MSH|^~\\&|VistA|VA_FACILITY|Oracle|ORACLE_FACILITY|{timestamp}||"
@@ -1212,8 +1310,8 @@ class HL7v2Formatter:
             "",   # Citizenship
             "",   # Veterans Military Status
             "",   # Nationality
-            "",   # Death Date
-            "",   # Death Indicator
+            death_date_field,
+            death_indicator,
             "",   # Identity Unknown
             "",   # Identity Reliability
             "",   # Last Update Date
@@ -1558,6 +1656,7 @@ class VistaReferenceRegistry:
         self.lab_lookup: Dict[str, Dict[str, str]] = {}
         self.allergen_lookup: Dict[str, Dict[str, str]] = {}
         self.immunization_lookup: Dict[str, Dict[str, str]] = {}
+        self.family_relation_lookup: Dict[str, str] = {}
         self._icd_counter = 400000
         self._narrative_counter = 500000
         self._location_counter = 600000
@@ -1565,6 +1664,7 @@ class VistaReferenceRegistry:
         self._lab_counter = 800000
         self._allergen_counter = 900000
         self._immunization_counter = 950000
+        self._relation_counter = 980000
 
     def _allocate(self, counter_attr: str) -> str:
         value = getattr(self, counter_attr)
@@ -1683,6 +1783,16 @@ class VistaReferenceRegistry:
             entry["name"] = name
         return entry["ien"]
 
+    def get_family_relation_ien(self, relation: Optional[str]) -> str:
+        if not relation:
+            return ""
+        key = relation.strip()
+        if not key:
+            return ""
+        if key not in self.family_relation_lookup:
+            self.family_relation_lookup[key] = self._allocate("_relation_counter")
+        return self.family_relation_lookup[key]
+
     def build_reference_globals(self, sanitize: Callable[[str], str]) -> Dict[str, str]:
         globals_dict: Dict[str, str] = {}
         for code, ien in self.icd10_lookup.items():
@@ -1720,6 +1830,10 @@ class VistaReferenceRegistry:
             cvx = entry.get("cvx", "")
             globals_dict[f"^AUTTIMM({ien},0)"] = f"{name}^{cvx}"
             globals_dict[f'^AUTTIMM("B","{name}",{ien})'] = ""
+        for relation, ien in self.family_relation_lookup.items():
+            name = sanitize(relation) or relation or f"RELATION {ien}"
+            globals_dict[f"^AUTTRLSH({ien},0)"] = name
+            globals_dict[f'^AUTTRLSH("B","{name}",{ien})'] = ""
         return globals_dict
 
     def header_entries(self, fm_date: str) -> Dict[str, str]:
@@ -1742,6 +1856,8 @@ class VistaReferenceRegistry:
             headers["^GMR(120.82,0)"] = f"ALLERGEN^120.82^{max(int(entry['ien']) for entry in self.allergen_lookup.values())}^{fm_date}"
         if self.immunization_lookup:
             headers["^AUTTIMM(0)"] = f"IMMUNIZATION^9999999.14^{max(int(entry['ien']) for entry in self.immunization_lookup.values())}^{fm_date}"
+        if self.family_relation_lookup:
+            headers["^AUTTRLSH(0)"] = f"RELATION^9999999.05^{max(int(ien) for ien in self.family_relation_lookup.values())}^{fm_date}"
         return headers
 
 
@@ -2125,6 +2241,8 @@ class VistaFormatter:
         observations: List[Dict],
         allergies: List[Dict],
         immunizations: List[Dict],
+        family_history: List[Dict],
+        deaths: List[Dict],
         output_file: str,
     ) -> Dict[str, int]:
         print(f"Generating VistA MUMPS globals for {len(patients)} patients (FileMan mode)...")
@@ -2141,14 +2259,17 @@ class VistaFormatter:
         lab_iens: Set[int] = set()
         allergy_iens: Set[int] = set()
         immunization_iens: Set[int] = set()
+        family_history_iens: Set[int] = set()
         medication_map: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
         observation_map: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
         allergy_map: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
         immunization_map: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+        family_history_map: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
         medication_vista_map: Dict[str, str] = {}
         lab_vista_map: Dict[str, str] = {}
         allergy_vista_map: Dict[str, str] = {}
         immunization_vista_map: Dict[str, str] = {}
+        family_history_vista_map: Dict[str, str] = {}
 
         def _ensure_unique_ien(target_set: Set[int]) -> str:
             candidate = VistaFormatter.generate_vista_ien()
@@ -2176,6 +2297,11 @@ class VistaFormatter:
             patient_id = immunization.get('patient_id')
             if patient_id:
                 immunization_map[patient_id].append(immunization)
+
+        for entry in family_history or []:
+            patient_id = entry.get('patient_id')
+            if patient_id:
+                family_history_map[patient_id].append(entry)
 
         # Patient structures
         for patient in tqdm(patients, desc="Creating VistA patient globals", unit="patients"):
@@ -2224,6 +2350,32 @@ class VistaFormatter:
                 all_globals[f'^DPT("SSN","{vista_ssn}",{vista_ien})'] = ""
             if vista_dob:
                 all_globals[f'^DPT("DOB",{vista_dob},{vista_ien})'] = ""
+
+            death_record = patient.metadata.get("death_record") if hasattr(patient, "metadata") else None
+            if not death_record:
+                death_record = getattr(patient, "death_record", None)
+            if isinstance(death_record, dict):
+                death_date_raw = death_record.get("death_date")
+                primary_cause_code = death_record.get("primary_cause_code")
+                manner = death_record.get("manner_of_death")
+                cause_text = death_record.get("primary_cause_description")
+            else:
+                death_date_raw = getattr(death_record, "death_date", None)
+                primary_cause_code = getattr(death_record, "primary_cause_code", None)
+                manner = getattr(death_record, "manner_of_death", None)
+                cause_text = getattr(death_record, "primary_cause_description", None)
+
+            death_date_fm = VistaFormatter.fileman_date_format(death_date_raw) if death_date_raw else ""
+            if death_date_fm:
+                all_globals[f"^DPT({vista_ien},.35)"] = death_date_fm
+            if primary_cause_code:
+                cause_ien = registry.get_icd10_ien(primary_cause_code)
+                if cause_ien:
+                    all_globals[f"^DPT({vista_ien},.351)"] = cause_ien
+            if manner:
+                all_globals[f"^DPT({vista_ien},.352)"] = VistaFormatter.sanitize_mumps_string(manner)
+            if cause_text:
+                all_globals[f"^DPT({vista_ien},.353)"] = VistaFormatter.sanitize_mumps_string(cause_text)
 
         # Index encounters by patient
         encounter_map: Dict[str, List[Dict[str, Any]]] = {}
@@ -2501,6 +2653,62 @@ class VistaFormatter:
                 if icd_ien:
                     all_globals[f'^AUPNPROB("ICD",{icd_ien},{vista_ien},{problem_ien})'] = ""
 
+        for patient in tqdm(patients, desc="Creating VistA family history globals", unit="patients"):
+            vista_ien = patient.vista_id or patient.generate_vista_id()
+            patient_history = family_history_map.get(patient.patient_id, [])
+            for entry in patient_history:
+                entry_key = (
+                    entry.get('family_history_id')
+                    or entry.get('id')
+                    or f"{entry.get('condition')}|{entry.get('relation')}|{entry.get('recorded_date')}"
+                )
+                fh_ien = family_history_vista_map.setdefault(entry_key, _ensure_unique_ien(family_history_iens))
+
+                relation_ien = registry.get_family_relation_ien(entry.get('relation'))
+                narrative_ien = registry.get_narrative_ien(entry.get('condition_display') or entry.get('condition'))
+                icd_ien = registry.get_icd10_ien(entry.get('icd10_code'))
+
+                recorded_raw = entry.get('recorded_date')
+                if isinstance(recorded_raw, date):
+                    recorded_value = VistaFormatter.fileman_date_format(recorded_raw.isoformat())
+                else:
+                    recorded_value = VistaFormatter.fileman_date_format(recorded_raw)
+
+                onset_age = entry.get('onset_age')
+                onset_str = str(onset_age) if onset_age is not None else ""
+                risk_value = entry.get('risk_modifier')
+                if isinstance(risk_value, (int, float)):
+                    risk_str = f"{risk_value:.3f}"
+                else:
+                    risk_str = VistaFormatter.sanitize_mumps_string(str(risk_value)) if risk_value else ""
+                condition_code = entry.get('condition_code') or ''
+
+                segments = [
+                    str(vista_ien or ""),
+                    str(relation_ien or ""),
+                    str(narrative_ien or ""),
+                    recorded_value or "",
+                    onset_str,
+                    str(icd_ien or ""),
+                    condition_code,
+                    risk_str,
+                ]
+                all_globals[f"^AUPNFH({fh_ien},0)"] = "^".join(segments)
+                all_globals[f'^AUPNFH("B",{vista_ien},{fh_ien})'] = ""
+                if relation_ien:
+                    all_globals[f'^AUPNFH("AC",{relation_ien},{vista_ien},{fh_ien})'] = ""
+                if icd_ien:
+                    all_globals[f'^AUPNFH("AD",{icd_ien},{vista_ien},{fh_ien})'] = ""
+                notes = entry.get('notes')
+                if notes:
+                    all_globals[f"^AUPNFH({fh_ien},11)"] = VistaFormatter.sanitize_mumps_string(notes)
+                source = entry.get('source')
+                if source:
+                    all_globals[f"^AUPNFH({fh_ien},12)"] = VistaFormatter.sanitize_mumps_string(source)
+                marker = entry.get('genetic_marker')
+                if marker:
+                    all_globals[f"^AUPNFH({fh_ien},13)"] = VistaFormatter.sanitize_mumps_string(marker)
+
         all_globals.update(registry.build_reference_globals(VistaFormatter.sanitize_mumps_string))
 
         fileman_date_today = VistaFormatter.fileman_date_format(date.today().isoformat())
@@ -2518,6 +2726,8 @@ class VistaFormatter:
             all_globals["^GMR(120.8,0)"] = f"PATIENT ALLERGIES^120.8^{max(allergy_iens)}^{fileman_date_today}"
         if immunization_iens:
             all_globals["^AUPNVIMM(0)"] = f"V IMMUNIZATION^9000010.11^{max(immunization_iens)}^{fileman_date_today}"
+        if family_history_iens:
+            all_globals["^AUPNFH(0)"] = f"FAMILY HISTORY^9000034^{max(family_history_iens)}^{fileman_date_today}"
         all_globals.update(registry.header_entries(fileman_date_today))
 
         with open(output_file, 'w') as handle:
@@ -2543,6 +2753,7 @@ class VistaFormatter:
         lab_record_pattern = re.compile(r"^\^AUPNVLAB\(\d+,0\)$")
         allergy_record_pattern = re.compile(r"^\^GMR\(120\.8,\d+,0\)$")
         immunization_record_pattern = re.compile(r"^\^AUPNVIMM\(\d+,0\)$")
+        family_history_record_pattern = re.compile(r"^\^AUPNFH\(\d+,0\)$")
 
         dpt_count = sum(1 for k in all_globals if patient_record_pattern.match(k))
         visit_count = sum(1 for k in all_globals if visit_record_pattern.match(k))
@@ -2551,6 +2762,7 @@ class VistaFormatter:
         lab_count = sum(1 for k in all_globals if lab_record_pattern.match(k))
         allergy_count = sum(1 for k in all_globals if allergy_record_pattern.match(k))
         immunization_count = sum(1 for k in all_globals if immunization_record_pattern.match(k))
+        family_history_count = sum(1 for k in all_globals if family_history_record_pattern.match(k))
         cross_reference_nodes = len(all_globals) - (
             dpt_count
             + visit_count
@@ -2559,6 +2771,7 @@ class VistaFormatter:
             + lab_count
             + allergy_count
             + immunization_count
+            + family_history_count
         )
         return {
             "total_globals": len(all_globals),
@@ -2569,6 +2782,7 @@ class VistaFormatter:
             "lab_records": lab_count,
             "allergy_records": allergy_count,
             "immunization_records": immunization_count,
+            "family_history_records": family_history_count,
             "cross_references": cross_reference_nodes,
         }
 
@@ -2581,6 +2795,8 @@ class VistaFormatter:
         observations: List[Dict],
         allergies: List[Dict],
         immunizations: List[Dict],
+        family_history: List[Dict],
+        deaths: List[Dict],
         output_file: str,
         export_mode: str = FILEMAN_INTERNAL_MODE,
     ) -> Dict[str, int]:
@@ -2596,6 +2812,8 @@ class VistaFormatter:
                 observations,
                 allergies,
                 immunizations,
+                family_history,
+                deaths,
                 output_file,
             )
         raise ValueError(f"Unsupported VistA export mode: {export_mode}")
@@ -2885,6 +3103,14 @@ def main():
 
         patient_dict["preassigned_conditions"] = preassigned_conditions
 
+        family_history_entries, family_history_adjustments = generate_family_history(
+            patient_dict,
+            min_fam=0,
+            max_fam=4,
+        )
+        patient_dict["family_history_entries"] = family_history_entries
+        patient_dict["family_history_adjustments"] = family_history_adjustments
+
         encounters = []
         if "encounters" in replaced:
             encounters = module_result.encounters
@@ -2997,14 +3223,27 @@ def main():
                 care_plans.extend(module_result.care_plans)
         for plan in care_plans:
             activities = plan.get("activities")
-            if isinstance(activities, list) and all(isinstance(item, str) for item in activities):
-                plan["activities"] = ", ".join(activities)
+            if isinstance(activities, list):
+                if all(isinstance(item, str) for item in activities):
+                    plan["activities"] = ", ".join(activities)
+                else:
+                    plan["activities"] = json.dumps(activities)
+            roles = plan.get("responsible_roles")
+            if isinstance(roles, list):
+                plan["responsible_roles"] = ", ".join(str(role) for role in roles)
+            linked = plan.get("linked_encounters")
+            if isinstance(linked, list):
+                plan["linked_encounters"] = ", ".join(str(item) for item in linked if item)
         all_care_plans.extend(care_plans)
         patient_dict["care_plan_details"] = care_plans
-        death = generate_death(patient_dict, conditions)
+        death = generate_death(patient_dict, conditions, family_history_entries)
         if death:
             all_deaths.append(death)
-        family_history = generate_family_history(patient_dict)
+            patient_dict["deceased"] = True
+            patient_dict["death_record"] = death
+        else:
+            patient_dict["deceased"] = False
+        family_history = patient_dict.get("family_history_entries", [])
         all_family_history.extend(family_history)
 
         # Persist advanced clinical metadata back onto the PatientRecord for downstream exports
@@ -3026,9 +3265,16 @@ def main():
         patient.metadata['care_plan_overdue'] = care_summary.get('overdue', 0)
         patient.metadata['care_plan_scheduled'] = care_summary.get('scheduled', 0)
         patient.metadata['care_plan_in_progress'] = care_summary.get('in_progress', 0)
+        patient.metadata['deceased'] = patient_dict.get('deceased', False)
+        patient.metadata['death_record'] = death
+        patient.metadata['family_history_entries'] = family_history
+        patient.metadata['family_history_adjustments'] = family_history_adjustments
 
         # Refresh the dictionary snapshot so metadata changes are captured
         patient_snapshot = patient.to_dict()
+        patient_snapshot["family_history_entries"] = family_history
+        if death:
+            patient_snapshot["death_record"] = death
         lifecycle_patients.append(
             orchestrator.build_patient(
                 patient_snapshot,
@@ -3039,6 +3285,8 @@ def main():
                 observations=observations,
                 allergies=allergies,
                 procedures=procedures,
+                family_history=family_history,
+                death=death,
                 metadata={**patient.metadata, "care_plan_details": care_plans},
             )
         )
@@ -3236,6 +3484,16 @@ def main():
                 )
                 bundle_entries.append({"resource": observation_resource})
 
+        for patient in tqdm(patients_list, desc="Creating FHIR FamilyHistory resources", unit="patients"):
+            if not isinstance(patient, LifecyclePatient):
+                continue
+            for entry in patient.family_history:
+                family_history_resource = fhir_formatter.create_family_history_resource(
+                    patient.patient_id,
+                    entry,
+                )
+                bundle_entries.append({"resource": family_history_resource})
+
         # Create FHIR Bundle
         fhir_bundle = {
             "resourceType": "Bundle",
@@ -3389,24 +3647,28 @@ def main():
     def _sanitize_frame(data: List[Dict[str, Any]]) -> pl.DataFrame:
         if not data:
             return pl.DataFrame([])
-        frame = pl.DataFrame(data)
-        processed_columns = {}
-        for column in frame.columns:
-            series = frame.get_column(column)
-            dtype = frame.schema[column]
-            if dtype == pl.List:
-                processed_columns[column] = series.map_elements(
-                    lambda value: ",".join(str(item) for item in value) if isinstance(value, list) else ("" if value is None else str(value)),
-                    return_dtype=pl.Utf8,
-                )
-            elif dtype == pl.Struct:
-                processed_columns[column] = series.map_elements(
-                    lambda value: json.dumps(value) if isinstance(value, dict) else ("" if value is None else str(value)),
-                    return_dtype=pl.Utf8,
-                )
-        if processed_columns:
-            frame = frame.with_columns(list(processed_columns.values()))
-        return frame
+
+        def _normalize_value(value: Any) -> Any:
+            if isinstance(value, pl.Series):
+                value = value.to_list()
+            if isinstance(value, tuple):
+                value = list(value)
+            if isinstance(value, list):
+                if all(isinstance(item, (str, int, float, bool, type(None))) for item in value):
+                    return ",".join("" if item is None else str(item) for item in value)
+                return json.dumps(value)
+            if isinstance(value, dict):
+                return json.dumps(value)
+            return value
+
+        normalized_rows: List[Dict[str, Any]] = []
+        for row in data:
+            normalized_row: Dict[str, Any] = {}
+            for key, value in row.items():
+                normalized_row[key] = _normalize_value(value)
+            normalized_rows.append(normalized_row)
+
+        return pl.DataFrame(normalized_rows)
 
     tables_to_save = [
         (_sanitize_frame(patients_dict), "patients"),
@@ -3454,6 +3716,8 @@ def main():
         all_observations,
         all_allergies,
         all_immunizations,
+        all_family_history,
+        all_deaths,
         vista_output_file,
         export_mode=vista_mode,
     )
@@ -3526,7 +3790,11 @@ def main():
     report_lines.append(f"  Patient records (^DPT): {vista_stats['patient_records']}")
     report_lines.append(f"  Visit records (^AUPNVSIT): {vista_stats['visit_records']}")
     report_lines.append(f"  Problem records (^AUPNPROB): {vista_stats['problem_records']}")
+    report_lines.append(f"  Medication records (^AUPNVMED): {vista_stats.get('medication_records', 0)}")
+    report_lines.append(f"  Lab records (^AUPNVLAB): {vista_stats.get('lab_records', 0)}")
+    report_lines.append(f"  Allergy records (^GMR(120.8,)): {vista_stats.get('allergy_records', 0)}")
     report_lines.append(f"  Immunization records (^AUPNVIMM): {vista_stats.get('immunization_records', 0)}")
+    report_lines.append(f"  Family history records (^AUPNFH): {vista_stats.get('family_history_records', 0)}")
     report_lines.append(f"  Cross-references: {vista_stats['cross_references']}")
     
     report = "\n".join(report_lines)

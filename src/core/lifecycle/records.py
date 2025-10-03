@@ -132,8 +132,10 @@ class PatientRecord:
             "care_plan_completed": self.metadata.get("care_plan_completed", 0),
             "care_plan_overdue": self.metadata.get("care_plan_overdue", 0),
             "care_plan_scheduled": self.metadata.get("care_plan_scheduled", 0),
+            "deceased": self.metadata.get("deceased", False),
+            "death_date": (self.metadata.get("death_record", {}) or {}).get("death_date"),
+            "death_primary_cause": (self.metadata.get("death_record", {}) or {}).get("primary_cause_description"),
         }
 
 
 __all__ = ["PatientRecord"]
-

@@ -2247,6 +2247,252 @@ SPECIALTY_CARE_PATHWAYS = {
 }
 
 
+RELATION_ROLE_CODES = {
+    "Mother": "MTH",
+    "Father": "FTH",
+    "Brother": "BRO",
+    "Sister": "SIS",
+    "Sibling": "NSIB",
+    "Grandmother": "GRNDM",
+    "Grandfather": "GRNDF",
+    "Grandparent": "GRPRN",
+}
+
+FAMILY_RELATIONSHIP_FACTORS = {
+    "Mother": 1.0,
+    "Father": 1.0,
+    "Brother": 0.85,
+    "Sister": 0.85,
+    "Sibling": 0.85,
+    "Grandmother": 0.45,
+    "Grandfather": 0.45,
+    "Grandparent": 0.45,
+}
+
+FAMILY_HISTORY_PROFILES = [
+    {
+        "condition": "Heart Disease",
+        "category": "cardiometabolic",
+        "base_rate": 0.22,
+        "risk_boost": 0.08,
+        "onset_mean": 55,
+        "onset_sd": 8,
+        "relations": {"Father": 0.35, "Mother": 0.3, "Brother": 0.2, "Sister": 0.1, "Grandparent": 0.05},
+        "sex_bias": None,
+        "notes": "Early coronary artery disease in first-degree relative."
+    },
+    {
+        "condition": "Hypertension",
+        "category": "cardiometabolic",
+        "base_rate": 0.28,
+        "risk_boost": 0.05,
+        "onset_mean": 48,
+        "onset_sd": 6,
+        "relations": {"Mother": 0.3, "Father": 0.3, "Brother": 0.2, "Sister": 0.2},
+        "sex_bias": None,
+        "notes": "Parental hypertension increases lifetime risk."
+    },
+    {
+        "condition": "Diabetes",
+        "category": "cardiometabolic",
+        "base_rate": 0.18,
+        "risk_boost": 0.07,
+        "onset_mean": 50,
+        "onset_sd": 7,
+        "relations": {"Mother": 0.35, "Father": 0.3, "Sibling": 0.2, "Grandparent": 0.15},
+        "sex_bias": None,
+        "notes": "Family history of type 2 diabetes."
+    },
+    {
+        "condition": "Cancer",
+        "category": "oncology",
+        "base_rate": 0.16,
+        "risk_boost": 0.06,
+        "onset_mean": 52,
+        "onset_sd": 10,
+        "relations": {"Mother": 0.25, "Father": 0.2, "Sister": 0.2, "Brother": 0.15, "Grandparent": 0.2},
+        "sex_bias": None,
+        "notes": "General solid tumor history; refine with genetic markers when available."
+    },
+    {
+        "condition": "Stroke",
+        "category": "cardiovascular",
+        "base_rate": 0.12,
+        "risk_boost": 0.06,
+        "onset_mean": 60,
+        "onset_sd": 9,
+        "relations": {"Father": 0.3, "Mother": 0.3, "Brother": 0.2, "Sister": 0.2},
+        "sex_bias": None,
+        "notes": "Ischemic stroke or TIA in a parent or sibling."
+    },
+    {
+        "condition": "COPD",
+        "category": "respiratory",
+        "base_rate": 0.08,
+        "risk_boost": 0.04,
+        "onset_mean": 58,
+        "onset_sd": 7,
+        "relations": {"Father": 0.35, "Mother": 0.25, "Sibling": 0.3, "Grandparent": 0.1},
+        "sex_bias": None,
+        "notes": "Smoking-related obstructive disease in first-degree relative."
+    },
+    {
+        "condition": "Depression",
+        "category": "behavioral_health",
+        "base_rate": 0.20,
+        "risk_boost": 0.05,
+        "onset_mean": 32,
+        "onset_sd": 6,
+        "relations": {"Mother": 0.35, "Father": 0.25, "Sister": 0.2, "Brother": 0.2},
+        "sex_bias": None,
+        "notes": "Mood disorder diagnosed in first-degree relative."
+    },
+    {
+        "condition": "Anxiety",
+        "category": "behavioral_health",
+        "base_rate": 0.18,
+        "risk_boost": 0.04,
+        "onset_mean": 25,
+        "onset_sd": 5,
+        "relations": {"Mother": 0.4, "Father": 0.2, "Sister": 0.2, "Brother": 0.2},
+        "sex_bias": "female",
+        "notes": "Generalized anxiety disorder in close relative."
+    },
+    {
+        "condition": "Alzheimer's",
+        "category": "neurology",
+        "base_rate": 0.10,
+        "risk_boost": 0.07,
+        "onset_mean": 72,
+        "onset_sd": 6,
+        "relations": {"Mother": 0.3, "Father": 0.3, "Sibling": 0.2, "Grandparent": 0.2},
+        "sex_bias": None,
+        "notes": "Late-onset dementia in immediate family."
+    },
+    {
+        "condition": "Osteoporosis",
+        "category": "musculoskeletal",
+        "base_rate": 0.08,
+        "risk_boost": 0.03,
+        "onset_mean": 62,
+        "onset_sd": 5,
+        "relations": {"Mother": 0.5, "Grandmother": 0.5},
+        "sex_bias": "female",
+        "notes": "Maternal history of fragility fractures."
+    },
+]
+
+
+def _family_history_probability(profile: Dict[str, Any], patient: Dict[str, Any]) -> float:
+    """Estimate likelihood of a documented family history entry for this profile."""
+
+    probability = float(profile.get("base_rate", 0.1) or 0.1)
+    age = int(patient.get("age", 0) or 0)
+    onset_mean = profile.get("onset_mean", 50) or 50
+    onset_sd = profile.get("onset_sd", 10) or 10
+
+    if age >= onset_mean:
+        probability *= 1.2
+    elif age <= max(0, onset_mean - max(15, onset_sd * 2)):
+        probability *= 0.75
+
+    gender = (patient.get("gender") or "").lower()
+    sex_bias = profile.get("sex_bias")
+    if sex_bias == "female":
+        probability *= 1.25 if gender.startswith("f") else 0.7
+    elif sex_bias == "male":
+        probability *= 1.25 if gender.startswith("m") else 0.7
+
+    smoking = patient.get("smoking_status")
+    alcohol = patient.get("alcohol_use")
+    category = profile.get("category", "")
+    if smoking == "Current" and category in {"cardiometabolic", "cardiovascular", "respiratory"}:
+        probability *= 1.1
+    if alcohol == "Heavy" and category in {"cardiometabolic", "cardiovascular"}:
+        probability *= 1.05
+
+    deprivation_index = patient.get("community_deprivation_index")
+    if deprivation_index is not None:
+        probability *= 1 + min(max(float(deprivation_index), 0.0), 1.0) * 0.05
+
+    return max(0.01, min(probability, 0.9))
+
+
+def _choose_family_relation(relations: Dict[str, float]) -> Optional[str]:
+    if not relations:
+        return None
+    total = sum(relations.values())
+    if total <= 0:
+        return random.choice(list(relations.keys()))
+    threshold = random.uniform(0, total)
+    cumulative = 0.0
+    for relation, weight in relations.items():
+        cumulative += weight
+        if cumulative >= threshold:
+            return relation
+    return next(iter(relations))
+
+
+def _sample_family_history_onset(profile: Dict[str, Any]) -> Optional[int]:
+    mean = profile.get("onset_mean")
+    sd = profile.get("onset_sd") or 6
+    if mean is None:
+        return None
+    sampled = max(0.0, random.gauss(float(mean), float(sd)))
+    return int(round(sampled))
+
+
+def _resolve_condition_catalog_entry(condition_name: str) -> Tuple[str, Optional[Dict[str, Any]]]:
+    normalized = _normalize_condition_display(condition_name)
+    entry = CONDITION_CATALOG.get(normalized)
+    if entry is None:
+        entry = CONDITION_CATALOG.get(condition_name)
+    return normalized, entry
+
+
+def _build_family_history_entry(
+    patient: Dict[str, Any],
+    profile: Dict[str, Any],
+    relation: str,
+    relation_code: Optional[str],
+    onset_age: Optional[int],
+    risk_modifier: float,
+    normalized_condition: str,
+    catalog_entry: Optional[Dict[str, Any]],
+    source: str = "profile",
+) -> Dict[str, Any]:
+    patient_id = patient.get("patient_id", "")
+    recorded_date = datetime.now().date().isoformat()
+    snomed = catalog_entry.get("snomed") if catalog_entry else ""
+    icd10 = catalog_entry.get("icd10") if catalog_entry else ""
+    if not snomed and catalog_entry:
+        snomed = catalog_entry.get("snomed_code") or ""
+    if not icd10 and catalog_entry:
+        icd10 = catalog_entry.get("icd10_code") or ""
+
+    entry: Dict[str, Any] = {
+        "family_history_id": str(uuid.uuid4()),
+        "patient_id": patient_id,
+        "relation": relation,
+        "relation_code": relation_code or "",
+        "condition": profile.get("condition", normalized_condition),
+        "condition_system": "http://snomed.info/sct" if snomed else "http://hl7.org/fhir/sid/icd-10-cm",
+        "condition_code": snomed or icd10,
+        "icd10_code": icd10,
+        "category": profile.get("category"),
+        "onset_age": onset_age,
+        "risk_modifier": round(risk_modifier, 4),
+        "notes": profile.get("notes", ""),
+        "recorded_date": recorded_date,
+        "source": source,
+    }
+    if catalog_entry:
+        entry["condition_display"] = catalog_entry.get("display", normalized_condition)
+    else:
+        entry["condition_display"] = profile.get("condition", normalized_condition)
+    return entry
+
+
 fake = Faker()
 
 
@@ -3404,6 +3650,7 @@ def _calculate_condition_probability(
     entry: Dict[str, Any],
     patient: Dict[str, Any],
     genetic_adjustments: Dict[str, float],
+    family_history_adjustments: Dict[str, float],
 ) -> float:
     base = entry.get("base_prevalence", 0.05)
     age = patient.get("age", 0)
@@ -3430,12 +3677,19 @@ def _calculate_condition_probability(
 
     base = apply_sdoh_adjustments(entry.get("display", ""), base, patient)
 
-    normalized_entry = entry.get("normalized", "")
+    normalized_entry = entry.get("normalized") or _normalize_condition_display(entry.get("display", ""))
     display_lower = entry.get("display", "").lower()
     for risk_condition, boost in genetic_adjustments.items():
         risk_lower = risk_condition.lower()
         if risk_lower and (risk_lower in display_lower or risk_lower in normalized_entry):
             base += boost
+
+    family_boost = 0.0
+    if normalized_entry:
+        family_boost = family_history_adjustments.get(normalized_entry, 0.0)
+    if not family_boost and entry.get("display"):
+        family_boost = family_history_adjustments.get(_normalize_condition_display(entry.get("display", "")), 0.0)
+    base += family_boost
 
     sdoh_risk = patient.get("sdoh_risk_score", 0.0)
     if sdoh_risk:
@@ -3473,10 +3727,16 @@ def assign_conditions(patient: Dict[str, Any]) -> List[str]:
     # Enrich patient risk profile prior to assigning conditions
     calculate_sdoh_risk(patient)
     genetic_adjustments = determine_genetic_risk(patient)
+    family_history_adjustments = patient.get("family_history_adjustments", {})
 
     candidates: List[Tuple[str, float, Dict[str, Any]]] = []
     for name, entry in CONDITION_CATALOG.items():
-        probability = _calculate_condition_probability(entry, patient, genetic_adjustments)
+        probability = _calculate_condition_probability(
+            entry,
+            patient,
+            genetic_adjustments,
+            family_history_adjustments,
+        )
         if probability <= 0.005:
             continue
         candidates.append((name, probability, entry))
@@ -4059,6 +4319,11 @@ def create_medication_record(patient, condition, encounters, medication_name, th
         start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date()
     else:
         start_date_obj = start_date
+
+    today = datetime.now().date()
+    if start_date_obj > today:
+        start_date_obj = today
+    start_date_iso = start_date_obj.isoformat()
     
     # Chronic medications typically don't have end dates
     chronic_conditions = ["Hypertension", "Diabetes", "Heart Disease", "Depression", "Anxiety"]
@@ -4067,7 +4332,8 @@ def create_medication_record(patient, condition, encounters, medication_name, th
     else:
         # Acute medications have limited duration
         if random.random() < 0.8:  # 80% have end date
-            end_date = fake.date_between(start_date=start_date_obj, end_date="today").isoformat()
+            end_date_date = fake.date_between(start_date=start_date_obj, end_date=today)
+            end_date = end_date_date.isoformat()
         else:
             end_date = None
 
@@ -4085,7 +4351,7 @@ def create_medication_record(patient, condition, encounters, medication_name, th
         "name": resolved_name,
         "indication": condition["name"],
         "therapy_category": therapy_category,
-        "start_date": start_date,
+        "start_date": start_date_iso,
         "end_date": end_date,
         "rxnorm_code": med_entry.get("rxnorm_code") if med_entry else med_entry.get("rxnorm") if med_entry else None,
         "ndc_code": med_entry.get("ndc") if med_entry else med_entry.get("ndc_code") if med_entry else None,
@@ -4607,80 +4873,123 @@ def generate_routine_observations(patient, encounters, min_obs, max_obs):
     
     return observations
 
+def _baseline_mortality_probability(age: int, gender: Optional[str]) -> float:
+    if age >= 95:
+        base = 0.45
+    elif age >= 85:
+        base = 0.28
+    elif age >= 75:
+        base = 0.18
+    elif age >= 65:
+        base = 0.11
+    elif age >= 55:
+        base = 0.06
+    elif age >= 45:
+        base = 0.035
+    elif age >= 30:
+        base = 0.02
+    else:
+        base = 0.01
+
+    normalized_gender = (gender or "").lower()
+    if normalized_gender.startswith("m"):
+        base *= 1.1
+    elif normalized_gender.startswith("f"):
+        base *= 0.95
+
+    return min(base, 0.9)
+
+
 # PHASE 1: Clinically accurate death generation with ICD-10-CM coding
 def generate_death(patient, conditions=None, family_history=None):
     """Generate clinically accurate death with proper ICD-10-CM coding and age stratification"""
-    # Simulate a 10% chance of death for realism
-    if random.random() < 0.1:
-        age = patient.get("age", 0)
-        gender = patient.get("gender", "")
-        birth = datetime.strptime(patient["birthdate"], "%Y-%m-%d").date()
-        
-        # Calculate death date
-        min_death_age = max(1, int(age * 0.5))
-        death_age = random.randint(min_death_age, age) if age > 1 else 1
-        death_date = birth + timedelta(days=death_age * 365)
-        if death_date > datetime.now().date():
-            death_date = datetime.now().date()
-        
-        # Determine age-appropriate death causes
-        age_group = None
-        for (min_age, max_age), causes in DEATH_CAUSES_BY_AGE.items():
-            if min_age <= age <= max_age:
-                age_group = (min_age, max_age)
-                break
-        
-        if not age_group:
-            # Default to elderly causes for very old patients
-            age_group = (65, 120)
-        
-        age_appropriate_causes = DEATH_CAUSES_BY_AGE[age_group]
-        
-        # Check for condition-specific death risk
-        death_risk_multiplier = 1.0
-        likely_causes = []
-        contributing_causes = []
-        
-        if conditions:
-            for condition in conditions:
-                risk_data = CONDITION_MORTALITY_RISK.get(condition["name"], {})
-                death_risk_multiplier *= risk_data.get("relative_risk", 1.0)
-                
-                # Add condition-specific death causes
-                condition_deaths = risk_data.get("likely_deaths", [])
-                likely_causes.extend(condition_deaths)
-                
-                # Track contributing causes
-                contributing_causes.append(condition["name"])
-        
-        # Select primary cause of death with proper weighting
-        if likely_causes and random.random() < 0.7:  # 70% chance of condition-related death
-            primary_cause = weighted_choice(likely_causes)
-        else:
-            primary_cause = weighted_choice(age_appropriate_causes)
-        
-        # Determine manner of death based on ICD-10 code
-        manner_of_death = "Natural"
-        if primary_cause["icd10"].startswith(("V", "W", "X", "Y")):
-            if primary_cause["icd10"].startswith("X8"):  # Intentional self-harm
-                manner_of_death = "Suicide"
-            elif primary_cause["icd10"].startswith("X9") or primary_cause["icd10"].startswith("Y0"):  # Assault
-                manner_of_death = "Homicide"
-            else:
-                manner_of_death = "Accident"
-        
-        return {
-            "patient_id": patient["patient_id"],
-            "death_date": death_date.isoformat(),
-            "age_at_death": death_age,
-            "primary_cause_code": primary_cause["icd10"],
-            "primary_cause_description": primary_cause["description"],
-            "contributing_causes": "; ".join(contributing_causes[:3]),  # Flatten list to string for CSV
-            "manner_of_death": manner_of_death,
-            "death_certificate_type": "Standard" if manner_of_death == "Natural" else "Coroner"
-        }
-    else:
+
+    age = int(patient.get("age", 0) or 0)
+    gender = patient.get("gender", "")
+    base_probability = _baseline_mortality_probability(age, gender)
+
+    sdoh_score = patient.get("sdoh_risk_score", 0.0) or 0.0
+    base_probability *= 1 + min(sdoh_score * 0.6, 0.4)
+
+    if patient.get("smoking_status") == "Current":
+        base_probability *= 1.2
+    if patient.get("alcohol_use") == "Heavy":
+        base_probability *= 1.1
+
+    death_risk_multiplier = 1.0
+    likely_causes: List[Dict[str, Any]] = []
+    contributing_causes: List[str] = []
+
+    if conditions:
+        for condition in conditions:
+            name = condition.get("name") or condition.get("condition")
+            if not name:
+                continue
+            risk_data = CONDITION_MORTALITY_RISK.get(name, {})
+            death_risk_multiplier *= risk_data.get("relative_risk", 1.0)
+            likely_causes.extend(risk_data.get("likely_deaths", []))
+            contributing_causes.append(name)
+
+    if family_history:
+        for entry in family_history:
+            boost = entry.get("risk_modifier")
+            if boost:
+                death_risk_multiplier *= 1 + min(float(boost), 0.25)
+            condition_name = entry.get("condition_display") or entry.get("condition")
+            if condition_name:
+                history_risk = CONDITION_MORTALITY_RISK.get(condition_name, {})
+                likely_causes.extend(history_risk.get("likely_deaths", []))
+
+    death_probability = min(base_probability * death_risk_multiplier, 0.95)
+    if random.random() >= death_probability:
         return None
+
+    birth = datetime.strptime(patient["birthdate"], "%Y-%m-%d").date()
+    if age <= 1:
+        death_age = 1
+    else:
+        mean_death_age = max(1, age - random.randint(0, 4))
+        death_age = max(1, min(age, int(random.gauss(mean_death_age, 3))))
+
+    death_date = birth + timedelta(days=death_age * 365)
+    if death_date > datetime.now().date():
+        death_date = datetime.now().date()
+
+    age_group = None
+    for (min_age, max_age), causes in DEATH_CAUSES_BY_AGE.items():
+        if min_age <= age <= max_age:
+            age_group = (min_age, max_age)
+            break
+    if not age_group:
+        age_group = (65, 120)
+    age_appropriate_causes = DEATH_CAUSES_BY_AGE[age_group]
+
+    cause_pool = likely_causes if likely_causes else age_appropriate_causes
+    primary_cause = weighted_choice(cause_pool)
+
+    manner_of_death = "Natural"
+    icd_code = primary_cause.get("icd10", "")
+    if icd_code.startswith(("V", "W", "X", "Y")):
+        if icd_code.startswith("X8"):
+            manner_of_death = "Suicide"
+        elif icd_code.startswith("X9") or icd_code.startswith("Y0"):
+            manner_of_death = "Homicide"
+        else:
+            manner_of_death = "Accident"
+
+    contributing_joined = "; ".join(dict.fromkeys(contributing_causes))
+
+    return {
+        "patient_id": patient.get("patient_id"),
+        "death_date": death_date.isoformat(),
+        "age_at_death": death_age,
+        "primary_cause_code": icd_code,
+        "primary_cause_description": primary_cause.get("description", ""),
+        "contributing_causes": contributing_joined,
+        "manner_of_death": manner_of_death,
+        "death_certificate_type": "Standard" if manner_of_death == "Natural" else "Coroner",
+        "risk_multiplier": round(death_risk_multiplier, 3),
+    }
 
 def weighted_choice(choices):
     """Select an item from choices based on weight"""
@@ -4693,37 +5002,134 @@ def weighted_choice(choices):
         upto += choice["weight"]
     return choices[-1]  # Fallback
 
-def generate_family_history(patient, min_fam=0, max_fam=3):
-    n = random.randint(min_fam, max_fam)
-    family = []
-    for _ in range(n):
-        relation = random.choice(FAMILY_RELATIONSHIPS)
-        n_conditions = random.randint(1, 3)
-        for _ in range(n_conditions):
-            family.append({
-                "patient_id": patient["patient_id"],
-                "relation": relation,
-                "condition": random.choice(CONDITION_NAMES),
-            })
+def generate_family_history(
+    patient: Dict[str, Any],
+    min_fam: int = 0,
+    max_fam: int = 4,
+) -> Tuple[List[Dict[str, Any]], Dict[str, float]]:
+    """Generate structured family history entries and risk adjustments."""
 
-    # Phase 3: incorporate genetic marker driven family history
+    if max_fam < min_fam:
+        max_fam = min_fam
+
+    entries: List[Dict[str, Any]] = []
+    adjustments: Dict[str, float] = {}
+    patient_id = patient.get("patient_id", "")
+
+    if max_fam == 0:
+        patient["family_history_entries"] = []
+        patient["family_history_adjustments"] = {}
+        return [], {}
+
+    candidate_profiles = FAMILY_HISTORY_PROFILES.copy()
+    random.shuffle(candidate_profiles)
+
+    def _record_entry(
+        profile: Dict[str, Any],
+        relation: str,
+        source: str,
+        extra_fields: Optional[Dict[str, Any]] = None,
+    ) -> Optional[Dict[str, Any]]:
+        normalized_condition, catalog_entry = _resolve_condition_catalog_entry(profile.get("condition", ""))
+        relation_code = RELATION_ROLE_CODES.get(relation, "")
+        relation_factor = FAMILY_RELATIONSHIP_FACTORS.get(relation, 0.85)
+        risk_modifier = float(profile.get("risk_boost", 0.05) or 0.05) * relation_factor
+        onset_age = _sample_family_history_onset(profile)
+
+        entry = _build_family_history_entry(
+            patient,
+            profile,
+            relation,
+            relation_code,
+            onset_age,
+            risk_modifier,
+            normalized_condition,
+            catalog_entry,
+            source=source,
+        )
+
+        if extra_fields:
+            entry.update(extra_fields)
+
+        if any(existing.get("condition_code") == entry.get("condition_code") and existing.get("relation") == relation for existing in entries):
+            return None
+
+        entries.append(entry)
+        existing_boost = adjustments.get(normalized_condition, 0.0)
+        adjustments[normalized_condition] = round(min(existing_boost + risk_modifier, 0.3), 4)
+        return entry
+
+    for profile in candidate_profiles:
+        if len(entries) >= max_fam:
+            break
+        probability = _family_history_probability(profile, patient)
+        if random.random() > probability:
+            continue
+        relation = _choose_family_relation(profile.get("relations", {}))
+        if not relation:
+            continue
+        created = _record_entry(profile, relation, source="profile")
+        if created and len(entries) < max_fam and random.random() < 0.25:
+            alt_relations = {rel: weight for rel, weight in profile.get("relations", {}).items() if rel != relation}
+            alt_relation = _choose_family_relation(alt_relations) if alt_relations else None
+            if alt_relation:
+                _record_entry(profile, alt_relation, source="profile")
+
+    if len(entries) < min_fam:
+        profiles_by_weight = sorted(
+            candidate_profiles,
+            key=lambda p: _family_history_probability(p, patient),
+            reverse=True,
+        )
+        for profile in profiles_by_weight:
+            if len(entries) >= min_fam:
+                break
+            if any(_normalize_condition_display(e.get("condition_display", "")) == _normalize_condition_display(profile.get("condition", "")) for e in entries):
+                continue
+            relation = _choose_family_relation(profile.get("relations", {})) or "Mother"
+            _record_entry(profile, relation, source="forced")
+
     genetic_markers = patient.get("genetic_markers", [])
     for marker in genetic_markers:
-        if isinstance(marker, dict):
-            marker_name = marker.get("name")
-        else:
-            marker_name = str(marker)
+        if len(entries) >= max_fam:
+            break
+        marker_name = marker.get("name") if isinstance(marker, dict) else str(marker)
         marker_config = GENETIC_RISK_FACTORS.get(marker_name, {})
         family_conditions = marker_config.get("family_history_conditions", [])
         if not family_conditions:
             continue
-
-        typical_relations = ["Mother", "Father", "Sibling"]
         for condition in family_conditions:
-            family.append({
-                "patient_id": patient["patient_id"],
-                "relation": random.choice(typical_relations),
+            if len(entries) >= max_fam:
+                break
+            normalized_condition, catalog_entry = _resolve_condition_catalog_entry(condition)
+            if any(_normalize_condition_display(entry.get("condition_display", "")) == normalized_condition for entry in entries):
+                continue
+            relation = random.choice(["Mother", "Father", "Sibling"])
+            relation_code = RELATION_ROLE_CODES.get(relation, "")
+            relation_factor = FAMILY_RELATIONSHIP_FACTORS.get(relation, 0.85)
+            risk_modifier = 0.1 * relation_factor
+            profile_stub = {
                 "condition": condition,
-                "genetic_marker": marker_name,
-            })
-    return family
+                "category": catalog_entry.get("category") if catalog_entry else None,
+                "risk_boost": risk_modifier,
+                "notes": f"Genetic risk marker {marker_name}",
+            }
+            entry = _build_family_history_entry(
+                patient,
+                profile_stub,
+                relation,
+                relation_code,
+                _sample_family_history_onset({"onset_mean": patient.get("age", 40), "onset_sd": 6}),
+                risk_modifier,
+                normalized_condition,
+                catalog_entry,
+                source="genetic_marker",
+            )
+            entry["genetic_marker"] = marker_name
+            entries.append(entry)
+            existing_boost = adjustments.get(normalized_condition, 0.0)
+            adjustments[normalized_condition] = round(min(existing_boost + risk_modifier, 0.3), 4)
+
+    patient["family_history_entries"] = entries
+    patient["family_history_adjustments"] = adjustments
+    return entries, adjustments
