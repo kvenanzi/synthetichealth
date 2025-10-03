@@ -322,32 +322,39 @@ Implementation Steps
 Acceptance Criteria
 - Underlying cause aligns with condition burden; coding/exporters consistent.
 
-## VistA Export – RXs, Labs, Allergies (Plan)
-Objective: extend the VistA MUMPS exporter to include FileMan‑correct medication, laboratory, and allergy data alongside patients (^DPT), visits (^AUPNVSIT), and problems (^AUPNPROB).
+## VistA Export (Completed)
+Objective: emit FileMan‑correct globals for patients, encounters, problems, medications, laboratories, allergies, immunizations, family history, and mortality fields — aligned with V‑files and common PCC/VistA dictionaries.
 
 Scope & Deliverables
-- Medications: emit PCC V Medication file nodes `^AUPNVMED` (#9000010.14) with internal pointers and xrefs; create minimal `^PSDRUG` (#50) entries as pointer targets.
-- Labs: emit PCC V Laboratory file nodes `^AUPNVLAB` (#9000010.09); create minimal test definitions under `^LAB(60)` (#60) as pointer targets.
-- Allergies: emit Patient Allergies entries `^GMR(120.8)` (#120.8); create minimal allergen entries under `^GMR(120.82)` (#120.82) as pointer targets.
-- Pointer registries: extend the existing registry to manage IEN lookup/creation for `^PSDRUG`, `^LAB(60)`, and `^GMR(120.82)` (with file headers).
+- Patients: `^DPT` (#2) zero node, address `.11`, phone `.13`, and mortality fields `.35/.351/.352/.353` (death date, ICD pointer to cause, manner, text). “B”, “SSN”, and “DOB” xrefs included.
+- Encounters: `^AUPNVSIT` (#9000010) 0‑nodes with internal DFN/FM date/stop code; location pointer `.06`; “B” (DFN/date), “D” (date), “AE” (clinic stop) and custom `"GUID"` xref.
+- Problems: `^AUPNPROB` (#9000011) 0‑nodes with DFN, `^AUTNPOV` narrative (.05), status, onset FM date, and ICD pointer (File #80 under `^ICD9`). “B”, “S”, and “ICD” xrefs kept in sync.
+- Medications: `^AUPNVMED` (#9000010.14) with DFN, `^PSDRUG` (#50) pointer, visit pointer, FM date; “B” (DFN) and “V” (visit) xrefs. Minimal `^PSDRUG` entries emitted with headers and “B”.
+- Laboratories: `^AUPNVLAB` (#9000010.09) with DFN, `^LAB(60)` test pointer, visit pointer, value/units/status, FM datetime; panels and reference range nodes when present. “B”/“V”/“AE” xrefs. Minimal `^LAB(60)` entries emitted with headers and “B”.
+- Allergies: `^GMR(120.8)` (#120.8) entries with DFN, `^GMR(120.82)` allergen pointer, reaction text (node 1) and severity text (node 3); “B” (DFN) and “C” (allergen) xrefs. Minimal `^GMR(120.82)` entries emitted with headers and “B”.
+- Immunizations: `^AUPNVIMM` (#9000010.11) with DFN, `^AUTTIMM` immunization pointer (CVX), visit pointer, FM date and series flag; “B”/“C”/“AD” xrefs. Minimal `^AUTTIMM` entries and headers emitted.
+- Family history: `^AUPNFH` (#9000034) with DFN, relation pointer `^AUTTRLSH`, narrative pointer `^AUTNPOV`, recorded FM date, onset age, ICD pointer, and notes fields; “B”, and relation/ICD xrefs. Minimal `^AUTTRLSH` entries and headers emitted.
+- Pointer registries: `^ICD9`, `^AUTNPOV`, `^AUTTLOC`, `^DIC(40.7)`, `^PSDRUG`, `^LAB(60)`, `^GMR(120.82)`, `^AUTTIMM`, `^AUTTRLSH` with file headers and primary “B” xrefs.
 - Cross‑refs and headers: add standard “B”/visit xrefs where applicable and file headers with last IEN/date for all new files.
 
 Data Mapping (internal values only)
 - Source → VistA pointers
-  - MedicationOrder: map `rxnorm_code` to `^PSDRUG` IEN (fall back on display name when missing). Tie to visit IEN when an `encounter_id` is present.
-  - Observation (labs): map LOINC code to `^LAB(60)` IEN. Carry result/value, unit, and effective date/time. Tie to visit when `encounter_id` present; otherwise choose nearest visit by date.
-  - Allergies: map allergen substance (prefer RxNorm/UNII where present) to `^GMR(120.82)` IEN. Store patient‑level allergy with reaction/severity as available.
+  - Encounter: `encounter_id` → visit GUID xref; clinic/stop → `^DIC(40.7)`; location → `^AUTTLOC`.
+  - Condition: problem narrative → `^AUTNPOV`; ICD‑10 code → File 80 pointer (root `^ICD9`).
+  - MedicationOrder: `rxnorm_code` → `^PSDRUG` IEN (fallback by display); link to visit when `encounter_id` present.
+  - Observation (lab): LOINC → `^LAB(60)` IEN; value/units/status/effective datetime; link to visit when available.
+  - Allergy: substance RxNorm/UNII → `^GMR(120.82)`; store reaction/severity text nodes.
+  - Immunization: CVX → `^AUTTIMM` IEN; link to visit when available; series flag set.
+  - Family history: relation → `^AUTTRLSH`; narrative → `^AUTNPOV`; ICD pointer to File 80; onset age in node 0; notes in supplemental nodes.
+  - Mortality: death date in `^DPT(.35)`, underlying cause pointer in `.351`, manner in `.352`, description in `.353`.
 
-Minimal File Nodes (proposed)
-- `^AUPNVMED(IEN,0)` = DFN^DRUG_IEN^VISIT_IEN^FM_DATE^... (use File #9000010.14 field order; all pointers and dates in internal format). Add:
-  - `^AUPNVMED("B",DFN,IEN)=""`, `^AUPNVMED("V",VISIT_IEN,IEN)=""`
-  - Header: `^AUPNVMED(0)="V MEDICATION^9000010.14^<lastIEN>^<FMdate>"`
-- `^AUPNVLAB(IEN,0)` = DFN^TEST_IEN(^LAB(60))^VISIT_IEN^RESULT^UNITS^REF_RANGE^FM_DATETIME^... Add:
-  - `^AUPNVLAB("B",DFN,IEN)=""`, `^AUPNVLAB("V",VISIT_IEN,IEN)=""`
-  - Header: `^AUPNVLAB(0)="V LAB^9000010.09^<lastIEN>^<FMdate>"`
-- `^GMR(120.8,IEN,0)` = DFN^ALLERGEN_IEN(^GMR(120.82))^... (observed/historical, verify flags optional). Add:
-  - `^GMR(120.8,"B",DFN,IEN)=""`
-  - Header: `^GMR(120.8,0)="PATIENT ALLERGIES^120.8^<lastIEN>^<FMdate>"`
+Minimal File Nodes (selected)
+- `^AUPNVMED(IEN,0)` = DFN^DRUG_IEN^VISIT_IEN^FM_DATE^…; xrefs `"B"`, `"V"`; header `^AUPNVMED(0)="V MEDICATION^9000010.14^<lastIEN>^<FMdate>"`.
+- `^AUPNVLAB(IEN,0)` = DFN^TEST_IEN(^LAB(60))^VISIT_IEN^RESULT^UNITS^STATUS^FM_DATETIME; extras: `11` ref range, `12` panel; xrefs `"B"`, `"V"`, `"AE"`; header `^AUPNVLAB(0)=…`.
+- `^GMR(120.8,IEN,0)` = DFN^ALLERGEN_IEN(^GMR(120.82))^…^o^FM_DATE; reaction in `1`, severity in `3`; xrefs `"B"`, `"C"`; header `^GMR(120.8,0)=…`.
+- `^AUPNVIMM(IEN,0)` = DFN^IMM_IEN(^AUTTIMM)^VISIT_IEN^FM_DATE^SERIES_FLAG^…; xrefs `"B"`, `"C"`, `"AD"`; header `^AUPNVIMM(0)=…`.
+- `^AUPNFH(IEN,0)` = DFN^REL_IEN(^AUTTRLSH)^NARR_IEN(^AUTNPOV)^FM_DATE^ONSET_AGE^ICD_IEN^COND_CODE^RISK; xrefs `"B"`, `"AC"`(relation), `"AD"`(ICD); header `^AUPNFH(0)=…`.
+- `^DPT(.35/.351/.352/.353)` death fields populated when applicable.
 
 Pointer Target Registries (new)
 - Drugs (`^PSDRUG`, File #50): key on RxNorm and display; create minimal `^PSDRUG(IEN,0)=<NAME>^...` plus `^PSDRUG("B",NAME,IEN)` and header `^PSDRUG(0)="DRUG^50^..."`.
@@ -364,12 +371,8 @@ Exporter Changes
 - Preserve current conventions: FM dates, internal pointers only; quote free‑text; keep visit GUID xref under `^AUPNVSIT("GUID",IEN)`.
 
 Validation & Tests
-- Unit tests (extend `tests/test_vista_formatter.py`):
-  - assert presence of `^AUPNVMED(0)`, `^AUPNVLAB(0)`, `^GMR(120.8,0)` headers.
-  - verify `0` nodes contain only internal values (DFN/visit IENs, pointer IENs, FM dates), and strings are quoted.
-  - verify xrefs: `("V" by visit)`, `("B" by DFN)` exist and match `0` nodes.
-  - ensure pointer targets (`^PSDRUG`, `^LAB(60)`, `^GMR(120.82)`) are created with headers and “B” xrefs.
-- Smoke test: generate a small cohort with at least one med, lab, and allergy; confirm node counts in the exporter summary and spot‑check a few lines in `vista_globals.mumps`.
+- Unit tests: verify internal-only zero nodes, headers, and xrefs for visits/problems/meds/labs/allergies/immunizations/family history; ensure pointer target files are emitted with headers and “B”.
+- Smoke test: generate a cohort; confirm exporter summary includes counts for all files and death fields when present; spot‑check `vista_globals.mumps`.
 
 Risks & Mitigations
 - Site variance in DDs: use conservative, widely deployed PCC/VistA V‑file fields; keep to minimal required pieces and indexes.
@@ -385,10 +388,53 @@ Implementation Steps
 6. Update docs/README and main README about the expanded VistA coverage and any flags added.
 
 Acceptance Criteria
-- Export includes valid `^AUPNVMED`, `^AUPNVLAB`, and `^GMR(120.8)` entries with synchronized xrefs and headers.
-- All pointer fields use internal IENs; all string fields are quoted; FM dates/times are used consistently.
-- Minimal pointer target files are present (`^PSDRUG`, `^LAB(60)`, `^GMR(120.82)`) with headers and “B” indexes.
-- Tests pass (`pytest`), and smoke output shows patients > 0, meds > 0, labs > 0, allergies > 0.
+- Export includes valid `^AUPNVSIT`, `^AUPNPROB`, `^AUPNVMED`, `^AUPNVLAB`, `^GMR(120.8)`, `^AUPNVIMM`, and `^AUPNFH` entries with synchronized xrefs and headers; `^DPT` death fields set when applicable.
+- All pointer fields use internal IENs; string fields are quoted; FM dates/times used consistently.
+- Pointer target dictionaries (`^ICD9`, `^AUTNPOV`, `^AUTTLOC`, `^DIC(40.7)`, `^PSDRUG`, `^LAB(60)`, `^GMR(120.82)`, `^AUTTIMM`, `^AUTTRLSH`) are present with headers and “B” indexes.
+- Tests pass (`pytest`), and smoke output reports non‑zero counts for the implemented files.
+
+Note on Care Plans
+- Care plans are represented in FHIR (CarePlan resources) and CSV but are not mapped to a canonical VistA file by default. If needed, consider emitting TIU documents or a site‑specific file and add a pointer registry for that target.
+
+### VistA Export – Planned Extensions (Pending)
+Objective: round out “full‑scope” VistA exports for migration realism by adding procedures, vitals, health factors, and narrative care plans.
+
+Targets and Mapping
+- Procedures (visit‑tied)
+  - File: `^AUPNVCPT` (V CPT, #9000010.18); dictionary: `^ICPT` (#81).
+  - Nodes: `^AUPNVCPT(IEN,0)=DFN^VISIT_IEN^CPT_IEN^FM_DATE^…`; xrefs: `"B"` (DFN), `"V"` (visit).
+  - Headers: `^AUPNVCPT(0)="V CPT^9000010.18^<lastIEN>^<FMdate>"`; pointer headers for `^ICPT` when stubbing new codes.
+
+- Vitals/Measurements (visit‑tied)
+  - File: `^AUPNVMSR` (V MEASUREMENT, #9000010.01); dictionary: `^AUTTMSR` (Measurement Type, #9999999.07).
+  - Nodes: `^AUPNVMSR(IEN,0)=DFN^TYPE_IEN^VISIT_IEN^VALUE^UNITS^FM_DATETIME^…`; xrefs: `"B"`, `"V"`.
+  - Headers: `^AUPNVMSR(0)=…`; pointer headers for `^AUTTMSR` as needed (e.g., BP, PULSE, RESP, TEMP, HT, WT, BMI, SpO2).
+
+- Health Factors (visit‑tied; SDOH/screeners/risk flags)
+  - File: `^AUPNVHF` (V HEALTH FACTOR, #9000010.23); dictionary: `^AUTTHF` (HEALTH FACTOR, #9999999.64).
+  - Nodes: `^AUPNVHF(IEN,0)=DFN^HF_IEN^VISIT_IEN^FM_DATETIME^…`; xrefs: `"B"`, `"V"`.
+  - Headers: `^AUPNVHF(0)=…`; pointer headers for `^AUTTHF` when stubbing new factors (e.g., SDOH—Housing Instability, Food Insecurity, PHQ‑9 Moderate/Severe).
+
+- Care Plans (narrative)
+  - File: `^TIU(8925)` (TIU DOCUMENT FILE); titles: `^TIU(8925.1)` (Document Definition).
+  - Nodes: minimal 0‑node (patient, visit, title, status, dates) and WORD‑PROCESSING TEXT multiple; link to provider/location when available.
+  - Headers: rely on TIU’s standard top nodes; pointer headers for `^TIU(8925.1)` when introducing a “Care Plan” title.
+
+Decisions to Confirm (Action Required)
+- TIU titles to use (e.g., “Care Plan”, “Chronic Care Management Plan”, “Behavioral Health Care Plan”).
+- Vital types to include by default (BP, Pulse, Resp, Temp, SpO2, Height, Weight, BMI).
+- Health Factor taxonomy to seed (SDOH factors, PHQ‑9 levels, Smoking Status confirmations, Education level, etc.).
+- Whether to pre‑seed full `^ICPT`/`^AUTTMSR`/`^AUTTHF` dictionaries or generate minimal stubs strictly for referenced codes.
+
+Validation & Tests (Planned)
+- Unit: assert headers/xrefs for `^AUPNVCPT`, `^AUPNVMSR`, `^AUPNVHF`, and TIU creation of document 0‑node + TEXT multiples.
+- Integration smoke: verify non‑zero counts for the new files, and that visit/patient pointers are consistent; check that CSV/FHIR/HL7 parity remains unaffected.
+
+Acceptance Criteria (Planned)
+- Procedures, vitals, and health factors appear under the correct visit and patient with internal pointers and FM dates/times.
+- Care plan narratives available as TIU notes with appropriate titles and linkage.
+- Pointer dictionaries present (or stubs) with headers and “B” indexes.
+- All tests pass and exporter summary includes the new V‑file counts.
 
 ## Immediate Next Steps
 1. ✅ **Allergy realism expansion** — loaders, catalog swap, downstream orders, and exporter/tests completed.
