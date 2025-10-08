@@ -1,8 +1,0 @@
-allergy_id,patient_id,substance,reaction,severity,rxnorm_code,unii_code
-b4f33516-abcd-46a8-938d-e8d00aa56740,cc494ba7-9ccb-49a3-bb31-74ba1d224cf2,Shellfish,Hives,severe,3196,4A6XE3A25R
-f2932a9b-f8e3-4e4c-9eb4-1a48663db313,25111606-e5df-420a-aee4-eed9589b2f56,Latex,Nausea,moderate,25755,7RLR5T8Y9N
-447c3730-7697-477d-9cb2-28cf57b1c3f9,25111606-e5df-420a-aee4-eed9589b2f56,Peanut,Vomiting,mild,4025294,R16CO5Y76E
-8faabb6f-e8fd-4261-949e-380626861045,f13b2659-eb08-4c09-9791-1856f1647302,Shellfish,Anaphylaxis,severe,3196,4A6XE3A25R
-bc7966dc-40a0-4af2-aa53-f307b3dbae76,2fff6d96-4c98-4338-a183-42e3cfe01a54,Shellfish,Hives,mild,3196,4A6XE3A25R
-f78b1ec5-537b-4371-be73-39cdeccbc73d,4614b9aa-5660-4935-a550-95039d44641d,Shellfish,Rash,severe,3196,4A6XE3A25R
-efa9b763-6797-4ee6-a752-5e60f1b26419,4614b9aa-5660-4935-a550-95039d44641d,Peanut,Vomiting,mild,4025294,R16CO5Y76E

@@ -1,2 +1,0 @@
-patient_id,death_date,age_at_death,primary_cause_code,primary_cause_description,contributing_causes,manner_of_death,death_certificate_type
-51a2d538-a103-4369-b4e3-c745a4d19a08,2009-10-05,40,I64,"Stroke, not specified as hemorrhage or infarction",Hypertension; Diabetes; Flu,Natural,Standard
