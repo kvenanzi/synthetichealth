@@ -1,0 +1,59 @@
+system,code,display,tty,source_code,sab,ndc_example,ncbi_url,component,property,loinc_class
+rxnorm,161,acetaminophen,IN,161,RXNORM,"",https://rxnav.nlm.nih.gov/REST/rxcui/161,,,
+rxnorm,3002,cyclophosphamide,IN,3002,RXNORM,"",https://rxnav.nlm.nih.gov/REST/rxcui/3002,,,
+rxnorm,3639,doxorubicin,IN,3639,RXNORM,"",https://rxnav.nlm.nih.gov/REST/rxcui/3639,,,
+rxnorm,4493,fluoxetine,IN,4493,RXNORM,"",https://rxnav.nlm.nih.gov/REST/rxcui/4493,,,
+rxnorm,5487,hydrochlorothiazide,IN,5487,RXNORM,"",https://rxnav.nlm.nih.gov/REST/rxcui/5487,,,
+rxnorm,5640,ibuprofen,IN,5640,RXNORM,"",https://rxnav.nlm.nih.gov/REST/rxcui/5640,,,
+rxnorm,6809,metformin,IN,6809,RXNORM,"",https://rxnav.nlm.nih.gov/REST/rxcui/6809,,,
+rxnorm,17767,amlodipine,IN,17767,RXNORM,"",https://rxnav.nlm.nih.gov/REST/rxcui/17767,,,
+rxnorm,29046,lisinopril,IN,29046,RXNORM,"",https://rxnav.nlm.nih.gov/REST/rxcui/29046,,,
+rxnorm,36437,sertraline,IN,36437,RXNORM,"",https://rxnav.nlm.nih.gov/REST/rxcui/36437,,,
+rxnorm,69722,zanamivir,IN,69722,RXNORM,"",https://rxnav.nlm.nih.gov/REST/rxcui/69722,,,
+rxnorm,321988,escitalopram,IN,321988,RXNORM,"",https://rxnav.nlm.nih.gov/REST/rxcui/321988,,,
+Ser/Plas,10334-1,Cancer Ag 125 [Units/volume] in Serum or Plasma,,,,,https://loinc.org/10334-1,Cancer Ag 125,ACnc,CHEM
+Ser/Plas,10839-9,Troponin I.cardiac [Mass/volume] in Serum or Plasma,,,,,https://loinc.org/10839-9,Troponin I.cardiac,MCnc,CHEM
+Ser/Plas,13457-7,Cholesterol in LDL [Mass/volume] in Serum or Plasma by calculation,,,,,https://loinc.org/13457-7,Cholesterol.in LDL,MCnc,CHEM
+Ser/Plas,13969-1,Creatine kinase.MB [Mass/volume] in Serum or Plasma,,,,,https://loinc.org/13969-1,Creatine kinase.MB,MCnc,CHEM
+Ser/Plas,14804-9,Lactate dehydrogenase [Enzymatic activity/volume] in Serum or Plasma by Lactate to pyruvate reaction,,,,,https://loinc.org/14804-9,Lactate dehydrogenase,CCnc,CHEM
+Urine,14957-5,Microalbumin [Mass/volume] in Urine,,,,,https://loinc.org/14957-5,Albumin,MCnc,CHEM
+Ser/Plas,1558-6,Fasting glucose [Mass/volume] in Serum or Plasma,,,,,https://loinc.org/1558-6,Glucose^post CFst,MCnc,CHAL.ROUTINE
+Ser/Plas,1742-6,Alanine aminotransferase [Enzymatic activity/volume] in Serum or Plasma,,,,,https://loinc.org/1742-6,Alanine aminotransferase,CCnc,CHEM
+Ser/Plas,1751-7,Albumin [Mass/volume] in Serum or Plasma,,,,,https://loinc.org/1751-7,Albumin,MCnc,CHEM
+Ser/Plas,1920-8,Aspartate aminotransferase [Enzymatic activity/volume] in Serum or Plasma,,,,,https://loinc.org/1920-8,Aspartate aminotransferase,CCnc,CHEM
+Ser/Plas,1968-7,Bilirubin.direct [Mass/volume] in Serum or Plasma,,,,,https://loinc.org/1968-7,Bilirubin.glucuronidated+Bilirubin.albumin bound,MCnc,CHEM
+Ser/Plas,1975-2,Bilirubin.total [Mass/volume] in Serum or Plasma,,,,,https://loinc.org/1975-2,Bilirubin,MCnc,CHEM
+Ser/Plas,1988-5,C reactive protein [Mass/volume] in Serum or Plasma,,,,,https://loinc.org/1988-5,C reactive protein,MCnc,CHEM
+Ser/Plas,2028-9,"Carbon dioxide, total [Moles/volume] in Serum or Plasma",,,,,https://loinc.org/2028-9,Carbon dioxide,SCnc,CHEM
+Ser/Plas,2039-6,Carcinoembryonic Ag [Mass/volume] in Serum or Plasma,,,,,https://loinc.org/2039-6,Carcinoembryonic Ag,MCnc,CHEM
+Ser/Plas,2075-0,Chloride [Moles/volume] in Serum or Plasma,,,,,https://loinc.org/2075-0,Chloride,SCnc,CHEM
+Ser/Plas,2085-9,Cholesterol in HDL [Mass/volume] in Serum or Plasma,,,,,https://loinc.org/2085-9,Cholesterol.in HDL,MCnc,CHEM
+Ser/Plas,2089-1,Cholesterol in LDL [Mass/volume] in Serum or Plasma,,,,,https://loinc.org/2089-1,Cholesterol.in LDL,MCnc,CHEM
+Ser/Plas,2093-3,Cholesterol [Mass/volume] in Serum or Plasma,,,,,https://loinc.org/2093-3,Cholesterol,MCnc,CHEM
+Ser/Plas,2160-0,Creatinine [Mass/volume] in Serum or Plasma,,,,,https://loinc.org/2160-0,Creatinine,MCnc,CHEM
+Ser/Plas,2345-7,Glucose [Mass/volume] in Serum or Plasma,,,,,https://loinc.org/2345-7,Glucose,MCnc,CHEM
+Ser/Plas,2571-8,Triglyceride [Mass/volume] in Serum or Plasma,,,,,https://loinc.org/2571-8,Triglyceride,MCnc,CHEM
+Ser/Plas,2823-3,Potassium [Moles/volume] in Serum or Plasma,,,,,https://loinc.org/2823-3,Potassium,SCnc,CHEM
+Ser/Plas,2857-1,Prostate specific Ag [Mass/volume] in Serum or Plasma,,,,,https://loinc.org/2857-1,Prostate specific Ag,MCnc,CHEM
+Ser/Plas,2951-2,Sodium [Moles/volume] in Serum or Plasma,,,,,https://loinc.org/2951-2,Sodium,SCnc,CHEM
+Ser/Plas,3016-3,Thyrotropin [Units/volume] in Serum or Plasma,,,,,https://loinc.org/3016-3,Thyrotropin,ACnc,CHEM
+Ser/Plas,3024-7,Thyroxine (T4) free [Mass/volume] in Serum or Plasma,,,,,https://loinc.org/3024-7,Thyroxine.free,MCnc,CHEM
+Ser/Plas,3051-0,Triiodothyronine (T3) Free [Mass/volume] in Serum or Plasma,,,,,https://loinc.org/3051-0,Triiodothyronine.free,MCnc,CHEM
+Ser/Plas,30934-4,Natriuretic peptide B [Mass/volume] in Serum or Plasma,,,,,https://loinc.org/30934-4,Natriuretic peptide.B,MCnc,CHEM
+Ser/Plas,3094-0,Urea nitrogen [Mass/volume] in Serum or Plasma,,,,,https://loinc.org/3094-0,Urea nitrogen,MCnc,CHEM
+Ser/Plas,33762-6,Natriuretic peptide.B prohormone N-Terminal [Mass/volume] in Serum or Plasma,,,,,https://loinc.org/33762-6,Natriuretic peptide.B prohormone N-Terminal,MCnc,CHEM
+^Patient,44249-1,PHQ-9 quick depression assessment panel [Reported.PHQ],,,,,https://loinc.org/44249-1,PHQ-9 quick depression assessment panel,-,PANEL.SURVEY.PHQ
+Bld,4537-7,Erythrocyte [Sedimentation Rate] in Blood by Westergren method,,,,,https://loinc.org/4537-7,Erythrocyte,Sedimentation Rate,HEM/BC
+Bld,4544-3,Hematocrit [Volume Fraction] of Blood by Automated count,,,,,https://loinc.org/4544-3,Erythrocyte/Blood,VFr,HEM/BC
+Bld,4548-4,Hemoglobin A1c/Hemoglobin.total in Blood,,,,,https://loinc.org/4548-4,Hemoglobin A1c/Hemoglobin.total,MFr,CHEM
+Ser/Plas,5196-1,Hepatitis B virus surface Ag [Presence] in Serum or Plasma by Immunoassay,,,,,https://loinc.org/5196-1,Hepatitis B virus surface Ag,PrThr,MICRO
+Bld,6690-2,Leukocytes [#/volume] in Blood by Automated count,,,,,https://loinc.org/6690-2,Leukocytes,NCnc,HEM/BC
+Ser/Plas,67151-1,Troponin T.cardiac [Mass/volume] in Serum or Plasma by High sensitivity method,,,,,https://loinc.org/67151-1,Troponin T.cardiac,MCnc,CHEM
+Ser/Plas,6768-6,Alkaline phosphatase [Enzymatic activity/volume] in Serum or Plasma,,,,,https://loinc.org/6768-6,Alkaline phosphatase,CCnc,CHEM
+Bld,718-7,Hemoglobin [Mass/volume] in Blood,,,,,https://loinc.org/718-7,Hemoglobin,MCnc,HEM/BC
+^Patient,75626-2,Total score [AUDIT-C],,,,,https://loinc.org/75626-2,Total score,Score,SURVEY.GNHLTH
+Bld,777-3,Platelets [#/volume] in Blood by Automated count,,,,,https://loinc.org/777-3,Platelets,NCnc,HEM/BC
+RBC,785-6,MCH [Entitic mass] by Automated count,,,,,https://loinc.org/785-6,Hemoglobin,EntMass,HEM/BC
+RBC,786-4,MCHC [Entitic Mass/volume] in Red Blood Cells by Automated count,,,,,https://loinc.org/786-4,Hemoglobin,EntMCnc,HEM/BC
+RBC,787-2,MCV [Entitic mean volume] in Red Blood Cells by Automated count,,,,,https://loinc.org/787-2,Observation,EntMeanVol,HEM/BC
+Bld,789-8,Erythrocytes [#/volume] in Blood by Automated count,,,,,https://loinc.org/789-8,Erythrocytes,NCnc,HEM/BC
