@@ -442,9 +442,9 @@ Acceptance Criteria (Planned)
 3. ✅ **Conditions & encounters realism expansion** (scopes above)
    - Dynamic condition catalog with severity profiles feeds encounter frequency models.
    - Added regression tests for condition breadth/severity and encounter cadence integrity.
-4. **Immunizations realism expansion** (scope above)
+4. ✅ **Immunizations realism expansion** (scope above)
    - Add CVX/RxNorm-backed schedules and (optional) VistA `^AUPNVIMM` pilot; include serology LOINC observations.
-5. **Care plan realism expansion** (scope above)
+5. ✅ **Care plan realism expansion** (scope above)
    - Enrich pathways, activities, and metrics; wire to orders/obs.
 6. ✅ **Family history & mortality realism** — risk-adjusted family history and ICD-10 mortality pipeline shipped across exports.
 7. **Extend module catalogue**

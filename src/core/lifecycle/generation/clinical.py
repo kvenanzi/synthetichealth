@@ -2260,7 +2260,156 @@ SPECIALTY_CARE_PATHWAYS = {
             },
         ],
     },
+    "Diabetes": {
+        "care_team": ["Endocrinology", "Primary_Care", "Nutrition"],
+        "pathway": [
+            {
+                "stage": "Baseline_Assessment",
+                "expected_interval_days": 30,
+                "window_days": 30,
+                "quality_metric": "diabetes_baseline_documented",
+                "encounter_types": ["Primary Care Follow-up", "Endocrinology Clinic"],
+                "required_panels": ["Diabetes_Monitoring"],
+                "required_observation_types": ["Hemoglobin_A1c"],
+                "required_procedures": ["Diabetic_Eye_Exam"],
+                "required_therapeutic_classes": ["antidiabetic"],
+                "care_team": ["Endocrinology"],
+                "priority": "high",
+                "notes": "Establish glycemic control, initiate therapy, and schedule retinal screening."
+            },
+            {
+                "stage": "Quarterly_A1c",
+                "expected_interval_days": 90,
+                "window_days": 45,
+                "quality_metric": "a1c_control",
+                "encounter_types": ["Endocrinology Clinic", "Primary Care Follow-up", "Telehealth Check-in"],
+                "required_observation_types": ["Hemoglobin_A1c"],
+                "required_panels": ["Diabetes_Monitoring"],
+                "required_medications": ["Metformin"],
+                "care_team": ["Primary_Care"],
+                "priority": "routine",
+                "notes": "Review adherence, titrate oral agents or insulin, and capture A1c trend."
+            },
+            {
+                "stage": "Annual_Preventive",
+                "expected_interval_days": 365,
+                "window_days": 60,
+                "quality_metric": "complication_screening",
+                "encounter_types": ["Primary Care Follow-up"],
+                "required_panels": ["Renal_Function_Panel"],
+                "required_observation_types": ["Microalbumin", "Creatinine"],
+                "required_procedures": ["Diabetic_Eye_Exam"],
+                "required_immunizations": ["Seasonal Influenza Vaccine"],
+                "care_team": ["Primary_Care", "Ophthalmology"],
+                "priority": "routine",
+                "notes": "Assess nephropathy risk, reinforce vaccinations, and repeat retinal exam when due."
+            },
+        ],
+    },
+    "Chronic Kidney Disease": {
+        "care_team": ["Nephrology", "Primary_Care", "Pharmacy"],
+        "pathway": [
+            {
+                "stage": "Renal_Function_Baseline",
+                "expected_interval_days": 30,
+                "window_days": 30,
+                "quality_metric": "egfr_documented",
+                "encounter_types": ["Primary Care Follow-up", "Nephrology Clinic"],
+                "required_panels": ["Renal_Function_Panel"],
+                "required_observation_types": ["eGFR", "Potassium"],
+                "required_therapeutic_classes": ["ace_inhibitor"],
+                "care_team": ["Nephrology"],
+                "priority": "high",
+                "notes": "Document baseline kidney function and optimize ACEi/ARB therapy."
+            },
+            {
+                "stage": "Progression_Mitigation",
+                "expected_interval_days": 120,
+                "window_days": 60,
+                "quality_metric": "renal_risk_reduction",
+                "encounter_types": ["Primary Care Follow-up", "Telehealth Check-in"],
+                "required_panels": ["Renal_Function_Panel", "Diabetes_Monitoring"],
+                "required_observation_types": ["Microalbumin"],
+                "required_therapeutic_classes": ["sglt2_inhibitor"],
+                "care_team": ["Primary_Care", "Pharmacy"],
+                "priority": "routine",
+                "notes": "Monitor albuminuria trends and reinforce SGLT2 or ACEi adherence."
+            },
+            {
+                "stage": "Advanced_Care_Planning",
+                "expected_interval_days": 240,
+                "window_days": 90,
+                "quality_metric": "renal_care_plan_documented",
+                "encounter_types": ["Nephrology Clinic"],
+                "required_panels": ["Renal_Function_Panel"],
+                "required_immunizations": ["COVID-19 mRNA Vaccine", "Seasonal Influenza Vaccine"],
+                "care_team": ["Nephrology", "Primary_Care"],
+                "priority": "routine",
+                "notes": "Discuss modality planning, update vaccinations, and coordinate multidisciplinary support."
+            },
+        ],
+    },
+    "Asthma": {
+        "care_team": ["Pulmonology", "Primary_Care", "Respiratory_Therapy"],
+        "pathway": [
+            {
+                "stage": "Asthma_Control_Assessment",
+                "expected_interval_days": 60,
+                "window_days": 45,
+                "quality_metric": "asthma_control_test",
+                "encounter_types": ["Pulmonology Clinic", "Primary Care Follow-up"],
+                "required_observation_panels": ["Pulmonary_Function"],
+                "required_observation_types": ["FEV1"],
+                "required_therapeutic_classes": ["inhaled_steroid"],
+                "care_team": ["Pulmonology"],
+                "priority": "routine",
+                "notes": "Review symptom control, update inhaled corticosteroid therapy, and document spirometry."
+            },
+            {
+                "stage": "Maintenance_Titration",
+                "expected_interval_days": 120,
+                "window_days": 60,
+                "quality_metric": "controller_adherence",
+                "encounter_types": ["Pulmonology Clinic", "Telehealth Check-in"],
+                "required_therapeutic_classes": ["bronchodilator", "inhaled_combo"],
+                "required_panels": ["Pulmonary_Function"],
+                "care_team": ["Respiratory_Therapy", "Primary_Care"],
+                "priority": "routine",
+                "notes": "Ensure dual-controller therapy adherence and reinforce inhaler technique."
+            },
+            {
+                "stage": "Exacerbation_Prevention",
+                "expected_interval_days": 365,
+                "window_days": 90,
+                "quality_metric": "preventive_care_completed",
+                "encounter_types": ["Primary Care Follow-up"],
+                "required_immunizations": ["Seasonal Influenza Vaccine", "COVID-19 mRNA Vaccine"],
+                "required_panels": ["Pulmonary_Function"],
+                "care_team": ["Primary_Care", "Respiratory_Therapy"],
+                "priority": "routine",
+                "notes": "Deliver annual vaccinations, refresh action plan, and consider pulmonary rehab referral."
+            },
+        ],
+    },
 }
+
+SPECIALTY_CARE_PATHWAY_SYNONYMS = {
+    _normalize_condition_display(name): name for name in SPECIALTY_CARE_PATHWAYS
+}
+SPECIALTY_CARE_PATHWAY_SYNONYMS.update(
+    {
+        _normalize_condition_display("Type 2 Diabetes Mellitus"): "Diabetes",
+        _normalize_condition_display("Type II Diabetes Mellitus"): "Diabetes",
+        _normalize_condition_display("Type 1 Diabetes Mellitus"): "Diabetes",
+        _normalize_condition_display("Chronic Kidney Disease"): "Chronic Kidney Disease",
+        _normalize_condition_display("Chronic kidney disease"): "Chronic Kidney Disease",
+        _normalize_condition_display("Chronic kidney disease stage 3"): "Chronic Kidney Disease",
+        _normalize_condition_display("Chronic kidney disease stage 4"): "Chronic Kidney Disease",
+        _normalize_condition_display("Asthma"): "Asthma",
+        _normalize_condition_display("Severe persistent asthma"): "Asthma",
+        _normalize_condition_display("Moderate persistent asthma"): "Asthma",
+    }
+)
 
 
 RELATION_ROLE_CODES = {
@@ -3219,7 +3368,15 @@ def generate_care_plans(
     condition_names = {c.get("name") for c in conditions if c.get("name")}
 
     for condition_name in sorted(condition_names):
-        pathway_template = SPECIALTY_CARE_PATHWAYS.get(condition_name)
+        normalized_condition_name = _normalize_condition_display(condition_name)
+        canonical_name = SPECIALTY_CARE_PATHWAY_SYNONYMS.get(normalized_condition_name)
+        pathway_template = None
+        if canonical_name:
+            pathway_template = SPECIALTY_CARE_PATHWAYS.get(canonical_name)
+        if pathway_template is None:
+            pathway_template = SPECIALTY_CARE_PATHWAYS.get(condition_name) or SPECIALTY_CARE_PATHWAYS.get(
+                normalized_condition_name
+            )
         if not pathway_template:
             continue
 
