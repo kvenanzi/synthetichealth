@@ -233,6 +233,29 @@ def test_sepsis_module_covers_follow_up_paths():
     assert "1975-2" in observation_codes
 
 
+def test_pregnancy_loss_support_module_generates_bereavement_path():
+    patient = {
+        "patient_id": "loss-1",
+        "birthdate": "1992-02-12",
+        "age": 32,
+        "gender": "female",
+        "race": "Hispanic",
+    }
+    result = run_module("pregnancy_loss_support", patient, seed=2)
+
+    condition_codes = {cond["icd10_code"] for cond in result.conditions}
+    assert {"O03.9", "F43.21"}.issubset(condition_codes)
+
+    medication_names = {med["name"] for med in result.medications}
+    assert {"Ibuprofen", "Docusate Sodium"}.issubset(medication_names)
+
+    care_plan_names = {plan["name"] for plan in result.care_plans}
+    assert "Bereavement Support Plan" in care_plan_names
+
+    observation_codes = {obs.get("loinc_code") for obs in result.observations}
+    assert {"718-7", "44249-1"}.intersection(observation_codes)
+
+
 def test_hiv_prep_module_supports_both_cohorts():
     patient = {
         "patient_id": "hiv-1",

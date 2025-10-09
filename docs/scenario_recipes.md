@@ -97,6 +97,7 @@ The following clinically curated scenarios extend the current simulator catalog.
 - **Medications**: Short-term analgesics, SSRIs when indicated.
 - **VSAC**: Postpartum depression screening OID 2.16.840.1.113883.3.526.3.1570.
 - **Workflow**: Bereavement counseling referrals, partner support documentation, follow-up OB visit schedule.
+- **Implementation**: Modeled in `modules/pregnancy_loss_support.yaml` with telehealth screening and bereavement safety planning.
 
 ## 12. HIV Chronic Management with PrEP Cohort
 - **Population**: Two arms—individuals living with HIV and high-risk HIV-negative patients on PrEP.

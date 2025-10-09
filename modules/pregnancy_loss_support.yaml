@@ -1,0 +1,212 @@
+name: pregnancy_loss_support
+description: Post-pregnancy loss medical and mental health support with bereavement care coordination.
+categories:
+  encounters: replace
+  conditions: replace
+  medications: replace
+  observations: augment
+  procedures: augment
+  care_plans: augment
+states:
+  start:
+    type: start
+    transitions:
+      - to: post_loss_visit
+
+  post_loss_visit:
+    type: encounter
+    encounter_type: "Post-Loss Follow-up"
+    reason: "Physical recovery and emotional support after pregnancy loss"
+    provider_role: "Obstetrician"
+    location: "Women's Health Clinic"
+    transitions:
+      - to: document_conditions
+
+  document_conditions:
+    type: condition_onset
+    attach_to_last_encounter: true
+    conditions:
+      - name: "Pregnancy Loss Aftercare"
+        icd10: "O03.9"
+        snomed: "289874003"
+        category: "obstetrics"
+      - name: "Acute Grief Reaction"
+        icd10: "F43.21"
+        snomed: "442419002"
+        category: "behavioral_health"
+    transitions:
+      - to: baseline_observations
+
+  baseline_observations:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "718-7"
+        name: "Hemoglobin"
+        units: "g/dL"
+        value_range:
+          min: 9.5
+          max: 12.0
+      - loinc: "85354-9"
+        name: "Blood Pressure Panel"
+        units: "mmHg"
+        value_range:
+          min: 95
+          max: 125
+      - loinc: "75120-3"
+        name: "Postpartum Care Plan Documentation"
+        units: "note"
+        value_range:
+          min: 1
+          max: 1
+    transitions:
+      - to: symptom_management_medications
+
+  symptom_management_medications:
+    type: medication_start
+    attach_to_last_encounter: true
+    medications:
+      - name: "Ibuprofen"
+        rxnorm: "5640"
+        dose: "600 mg every 6 hours as needed for 5 days"
+        therapy_category: "analgesic"
+      - name: "Docusate Sodium"
+        rxnorm: "1049630"
+        dose: "100 mg twice daily as needed"
+        therapy_category: "supportive"
+    transitions:
+      - to: bereavement_care_plan
+
+  bereavement_care_plan:
+    type: care_plan
+    care_plans:
+      - name: "Bereavement Support Plan"
+        category: "behavioral_health"
+        goal: "Provide emotional support and monitor for complicated grief"
+        activities:
+          - "Schedule follow-up call within 7 days"
+          - "Offer partner support resources"
+          - "Provide written grief education materials"
+    transitions:
+      - to: follow_up_delay
+
+  follow_up_delay:
+    type: delay
+    duration_days: 14
+    transitions:
+      - to: mental_health_screening
+
+  mental_health_screening:
+    type: encounter
+    encounter_type: "Post-Loss Telehealth Check-in"
+    reason: "Emotional wellbeing screening"
+    provider_role: "Behavioral Health Counselor"
+    location: "Virtual"
+    transitions:
+      - to: edinburgh_screen
+
+  edinburgh_screen:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "44249-1"
+        name: "Edinburgh Postnatal Depression Scale"
+        units: "score"
+        value_range:
+          min: 6
+          max: 22
+    transitions:
+      - to: screening_decision
+
+  screening_decision:
+    type: decision
+    branches:
+      - probability: 0.65
+        to: routine_follow_up
+      - probability: 0.25
+        to: counseling_referral
+      - probability: 0.10
+        to: urgent_mental_health_support
+
+  routine_follow_up:
+    type: encounter
+    encounter_type: "Primary Care Follow-up"
+    reason: "Monitor recovery after pregnancy loss"
+    provider_role: "Family Physician"
+    location: "Primary Care Clinic"
+    transitions:
+      - to: routine_assessments
+
+  routine_assessments:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "44249-1"
+        name: "Edinburgh Postnatal Depression Scale"
+        units: "score"
+        value_range:
+          min: 4
+          max: 12
+    transitions:
+      - to: end
+
+  counseling_referral:
+    type: procedure
+    attach_to_last_encounter: true
+    procedures:
+      - name: "Bereavement Counseling Referral"
+        code: "90834"
+        system: "CPT"
+        reason: "Supportive psychotherapy referral"
+        status: "ordered"
+    transitions:
+      - to: ssri_trial
+
+  ssri_trial:
+    type: medication_start
+    attach_to_last_encounter: true
+    medications:
+      - name: "Sertraline"
+        rxnorm: "312941"
+        dose: "50 mg daily"
+        therapy_category: "ssri"
+    transitions:
+      - to: therapy_care_plan
+
+  therapy_care_plan:
+    type: care_plan
+    care_plans:
+      - name: "Therapy Engagement Plan"
+        category: "behavioral_health"
+        goal: "Initiate weekly counseling sessions"
+        activities:
+          - "Weekly individual therapy visits"
+          - "Monthly partner-inclusive session"
+          - "Emergency contact reminders"
+    transitions:
+      - to: end
+
+  urgent_mental_health_support:
+    type: encounter
+    encounter_type: "Urgent Behavioral Health Visit"
+    reason: "Elevated depression scale score"
+    provider_role: "Psychiatrist"
+    location: "Emergency Behavioral Health"
+    transitions:
+      - to: crisis_safety_plan
+
+  crisis_safety_plan:
+    type: care_plan
+    care_plans:
+      - name: "Crisis Safety Plan"
+        category: "behavioral_health"
+        goal: "Address acute suicide risk"
+        activities:
+          - "Develop coping strategy list"
+          - "Provide crisis hotline information"
+          - "Arrange follow-up within 48 hours"
+    transitions:
+      - to: end
+
+  end:
+    type: terminal
