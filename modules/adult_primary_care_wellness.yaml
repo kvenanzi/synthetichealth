@@ -1,0 +1,168 @@
+name: adult_primary_care_wellness
+description: Annual adult preventive visit with lipid screening, vaccinations, and lifestyle counseling.
+categories:
+  encounters: replace
+  conditions: replace
+  medications: replace
+  observations: augment
+  procedures: augment
+  immunizations: augment
+  care_plans: augment
+states:
+  start:
+    type: start
+    transitions:
+      - to: wellness_visit
+
+  wellness_visit:
+    type: encounter
+    encounter_type: "Annual Wellness Visit"
+    reason: "Preventive health maintenance"
+    provider_role: "Primary Care Physician"
+    location: "Internal Medicine Clinic"
+    transitions:
+      - to: preventive_conditions
+
+  preventive_conditions:
+    type: condition_onset
+    attach_to_last_encounter: true
+    conditions:
+      - name: "Routine Adult Health Examination"
+        icd10: "Z00.00"
+        snomed: "171207006"
+        category: "preventive"
+      - name: "Mixed Hyperlipidemia"
+        icd10: "E78.2"
+        snomed: "55822004"
+        category: "cardiometabolic"
+    transitions:
+      - to: wellness_care_plan
+
+  wellness_care_plan:
+    type: care_plan
+    care_plans:
+      - name: "Preventive Care Plan"
+        category: "preventive"
+        goal: "Maintain cardiometabolic health through annual screenings"
+        activities:
+          - "Schedule fasting lipid panel every 12 months"
+          - "Document BMI and counseling for healthy diet/exercise"
+          - "Review age-appropriate cancer screenings"
+    transitions:
+      - to: baseline_observations
+
+  baseline_observations:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "13457-7"
+        name: "Lipid Panel"
+        units: "mg/dL"
+        value_range:
+          min: 160
+          max: 240
+      - loinc: "2093-3"
+        name: "LDL Cholesterol"
+        units: "mg/dL"
+        value_range:
+          min: 120
+          max: 180
+      - loinc: "39156-5"
+        name: "Body Mass Index"
+        units: "kg/m2"
+        value_range:
+          min: 24
+          max: 31
+    transitions:
+      - to: preventive_immunization
+
+  preventive_immunization:
+    type: immunization
+    attach_to_last_encounter: true
+    immunizations:
+      - name: "Tdap"
+        cvx: "115"
+        dose_number: 1
+      - name: "Seasonal Influenza Vaccine"
+        cvx: "140"
+        dose_number: 1
+    transitions:
+      - to: screening_procedures
+
+  screening_procedures:
+    type: procedure
+    attach_to_last_encounter: true
+    procedures:
+      - name: "Screening Colonoscopy"
+        code: "45378"
+        system: "CPT"
+        reason: "Colorectal cancer screening"
+        status: "completed"
+      - name: "Screening Mammography"
+        code: "77067"
+        system: "CPT"
+        reason: "Breast cancer screening"
+        status: "completed"
+    transitions:
+      - to: statin_medication
+
+  statin_medication:
+    type: medication_start
+    attach_to_last_encounter: true
+    medications:
+      - name: "Atorvastatin"
+        rxnorm: "83367"
+        dose: "20 mg nightly"
+        therapy_category: "statin"
+    transitions:
+      - to: lifestyle_counseling
+
+  lifestyle_counseling:
+    type: care_plan
+    care_plans:
+      - name: "Lifestyle Counseling Plan"
+        category: "preventive"
+        goal: "Improve lipid control through lifestyle"
+        activities:
+          - "Enroll in nutrition coaching program"
+          - "Monitor weekly physical activity minutes"
+          - "Follow-up phone coaching in 6 weeks"
+    transitions:
+      - to: follow_up_delay
+
+  follow_up_delay:
+    type: delay
+    duration_days: 42
+    transitions:
+      - to: follow_up_visit
+
+  follow_up_visit:
+    type: encounter
+    encounter_type: "Telehealth Follow-up"
+    reason: "Review laboratory results and lifestyle plan"
+    provider_role: "Primary Care Physician"
+    location: "Virtual"
+    transitions:
+      - to: follow_up_observations
+
+  follow_up_observations:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "2093-3"
+        name: "LDL Cholesterol"
+        units: "mg/dL"
+        value_range:
+          min: 95
+          max: 140
+      - loinc: "2085-9"
+        name: "HDL Cholesterol"
+        units: "mg/dL"
+        value_range:
+          min: 45
+          max: 65
+    transitions:
+      - to: end
+
+  end:
+    type: terminal

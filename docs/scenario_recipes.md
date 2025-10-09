@@ -9,6 +9,7 @@ The following clinically curated scenarios extend the current simulator catalog.
 - **Medications**: Limited to short-term antibiotics (RxNorm 723), statins for elevated LDL (RxNorm 83367).
 - **Terminology bundles**: ICD-10 Z00.00, E78.5; SNOMED 171207006 (preventive visit). VSAC OID 2.16.840.1.113762.1.4.1222.1628 (Adult preventive care set). UMLS CUI C0002895 (Annual physical).
 - **Failures to watch**: Missing preventive service reminders, inconsistent BMI units.
+- **Implementation**: Modeled in `modules/adult_primary_care_wellness.yaml` with follow-up telehealth review.
 
 ## 2. Cardiometabolic Intensive Management
 - **Population**: 55–80 years, higher male proportion, rural/low-income skew.

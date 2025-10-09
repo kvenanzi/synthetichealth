@@ -274,3 +274,29 @@ def test_hiv_prep_module_supports_both_cohorts():
 
     observation_codes = {obs["loinc_code"] for obs in result.observations}
     assert "25836-8" in observation_codes
+
+
+def test_adult_primary_care_module_covers_preventive_services():
+    patient = {
+        "patient_id": "well-1",
+        "birthdate": "1987-07-22",
+        "age": 37,
+        "gender": "female",
+        "race": "Asian",
+    }
+    result = run_module("adult_primary_care_wellness", patient, seed=3)
+
+    condition_codes = {cond["icd10_code"] for cond in result.conditions}
+    assert {"Z00.00", "E78.2"}.issubset(condition_codes)
+
+    observation_codes = {obs.get("loinc_code") for obs in result.observations}
+    assert {"13457-7", "2093-3", "39156-5"}.issubset(observation_codes)
+
+    immunization_codes = {imm["cvx_code"] for imm in result.immunizations}
+    assert {"115", "140"}.issubset(immunization_codes)
+
+    procedure_codes = {proc["code"] for proc in result.procedures}
+    assert {"45378", "77067"}.issubset(procedure_codes)
+
+    medication_names = {med["name"] for med in result.medications}
+    assert "Atorvastatin" in medication_names
