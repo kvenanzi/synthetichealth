@@ -6,6 +6,7 @@ from unittest.mock import patch
 from faker import Faker
 
 from src.core.lifecycle.generation import clinical
+from src.core.terminology_catalogs import IMMUNIZATIONS
 
 
 def seed_random(seed: int = 2025) -> None:
@@ -82,6 +83,7 @@ def test_generate_immunizations_childhood_schedule_has_metadata():
         dose_number = record.get("dose_number")
         series_total = record.get("series_total")
         assert record.get("cvx_code"), "Immunization should include a CVX code"
+        assert record.get("rxnorm_code"), "Immunization should include an RxNorm code"
         assert record.get("status") == "completed"
         if series_id:
             assert 1 <= dose_number <= series_total
@@ -114,3 +116,8 @@ def test_generate_immunizations_produces_titer_followup_when_probability_hit():
         assert observation.get("panel") == "Immunization_Titers"
         assert observation.get("loinc_code")
         assert observation.get("status") in {"normal", "abnormal"}
+
+
+def test_immunization_catalog_has_rxnorm_codes():
+    missing = [entry["display"] for entry in IMMUNIZATIONS if not entry.get("rxnorm")]
+    assert not missing, f"Immunization entries missing RxNorm codes: {missing}"

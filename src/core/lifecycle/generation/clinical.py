@@ -2690,6 +2690,12 @@ def _build_immunization_record(
     fallback_by_cvx = IMMUNIZATION_BY_CVX.get(series.get("cvx")) or {}
     cvx_code = series.get("cvx") or catalog_entry.get("cvx") or fallback_by_cvx.get("cvx")
     snomed_code = catalog_entry.get("snomed") or fallback_by_cvx.get("snomed")
+    rxnorm_code = (
+        series.get("rxnorm")
+        or series.get("rxnorm_code")
+        or catalog_entry.get("rxnorm")
+        or fallback_by_cvx.get("rxnorm")
+    )
     route = dose.get("route") or series.get("route") or "intramuscular"
     encounter_id = encounter.get("encounter_id") if encounter else None
     location = encounter.get("location") if encounter else None
@@ -2704,6 +2710,7 @@ def _build_immunization_record(
         "name": series["name"],
         "cvx_code": cvx_code,
         "snomed_code": snomed_code,
+        "rxnorm_code": rxnorm_code,
         "date": administration_date.isoformat(),
         "dose_number": dose.get("dose_number", 1),
         "series_total": series_total or dose.get("dose_number", 1),

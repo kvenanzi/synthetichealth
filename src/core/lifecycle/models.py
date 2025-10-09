@@ -224,6 +224,7 @@ class ImmunizationRecord:
     name: str
     date_administered: Optional[date]
     cvx_code: Optional[str]
+    rxnorm_code: Optional[str]
     lot_number: Optional[str]
     performer: Optional[str]
     metadata: Dict[str, Any] = field(default_factory=dict)
@@ -240,6 +241,7 @@ class ImmunizationRecord:
                 "name",
                 "date",
                 "cvx_code",
+                "rxnorm_code",
                 "lot_number",
                 "performer",
             }
@@ -250,6 +252,7 @@ class ImmunizationRecord:
             name=data.get("name", ""),
             date_administered=_parse_date(data.get("date")),
             cvx_code=data.get("cvx_code"),
+            rxnorm_code=data.get("rxnorm_code"),
             lot_number=data.get("lot_number"),
             performer=data.get("performer"),
             metadata=metadata,

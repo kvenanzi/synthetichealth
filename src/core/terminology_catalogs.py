@@ -201,18 +201,18 @@ MEDICATIONS = [
 ]
 
 IMMUNIZATIONS = [
-    {"display": "Hepatitis B Vaccine", "cvx": "08", "snomed": "78778007", "rxnorm": ""},
-    {"display": "DTaP Vaccine", "cvx": "20", "snomed": "333347000", "rxnorm": ""},
-    {"display": "Inactivated Polio Vaccine", "cvx": "10", "snomed": "333341005", "rxnorm": ""},
-    {"display": "Haemophilus influenzae type b Vaccine", "cvx": "49", "snomed": "409568008", "rxnorm": ""},
-    {"display": "MMR Vaccine", "cvx": "03", "snomed": "333349002", "rxnorm": ""},
-    {"display": "Varicella Vaccine", "cvx": "21", "snomed": "333344008", "rxnorm": ""},
-    {"display": "HPV Vaccine", "cvx": "62", "snomed": "333358004", "rxnorm": ""},
-    {"display": "Tdap Vaccine", "cvx": "115", "snomed": "871751000000109", "rxnorm": ""},
-    {"display": "Seasonal Influenza Vaccine", "cvx": "140", "snomed": "86198006", "rxnorm": ""},
-    {"display": "Pneumococcal Conjugate Vaccine", "cvx": "133", "snomed": "333353000", "rxnorm": ""},
-    {"display": "COVID-19 mRNA Vaccine", "cvx": "207", "snomed": "1119349007", "rxnorm": ""},
-    {"display": "Zoster Vaccine", "cvx": "187", "snomed": "871895005", "rxnorm": ""}
+    {"display": "Hepatitis B Vaccine", "cvx": "08", "snomed": "78778007", "rxnorm": "798428"},
+    {"display": "DTaP Vaccine", "cvx": "20", "snomed": "333347000", "rxnorm": "1300310"},
+    {"display": "Inactivated Polio Vaccine", "cvx": "10", "snomed": "333341005", "rxnorm": "763106"},
+    {"display": "Haemophilus influenzae type b Vaccine", "cvx": "49", "snomed": "409568008", "rxnorm": "1300468"},
+    {"display": "MMR Vaccine", "cvx": "03", "snomed": "333349002", "rxnorm": "804186"},
+    {"display": "Varicella Vaccine", "cvx": "21", "snomed": "333344008", "rxnorm": "1292459"},
+    {"display": "HPV Vaccine", "cvx": "62", "snomed": "333358004", "rxnorm": "1597099"},
+    {"display": "Tdap Vaccine", "cvx": "115", "snomed": "871751000000109", "rxnorm": "1300370"},
+    {"display": "Seasonal Influenza Vaccine", "cvx": "140", "snomed": "86198006", "rxnorm": "2605552"},
+    {"display": "Pneumococcal Conjugate Vaccine", "cvx": "133", "snomed": "333353000", "rxnorm": "901644"},
+    {"display": "COVID-19 mRNA Vaccine", "cvx": "207", "snomed": "1119349007", "rxnorm": "2468231"},
+    {"display": "Zoster Vaccine", "cvx": "187", "snomed": "871895005", "rxnorm": "1986830"}
 ]
 
 ALLERGENS = [

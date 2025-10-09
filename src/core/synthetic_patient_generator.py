@@ -811,6 +811,7 @@ class FHIRFormatter:
                 else datetime.now().isoformat()
             )
             cvx_code = immunization.cvx_code or metadata.get("cvx_code")
+            rxnorm_code = immunization.rxnorm_code or metadata.get("rxnorm_code")
             lot_number = immunization.lot_number or metadata.get("lot_number")
             performer = immunization.performer or metadata.get("provider")
         else:
@@ -818,6 +819,7 @@ class FHIRFormatter:
             vaccine_name = metadata.get("vaccine") or metadata.get("name", "Vaccine")
             occurrence = metadata.get("date", datetime.now().isoformat())
             cvx_code = metadata.get("cvx_code")
+            rxnorm_code = metadata.get("rxnorm_code") or metadata.get("rxnorm")
             lot_number = metadata.get("lot_number")
             performer = metadata.get("provider") or metadata.get("performer")
 
@@ -836,6 +838,14 @@ class FHIRFormatter:
                 {
                     "system": "http://snomed.info/sct",
                     "code": snomed_code,
+                    "display": vaccine_name,
+                }
+            )
+        if rxnorm_code:
+            coding.append(
+                {
+                    "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                    "code": str(rxnorm_code),
                     "display": vaccine_name,
                 }
             )
@@ -1766,10 +1776,15 @@ class VistaReferenceRegistry:
             entry["name"] = name
         return entry["ien"]
 
-    def get_immunization_ien(self, name: Optional[str], cvx_code: Optional[str] = None) -> str:
-        if not name and not cvx_code:
+    def get_immunization_ien(
+        self,
+        name: Optional[str],
+        cvx_code: Optional[str] = None,
+        rxnorm_code: Optional[str] = None,
+    ) -> str:
+        if not name and not cvx_code and not rxnorm_code:
             return ""
-        key = (cvx_code or name or "").upper()
+        key = (cvx_code or rxnorm_code or name or "").upper()
         entry = self.immunization_lookup.get(key)
         if entry is None:
             ien = self._allocate("_immunization_counter")
@@ -1777,10 +1792,15 @@ class VistaReferenceRegistry:
                 "ien": ien,
                 "name": name or f"IMM {ien}",
                 "cvx": cvx_code or "",
+                "rxnorm": rxnorm_code or "",
             }
             return ien
         if name and not entry.get("name"):
             entry["name"] = name
+        if cvx_code and not entry.get("cvx"):
+            entry["cvx"] = cvx_code
+        if rxnorm_code and not entry.get("rxnorm"):
+            entry["rxnorm"] = rxnorm_code
         return entry["ien"]
 
     def get_family_relation_ien(self, relation: Optional[str]) -> str:
@@ -1828,7 +1848,11 @@ class VistaReferenceRegistry:
             ien = entry["ien"]
             name = sanitize(entry.get("name", "")) or f"IMMUNIZATION {ien}"
             cvx = entry.get("cvx", "")
-            globals_dict[f"^AUTTIMM({ien},0)"] = f"{name}^{cvx}"
+            rxnorm = entry.get("rxnorm", "")
+            node_value = f"{name}^{cvx}"
+            if rxnorm:
+                node_value = f"{node_value}^{rxnorm}"
+            globals_dict[f"^AUTTIMM({ien},0)"] = node_value
             globals_dict[f'^AUTTIMM("B","{name}",{ien})'] = ""
         for relation, ien in self.family_relation_lookup.items():
             name = sanitize(relation) or relation or f"RELATION {ien}"
@@ -2586,6 +2610,7 @@ class VistaFormatter:
                 vaccine_ien = registry.get_immunization_ien(
                     immunization.get('vaccine'),
                     immunization.get('cvx_code'),
+                    immunization.get('rxnorm_code'),
                 )
                 visit_ien = ""
                 encounter_ref = immunization.get('encounter_id')
