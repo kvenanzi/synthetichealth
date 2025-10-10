@@ -1,0 +1,15 @@
+name: hyperlipidemia_management
+description: Placeholder scaffold for hyperlipidemia management module (v2 DSL pending).
+categories:
+  encounters: augment
+  conditions: augment
+  medications: augment
+  observations: augment
+states:
+  start:
+    type: start
+    transitions:
+      - to: end
+  end:
+    type: terminal
+

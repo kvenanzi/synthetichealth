@@ -1,0 +1,15 @@
+name: obesity_weight_management
+description: Placeholder scaffold for obesity and weight management module (v2 DSL pending).
+categories:
+  encounters: augment
+  conditions: augment
+  medications: augment
+  observations: augment
+states:
+  start:
+    type: start
+    transitions:
+      - to: end
+  end:
+    type: terminal
+
