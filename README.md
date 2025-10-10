@@ -95,6 +95,16 @@ python3 -m src.core.synthetic_patient_generator --num-records 250 --output-dir o
 5. **Author scenario modules (optional)**
    - Compose YAML workflows under `modules/` (see `modules/cardiometabolic_intensive.yaml`).
    - Reference the module in a scenario via `modules: ["module_name"]` and run `pytest tests/test_module_engine.py` to validate execution.
+6. **Run the focused realism regression suites**
+   ```bash
+   source .venv/bin/activate
+   pytest tests/test_clinical_generation.py tests/test_med_lab_realism.py tests/test_module_engine.py
+   ```
+7. **Execute the phase 3 validation harness before pushing significant changes**
+   ```bash
+   source .venv/bin/activate
+   python tools/run_phase3_validation.py
+   ```
 
 ## Clinical terminology datasets
 
