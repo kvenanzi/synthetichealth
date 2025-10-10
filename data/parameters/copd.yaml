@@ -1,0 +1,15 @@
+parameters:
+  # GOLD-aligned rough targets (public sources)
+  exacerbations_per_year_mean:
+    value: 0.8
+    source_id: gold_copd
+    notes: Placeholder average; refine per GOLD grade distributions.
+  steroid_or_antibiotic_rescue_probability:
+    value: 0.45
+    source_id: gold_copd
+  oxygen_therapy_prevalence_severe:
+    value: 0.35
+    source_id: gold_copd
+  annual_influenza_vaccination_rate:
+    value: 0.65
+    source_id: cdc_influenza_coverage

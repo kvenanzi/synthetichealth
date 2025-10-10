@@ -1,0 +1,48 @@
+sources:
+  - id: aaaai_asthma_stats
+    title: Asthma Statistics
+    org: AAAAI
+    url: https://www.aaaai.org/about-aaaai/newsroom/asthma-statistics
+    date_accessed: 2025-10-10
+
+  - id: cdc_asthma_faststats
+    title: FastStats – Asthma
+    org: CDC / NCHS
+    url: https://www.cdc.gov/nchs/fastats/asthma.htm
+    date_accessed: 2025-10-10
+
+  - id: cdc_asthma_children
+    title: Asthma prevalence – children
+    org: CDC
+    url: https://www.cdc.gov/asthma/data-visualizations/default.htm
+    date_accessed: 2025-10-10
+
+  - id: cdc_asthma_adults
+    title: Asthma prevalence – adults
+    org: CDC
+    url: https://www.cdc.gov/asthma/asthma_stats/default.htm
+    date_accessed: 2025-10-10
+
+  - id: cdc_asthma_ed
+    title: Emergency Department Visits for Asthma
+    org: CDC / NCHS
+    url: https://www.cdc.gov/nchs/products/databriefs/db94.htm
+    date_accessed: 2025-10-10
+
+  - id: gold_copd
+    title: Global Strategy for the Diagnosis, Management, and Prevention of COPD (GOLD)
+    org: GOLD Initiative
+    url: https://goldcopd.org
+    date_accessed: 2025-10-10
+
+  - id: cdc_influenza_coverage
+    title: Flu Vaccination Coverage
+    org: CDC
+    url: https://www.cdc.gov/flu/fluvaxview/index.htm
+    date_accessed: 2025-10-10
+
+  - id: generic_author_estimate
+    title: Author Estimate (to be refined)
+    org: Internal
+    url: https://example.org/
+    date_accessed: 2025-10-10

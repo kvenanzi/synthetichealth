@@ -1,6 +1,6 @@
 # Phase 3B – Synthea‑Level Clinical Realism
 
-Goal: Evolve our module engine, authoring DSL, and validation to match the fidelity of Synthea modules (e.g., asthma), including evidence‑based branching, attribute‑driven paths, reusable submodules, and provenance‑backed parameters.
+Goal: Evolve our module engine, authoring DSL, and validation to match the fidelity of Synthea modules (e.g., Asthma in module‑builder), including evidence‑based branching, attribute‑driven paths, reusable submodules, and provenance‑backed parameters sourced from AAAAI, CDC, and other public guidelines. All parameters must reference up‑to‑date data in `data/terminology/` and a curated parameter store under `data/parameters/`.
 
 ## Success Criteria
 - Engine executes an expanded DSL (attributes, conditional transitions, submodules, symptom and end states, unitized delays) with parity to key Synthea patterns.
@@ -17,11 +17,12 @@ Goal: Evolve our module engine, authoring DSL, and validation to match the fidel
   - Clinical end states: `condition_end`, `medication_end`, `care_plan_start`, `care_plan_end`, `encounter_end`.
   - Target linking: `target_encounter` (attach state outputs to a specific encounter), plus `assign_to_attribute` to reference created IDs.
   - Codes: `codes[]` with `{system, code, display}`; support SNOMED, LOINC, ICD‑10, CPT, RxNorm; value set references.
-  - Metadata: `remarks[]` and `sources[]` (citations) at module and state levels; `version` & `gmf_version`.
-- Provenance & Parameters
-  - Curated sources per domain (examples): AAAAI, CDC NCHS FastStats, GINA/EPR‑3, USPSTF, NIH, ASCO/NCCN, GOLD, KDIGO.
-  - Parameter registry (`data/parameters/*.yaml`) holding named rates/distributions with source IDs.
-  - Import helpers to convert literature stats into normalized parameter files.
+- Metadata: `remarks[]` and `sources[]` (citations) at module and state levels; `version` & `gmf_version`. Sources refer to entries in `docs/sources.yml`.
+## Provenance & Parameters
+- Curated sources per domain (examples): AAAAI, CDC NCHS FastStats, GINA/EPR‑3, USPSTF, NIH, ASCO/NCCN, GOLD, KDIGO.
+- Parameter registry (`data/parameters/*.yaml`) holding named rates/distributions with `value`, `source_id`, and optional `notes`. Modules reference parameters via `use: asthma.attack_rate_semiannual` style tokens.
+- Citations live in `docs/sources.yml` with stable `id`, `title`, `org`, `url`, `date_accessed`.
+- Authoring rule: any `distributed_transition`, `conditional_transition` with prevalence, or non‑trivial `delay` must list `sources[]` or consume a `use:` parameter that resolves to a cited source.
 - Tooling & Validation
   - JSON Schema for DSL; schema‑aware linter: unreachable states, probability sums, unit validity, unknown attributes/codes, missing `sources` for nontrivial transitions.
   - Monte Carlo validator: module‑specific KPIs vs. target benchmarks with tolerances (per‑module spec).
@@ -54,12 +55,12 @@ Goal: Evolve our module engine, authoring DSL, and validation to match the fidel
 - Linter requires `sources[]` on states with `distributed_transition`/`conditional_transition` or nontrivial `delay`.
 
 ## Validation & Analytics
-- Monte Carlo KPIs per module (examples)
-  - Asthma: annual attack rate (~53%), ED visit rate per 100 asthma patients/year, childhood vs adult onset proportions.
-  - COPD: exacerbations/year, steroid/antibiotic rescue proportion.
-  - Sepsis: 30‑day readmission proxy via ED branch rate; lactate distribution.
+- KPI specs per module: `validation/module_kpis/<module>.yaml` define targets and tolerances consumed by `tools/module_monte_carlo_check.py`.
+  - Asthma: childhood vs adult onset proportions; annual attack rate (~53%; children ~57%, adults ~51%); ED visits per 100 pt‑years (~10/100) — AAAAI/CDC.
+  - COPD: exacerbations/year; steroid/antibiotic rescue proportions — GOLD/CDC.
+  - Sepsis: proxied 30‑day readmission (ED branch rate); lactate distribution.
 - Tolerances: per KPI allow ±(5–10)% absolute deviation or CI bounds based on N.
-- Reporter writes per‑module CSV/Parquet + HTML summary; CI fails when out of tolerance.
+- `tools/run_phase3_validation.py` includes module jobs referencing KPI specs; reporter writes CSV/Parquet plus console summary.
 
 ## Authoring Workflow & Docs
 - Update `docs/TECHNICAL_USER_GUIDE.md` and `primers/clinical_module_primer.md` with v2 DSL, attribute examples, and provenance rules.
@@ -68,8 +69,8 @@ Goal: Evolve our module engine, authoring DSL, and validation to match the fidel
 
 ## Linter (v2)
 - Structural: unreachable/unknown targets; probability sums ≈1; cycles without delays flagged.
-- Semantics: unknown attributes, missing `sources` on stochastic branches, unit validity, `codes[]` system sanity.
-- Provenance: require at least one source per probabilistic/conditional state; warn on module‑level `sources` only.
+- Semantics: unknown attributes, valid units, `codes[]` system sanity; parameters referenced must exist in `data/parameters`.
+- Provenance: require at least one source per probabilistic/conditional state or a parameter that resolves to a cited source; warn on module‑level `sources` only.
 
 ## Migration & Compatibility Strategy
 - Keep v1 modules running (current Phase 3). Engine auto‑detects `gmf_version`.
@@ -80,18 +81,18 @@ Goal: Evolve our module engine, authoring DSL, and validation to match the fidel
 - M1 (Engine + Schema)
   - Implement attributes, conditional/distributed transitions, unitized delays; JSON Schema + v2 parser; minimal linter.
   - Deliver: v2 schema draft; engine PR; unit tests for new state types.
-- M2 (Submodules + Symptoms)
-  - Add `call_submodule`, `symptom`, and end states; ensure FHIR mapping parity; expand linter checks.
+- M2 (Submodules + Symptoms + CarePlan)
+  - Add `call_submodule`, `symptom`, `care_plan_start/end`, and `encounter_end`; ensure FHIR mapping parity; expand linter checks.
   - Deliver: COPD & sepsis updates using submodules where appropriate.
 - M3 (Asthma Module – High‑Fidelity)
-  - Author asthma v2 mirroring Synthea: atopy gate, onset distributions, smoker plan branch, attack/ED loop.
-  - Deliver: Monte Carlo KPIs passing; Mermaid diagram.
-- M4 (Provenance & Parameter Store)
-  - Populate parameter YAMLs; migrate v2 modules to reference parameters; enforce `sources` via linter.
-  - Deliver: `docs/sources.yml`; ingestion scripts & examples.
-- M5 (Validation & CI)
-  - Extend Monte Carlo runner with KPI specs per module; integrate into CI; add HTML summary artifact.
-  - Deliver: CI workflow and badge; primer updates.
+  - Author asthma v2 mirroring Synthea (atopy, onset, smoker/nonsmoker branches, 6‑month attack loop, ED + follow‑up).
+  - Deliver: `data/parameters/asthma.yaml`, `validation/module_kpis/asthma.yaml`, `docs/sources.yml` entries; Monte Carlo KPIs passing; Mermaid diagram.
+- M4 (COPD v2 + Provenance Rules)
+  - Author COPD v2 with GOLD‑aligned parameters; enforce `sources` in linter for probabilistic states.
+  - Deliver: `data/parameters/copd.yaml`, KPI spec, linter rule updates.
+- M5 (Validation & Docs)
+  - Extend `run_phase3_validation.py` with per‑module KPI specs; update authoring primers; optional CI integration.
+  - Deliver: updated primers and examples; optional CI workflow.
 
 ## Acceptance Criteria
 - v2 engine passes all unit/integration tests; v1 modules unaffected.
@@ -105,4 +106,3 @@ Goal: Evolve our module engine, authoring DSL, and validation to match the fidel
 
 ## Effort & Timeline (indicative)
 - M1: 1–2 weeks; M2: 1–2 weeks; M3: 1–2 weeks; M4: 1 week; M5: 0.5–1 week. Staggered deliverables allow early value with asthma first.
-
