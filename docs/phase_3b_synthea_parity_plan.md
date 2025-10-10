@@ -20,7 +20,7 @@ Goal: Evolve our module engine, authoring DSL, and validation to match the fidel
 - Metadata: `remarks[]` and `sources[]` (citations) at module and state levels; `version` & `gmf_version`. Sources refer to entries in `docs/sources.yml`.
 ## Provenance & Parameters
 - Curated sources per domain (examples): AAAAI, CDC NCHS FastStats, GINA/EPR‑3, USPSTF, NIH, ASCO/NCCN, GOLD, KDIGO.
-- Parameter registry (`data/parameters/*.yaml`) holding named rates/distributions with `value`, `source_id`, and optional `notes`. Modules reference parameters via `use: asthma.attack_rate_semiannual` style tokens.
+- Parameter registry (`data/parameters/*.yaml`) holding named rates/distributions with `value`, `source_id`, and optional `notes`. Modules reference parameters via `use: asthma.attack_rate_semiannual` style tokens. Initial scaffolds land early and are expanded with detailed distributions (age bands, severity, seasonality) during module authoring milestones.
 - Citations live in `docs/sources.yml` with stable `id`, `title`, `org`, `url`, `date_accessed`.
 - Authoring rule: any `distributed_transition`, `conditional_transition` with prevalence, or non‑trivial `delay` must list `sources[]` or consume a `use:` parameter that resolves to a cited source.
 - Tooling & Validation
@@ -85,11 +85,11 @@ Goal: Evolve our module engine, authoring DSL, and validation to match the fidel
   - Add `call_submodule`, `symptom`, `care_plan_start/end`, and `encounter_end`; ensure FHIR mapping parity; expand linter checks.
   - Deliver: COPD & sepsis updates using submodules where appropriate.
 - M3 (Asthma Module – High‑Fidelity)
-  - Author asthma v2 mirroring Synthea (atopy, onset, smoker/nonsmoker branches, 6‑month attack loop, ED + follow‑up).
-  - Deliver: `data/parameters/asthma.yaml`, `validation/module_kpis/asthma.yaml`, `docs/sources.yml` entries; Monte Carlo KPIs passing; Mermaid diagram.
+  - Author asthma v2 mirroring Synthea (atopy, onset, smoker/nonsmoker branches, 6‑month attack loop, ED + follow-up).
+  - Deliver: fully populated `data/parameters/asthma.yaml`, `validation/module_kpis/asthma.yaml`, `docs/sources.yml` entries; Monte Carlo KPIs passing; Mermaid diagram.
 - M4 (COPD v2 + Provenance Rules)
   - Author COPD v2 with GOLD‑aligned parameters; enforce `sources` in linter for probabilistic states.
-  - Deliver: `data/parameters/copd.yaml`, KPI spec, linter rule updates.
+  - Deliver: fully populated `data/parameters/copd.yaml`, KPI spec, linter rule updates.
 - M5 (Validation & Docs)
   - Extend `run_phase3_validation.py` with per‑module KPI specs; update authoring primers; optional CI integration.
   - Deliver: updated primers and examples; optional CI workflow.
