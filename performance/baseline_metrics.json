@@ -1,0 +1,20 @@
+{
+  "generated_at": "2025-10-10T01:27:26.134010+00:00",
+  "python_version": "3.10.12",
+  "platform": "Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.35",
+  "git_revision": "face384",
+  "jobs": [
+    {
+      "job": "multi_module_combo",
+      "scenario": "sepsis_survivorship",
+      "modules": [
+        "cardiometabolic_intensive",
+        "adult_primary_care_wellness",
+        "pregnancy_loss_support"
+      ],
+      "num_records": 8,
+      "elapsed_seconds": 190.5127,
+      "records_per_second": 0.04
+    }
+  ]
+}

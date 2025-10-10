@@ -453,8 +453,8 @@ Acceptance Criteria (Planned)
 8. ✅ **Broaden validation coverage**
     - Build a module linter CLI (under `tools/`) that wraps `validate_module_definition` and checks terminology bindings.
     - Add Monte Carlo outcome assertions and exporter parity tests once multiple modules coexist.
-9. **Baseline performance safeguards**
-    - Capture generator runtime metrics with ≥3 modules enabled and persist results for regression comparison.
+9. ✅ **Baseline performance safeguards**
+    - Capture generator runtime metrics with ≥3 modules enabled and persist results for regression comparison (see `tools/capture_performance_baseline.py`, results stored under `performance/baseline_metrics.json`).
 
 ## Reminders
 - Keep this document updated whenever milestones land; it is the authoritative checklist for the pivot.

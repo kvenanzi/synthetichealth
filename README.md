@@ -105,6 +105,11 @@ python3 -m src.core.synthetic_patient_generator --num-records 250 --output-dir o
    source .venv/bin/activate
    python tools/run_phase3_validation.py
    ```
+8. **Capture/refresh baseline performance metrics when investigating regressions**
+   ```bash
+   source .venv/bin/activate
+   python tools/capture_performance_baseline.py
+   ```
 
 ## Clinical terminology datasets
 
