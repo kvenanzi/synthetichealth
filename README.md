@@ -108,7 +108,7 @@ python3 -m src.core.synthetic_patient_generator --num-records 250 --output-dir o
 8. **Capture/refresh baseline performance metrics when investigating regressions**
    ```bash
    source .venv/bin/activate
-   python tools/capture_performance_baseline.py
+   python tools/capture_performance_baseline.py --track-history
    ```
 
 ## Clinical terminology datasets

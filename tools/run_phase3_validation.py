@@ -53,6 +53,15 @@ MONTE_CARLO_JOBS = [
         "required_icd10": ["O03.9", "F43.21"],
         "max_med_std": "0.6",
     },
+    {
+        "scenario": None,
+        "modules": ["mental_health_integrated_care", "geriatric_polypharmacy"],
+        "num_records": "8",
+        "iterations": "2",
+        "required_loinc": ["44261-6", "69730-0"],
+        "required_icd10": ["F33.1", "M17.11"],
+        "max_med_std": "0.7",
+    },
 ]
 
 def run(cmd: list[str]) -> None:

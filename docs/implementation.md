@@ -447,8 +447,8 @@ Acceptance Criteria (Planned)
 5. ✅ **Care plan realism expansion** (scope above)
    - Enrich pathways, activities, and metrics; wire to orders/obs.
 6. ✅ **Family history & mortality realism** — risk-adjusted family history and ICD-10 mortality pipeline shipped across exports.
-7. **Extend module catalogue**
-    - Implement remaining backlog scenarios (geriatrics, sepsis survivorship, HIV/PrEP) using the established authoring pattern.
+7. ✅ **Extend module catalogue**
+    - Implement remaining backlog scenarios (geriatrics, sepsis survivorship, HIV/PrEP, adult wellness, pregnancy loss support) using the established authoring pattern and module tests.
     - Add scenario wiring plus regression tests mirroring `tests/test_module_engine.py` for every new module.
 8. ✅ **Broaden validation coverage**
     - Build a module linter CLI (under `tools/`) that wraps `validate_module_definition` and checks terminology bindings.

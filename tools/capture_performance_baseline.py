@@ -17,7 +17,7 @@ import subprocess
 import sys
 import tempfile
 import time
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -115,6 +115,56 @@ def capture_metrics(jobs: List[PerformanceJob]) -> Dict[str, object]:
     return summary
 
 
+def append_history(
+    metrics: Dict[str, object],
+    history_path: Path,
+    regression_threshold: float,
+) -> Optional[Dict[str, object]]:
+    history: List[Dict[str, object]] = []
+    if history_path.exists():
+        try:
+            history = json.loads(history_path.read_text())
+        except json.JSONDecodeError:
+            history = []
+
+    previous_entry = history[-1] if history else None
+    history.append(
+        {
+            "timestamp": metrics.get("generated_at"),
+            "git_revision": metrics.get("git_revision"),
+            "jobs": metrics.get("jobs", []),
+        }
+    )
+    history_path.parent.mkdir(parents=True, exist_ok=True)
+    history_path.write_text(json.dumps(history, indent=2))
+
+    if not previous_entry:
+        return None
+
+    deltas: Dict[str, Dict[str, float]] = {}
+    prev_jobs = {job["job"]: job for job in previous_entry.get("jobs", [])}
+    for job in metrics.get("jobs", []):
+        name = job["job"]
+        prev = prev_jobs.get(name)
+        if not prev:
+            continue
+        prev_rps = prev.get("records_per_second") or 0.0
+        curr_rps = job.get("records_per_second") or 0.0
+        delta = None
+        if prev_rps > 0:
+            delta = (curr_rps - prev_rps) / prev_rps
+        elif curr_rps > 0:
+            delta = float("inf")
+        if delta is not None:
+            deltas[name] = {
+                "previous_records_per_second": round(prev_rps, 2),
+                "current_records_per_second": round(curr_rps, 2),
+                "delta": round(delta, 3),
+                "regression": delta < -regression_threshold,
+            }
+    return deltas
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Capture baseline generator performance metrics.")
     parser.add_argument(
@@ -134,6 +184,23 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         default=None,
         help="Optional JSON file describing custom jobs.",
+    )
+    parser.add_argument(
+        "--track-history",
+        action="store_true",
+        help="Append results to performance/baseline_history.json and report deltas vs the prior run.",
+    )
+    parser.add_argument(
+        "--history",
+        type=Path,
+        default=PROJECT_ROOT / "performance" / "baseline_history.json",
+        help="Path for the rolling performance history when --track-history is supplied.",
+    )
+    parser.add_argument(
+        "--regression-threshold",
+        type=float,
+        default=0.25,
+        help="Relative decline threshold (as a fraction) that will be flagged as a regression when comparing histories.",
     )
     return parser.parse_args()
 
@@ -171,6 +238,22 @@ def main() -> int:
             f"  - {job['job']}: {job['elapsed_seconds']}s "
             f"({job['records_per_second']} rec/s, n={job['num_records']})"
         )
+
+    if args.track_history:
+        deltas = append_history(metrics, args.history, args.regression_threshold)
+        if deltas:
+            print(f"History updated at {args.history}")
+            for job, payload in deltas.items():
+                delta_pct = payload["delta"] * 100
+                status = "⚠️ regression" if payload["regression"] else "Δ"
+                print(
+                    f"  {status} {job}: {payload['current_records_per_second']} rec/s "
+                    f"(prev {payload['previous_records_per_second']} rec/s, "
+                    f"{delta_pct:+.1f}% change)"
+                )
+        else:
+            print(f"History initialized at {args.history}")
+
     return 0
 
 
