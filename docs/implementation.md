@@ -450,7 +450,7 @@ Acceptance Criteria (Planned)
 7. **Extend module catalogue**
     - Implement remaining backlog scenarios (geriatrics, sepsis survivorship, HIV/PrEP) using the established authoring pattern.
     - Add scenario wiring plus regression tests mirroring `tests/test_module_engine.py` for every new module.
-8. **Broaden validation coverage**
+8. ✅ **Broaden validation coverage**
     - Build a module linter CLI (under `tools/`) that wraps `validate_module_definition` and checks terminology bindings.
     - Add Monte Carlo outcome assertions and exporter parity tests once multiple modules coexist.
 9. **Baseline performance safeguards**

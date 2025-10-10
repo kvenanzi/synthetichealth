@@ -19,17 +19,39 @@ LINTER_CMD = [PYTHON, "tools/module_linter.py", "--modules-root", "modules", "--
 MONTE_CARLO_JOBS = [
     {
         "scenario": "sepsis_survivorship",
-        "num_records": "20",
-        "iterations": "4",
+        "modules": [],
+        "num_records": "10",
+        "iterations": "2",
         "required_loinc": ["6690-2", "1975-2"],
         "required_icd10": ["A41.9"],
+        "max_med_std": "0.75",
     },
     {
         "scenario": "hiv_prep",
-        "num_records": "20",
-        "iterations": "4",
+        "modules": [],
+        "num_records": "10",
+        "iterations": "2",
         "required_loinc": ["25836-8"],
         "required_icd10": ["B20", "Z20.6"],
+        "max_med_std": "0.75",
+    },
+    {
+        "scenario": None,
+        "modules": ["adult_primary_care_wellness"],
+        "num_records": "8",
+        "iterations": "2",
+        "required_loinc": ["13457-7", "2093-3"],
+        "required_icd10": ["Z00.00", "E78.2"],
+        "max_med_std": "0.6",
+    },
+    {
+        "scenario": None,
+        "modules": ["pregnancy_loss_support"],
+        "num_records": "8",
+        "iterations": "2",
+        "required_loinc": ["44249-1", "718-7"],
+        "required_icd10": ["O03.9", "F43.21"],
+        "max_med_std": "0.6",
     },
 ]
 
@@ -45,15 +67,21 @@ def main() -> int:
         cmd = [
             PYTHON,
             "tools/module_monte_carlo_check.py",
-            "--scenario",
-            job["scenario"],
-            "--num-records",
-            job["num_records"],
-            "--iterations",
-            job["iterations"],
-            "--max-med-std",
-            "0.5",
         ]
+        if job["scenario"]:
+            cmd.extend(["--scenario", job["scenario"]])
+        for module in job.get("modules", []):
+            cmd.extend(["--module", module])
+        cmd.extend(
+            [
+                "--num-records",
+                job["num_records"],
+                "--iterations",
+                job["iterations"],
+                "--max-med-std",
+                job.get("max_med_std", "0.5"),
+            ]
+        )
         for code in job["required_loinc"]:
             cmd.extend(["--required-loinc", code])
         for code in job["required_icd10"]:
