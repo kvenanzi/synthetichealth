@@ -10,6 +10,69 @@ parameters:
   oxygen_therapy_prevalence_severe:
     value: 0.35
     source_id: gold_copd
+  oxygen_therapy_absence_probability_severe:
+    value: 0.65
+    source_id: gold_copd
+    notes: Complement of long-term oxygen prevalence among severe COPD.
   annual_influenza_vaccination_rate:
     value: 0.65
     source_id: cdc_influenza_coverage
+  pneumococcal_vaccination_rate:
+    value: 0.7
+    source_id: gold_copd
+    notes: GOLD recommends pneumococcal vaccination in moderate+ COPD cohorts.
+
+  severity_distribution:
+    moderate:
+      value: 0.45
+      source_id: gold_copd
+    severe:
+      value: 0.35
+      source_id: gold_copd
+    very_severe:
+      value: 0.2
+      source_id: gold_copd
+
+  smoker_probability:
+    value: 0.3
+    source_id: generic_author_estimate
+    notes: Placeholder for current smokers among COPD cohort; refine with CDC NHIS.
+  non_smoker_probability:
+    value: 0.7
+    source_id: generic_author_estimate
+    notes: Complement of smoker probability (former/never smokers).
+
+  exacerbation_probability_semiannual:
+    value: 0.4
+    source_id: gold_copd
+    notes: Half of annual mean exacerbation rate (0.8/year).
+  no_exacerbation_probability_semiannual:
+    value: 0.6
+    source_id: gold_copd
+    notes: Complement of semiannual exacerbation probability.
+  hospital_exacerbation_probability:
+    value: 0.25
+    source_id: gold_copd
+    notes: Proportion of exacerbations leading to hospitalization.
+  outpatient_exacerbation_probability:
+    value: 0.75
+    source_id: gold_copd
+    notes: Complement of hospitalization probability (managed outpatient/ED).
+
+  post_exacerbation_followup_weeks:
+    value: 4
+    source_id: gold_copd
+    notes: GOLD recommends follow-up within a month after exacerbation.
+  semiannual_followup_months:
+    value: 6
+    source_id: gold_copd
+    notes: Routine controller reassessment.
+
+  cycle_continuation_probability:
+    value: 0.6
+    source_id: generic_author_estimate
+    notes: Probability of continuing intensive follow-up loop.
+  cycle_completion_probability:
+    value: 0.4
+    source_id: generic_author_estimate
+    notes: Complement; transition to maintenance.

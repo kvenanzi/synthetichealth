@@ -1,0 +1,438 @@
+name: copd_v2
+description: GOLD-aligned COPD management with severity-driven therapy, oxygen decisioning, and exacerbation loops.
+version: 0.1.0
+gmf_version: 2
+categories:
+  encounters: replace
+  conditions: replace
+  medications: replace
+  observations: augment
+  procedures: augment
+  immunizations: augment
+  care_plans: augment
+sources:
+  - gold_copd
+  - cdc_influenza_coverage
+  - generic_author_estimate
+remarks:
+  - Models semiannual controller reviews and probabilistic exacerbations mapped to GOLD guidance.
+states:
+  start:
+    type: start
+    transitions:
+      - to: severity_assignment
+
+  severity_assignment:
+    type: decision
+    sources: [gold_copd]
+    distributed_transition:
+      - transition: set_moderate_severity
+        distribution:
+          use: copd.severity_distribution.moderate
+      - transition: set_severe_severity
+        distribution:
+          use: copd.severity_distribution.severe
+      - transition: set_very_severe_severity
+        distribution:
+          use: copd.severity_distribution.very_severe
+
+  set_moderate_severity:
+    type: set_attribute
+    attribute: copd_severity
+    value: moderate
+    transitions:
+      - to: mark_not_oxygen_candidate
+
+  set_severe_severity:
+    type: set_attribute
+    attribute: copd_severity
+    value: severe
+    transitions:
+      - to: mark_oxygen_candidate
+
+  set_very_severe_severity:
+    type: set_attribute
+    attribute: copd_severity
+    value: very_severe
+    transitions:
+      - to: mark_oxygen_candidate
+
+  mark_not_oxygen_candidate:
+    type: set_attribute
+    attribute: oxygen_candidate
+    value: false
+    transitions:
+      - to: smoking_status_assignment
+
+  mark_oxygen_candidate:
+    type: set_attribute
+    attribute: oxygen_candidate
+    value: true
+    transitions:
+      - to: smoking_status_assignment
+
+  smoking_status_assignment:
+    type: decision
+    sources: [generic_author_estimate]
+    distributed_transition:
+      - transition: set_current_smoker
+        distribution:
+          use: copd.smoker_probability
+      - transition: set_non_smoker
+        distribution:
+          use: copd.non_smoker_probability
+
+  set_current_smoker:
+    type: set_attribute
+    attribute: smoking_status
+    value: current
+    transitions:
+      - to: baseline_intake_encounter
+
+  set_non_smoker:
+    type: set_attribute
+    attribute: smoking_status
+    value: former
+    transitions:
+      - to: baseline_intake_encounter
+
+  baseline_intake_encounter:
+    type: encounter
+    encounter_type: "COPD Baseline Assessment"
+    reason: "Establish COPD management plan"
+    provider_role: "Pulmonologist"
+    location: "Pulmonary Clinic"
+    sources: [gold_copd]
+    transitions:
+      - to: establish_copd_diagnosis
+
+  establish_copd_diagnosis:
+    type: condition_onset
+    attach_to_last_encounter: true
+    assign_to_attribute: copd_condition_id
+    conditions:
+      - name: "Chronic Obstructive Pulmonary Disease"
+        icd10: "J44.9"
+        snomed: "13645005"
+        category: "respiratory"
+    sources: [gold_copd]
+    transitions:
+      - to: oxygen_therapy_decision
+
+  oxygen_therapy_decision:
+    type: decision
+    sources: [gold_copd]
+    transitions:
+      - probability:
+          use: copd.oxygen_therapy_prevalence_severe
+        condition:
+          type: attribute
+          attribute: oxygen_candidate
+          operator: ==
+          value: true
+        to: initiate_oxygen_therapy
+      - probability:
+          use: copd.oxygen_therapy_absence_probability_severe
+        condition:
+          type: attribute
+          attribute: oxygen_candidate
+          operator: ==
+          value: true
+        to: establish_care_plan
+      - probability: 0.0
+        condition:
+          type: attribute
+          attribute: oxygen_candidate
+          operator: ==
+          value: false
+        to: establish_care_plan
+
+  initiate_oxygen_therapy:
+    type: medication_start
+    attach_to_last_encounter: true
+    medications:
+      - name: "Home Oxygen Therapy"
+        rxnorm: "70618"
+        dose: "2 L/min continuous"
+        therapy_category: oxygen
+    sources: [gold_copd]
+    transitions:
+      - to: establish_care_plan
+
+  establish_care_plan:
+    type: care_plan_start
+    name: "COPD Self-Management Plan"
+    category: self_management
+    goal: "Reduce exacerbations and maintain function"
+    activities:
+      - "Pulmonary rehabilitation sessions"
+      - "Inhaler technique coaching"
+      - "Smoking cessation support"
+    assign_to_attribute: copd_care_plan_id
+    sources: [gold_copd]
+    transitions:
+      - to: controller_medications
+
+  controller_medications:
+    type: medication_start
+    attach_to_last_encounter: true
+    assign_to_attribute: copd_controller_regimen
+    medications:
+      - name: "Tiotropium"
+        rxnorm: "1114192"
+        dose: "18 mcg inhaled daily"
+        therapy_category: controller
+      - name: "Fluticasone/Salmeterol"
+        rxnorm: "896121"
+        dose: "250/50 mcg inhaled twice daily"
+        therapy_category: controller
+    sources: [gold_copd]
+    transitions:
+      - to: immunization_review
+
+  immunization_review:
+    type: immunization
+    attach_to_last_encounter: true
+    immunizations:
+      - name: "Influenza"
+        cvx: "140"
+        status: completed
+      - name: "Pneumococcal 23-valent"
+        cvx: "33"
+        status: completed
+    sources:
+      - cdc_influenza_coverage
+      - gold_copd
+    transitions:
+      - to: baseline_observations
+
+  baseline_observations:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "19926-5"
+        name: "FEV1/FVC pre-bronchodilator"
+        units: "%"
+        value_range:
+          min: 35
+          max: 65
+      - loinc: "59408-5"
+        name: "Pulse Oximetry"
+        units: "%"
+        value_range:
+          min: 88
+          max: 96
+    sources: [gold_copd]
+    transitions:
+      - to: six_month_followup_delay
+
+  six_month_followup_delay:
+    type: delay
+    sources: [gold_copd]
+    exact:
+      quantity:
+        use: copd.semiannual_followup_months
+      unit: months
+    transitions:
+      - to: exacerbation_decision
+
+  exacerbation_decision:
+    type: decision
+    sources: [gold_copd]
+    transitions:
+      - probability:
+          use: copd.exacerbation_probability_semiannual
+        to: exacerbation_site_branch
+      - probability:
+          use: copd.no_exacerbation_probability_semiannual
+        to: routine_followup_encounter
+
+  exacerbation_site_branch:
+    type: decision
+    sources: [gold_copd]
+    distributed_transition:
+      - transition: hospital_exacerbation_encounter
+        distribution:
+          use: copd.hospital_exacerbation_probability
+      - transition: outpatient_exacerbation_encounter
+        distribution:
+          use: copd.outpatient_exacerbation_probability
+
+  hospital_exacerbation_encounter:
+    type: encounter
+    encounter_type: "Inpatient Hospitalization"
+    reason: "Severe COPD exacerbation"
+    provider_role: "Pulmonologist"
+    location: "Acute Care Hospital"
+    sources: [gold_copd]
+    transitions:
+      - to: hospital_rescue_therapies
+
+  hospital_rescue_therapies:
+    type: medication_start
+    attach_to_last_encounter: true
+    medications:
+      - name: "Prednisone"
+        rxnorm: "8640"
+        dose: "40 mg orally daily for 5 days"
+        therapy_category: systemic_steroid
+      - name: "Levofloxacin"
+        rxnorm: "206953"
+        dose: "500 mg orally daily for 7 days"
+        therapy_category: antibiotic
+    sources: [gold_copd]
+    transitions:
+      - to: record_exacerbation_event
+
+  outpatient_exacerbation_encounter:
+    type: encounter
+    encounter_type: "Emergency Department"
+    reason: "Moderate COPD exacerbation"
+    provider_role: "Emergency Medicine"
+    location: "Emergency Department"
+    sources: [gold_copd]
+    transitions:
+      - to: outpatient_rescue_therapies
+
+  outpatient_rescue_therapies:
+    type: medication_start
+    attach_to_last_encounter: true
+    medications:
+      - name: "Prednisone"
+        rxnorm: "8640"
+        dose: "40 mg orally daily for 5 days"
+        therapy_category: systemic_steroid
+      - name: "Azithromycin"
+        rxnorm: "750149"
+        dose: "500 mg orally day 1, then 250 mg daily for 4 days"
+        therapy_category: antibiotic
+    sources: [gold_copd]
+    transitions:
+      - to: record_exacerbation_event
+
+  record_exacerbation_event:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - name: "COPD Exacerbation Event"
+        loinc: "8653-8"
+        units: "event"
+        value: 1
+        panel: copd_exacerbation
+    sources: [gold_copd]
+    transitions:
+      - to: post_exacerbation_delay
+
+  post_exacerbation_delay:
+    type: delay
+    sources: [gold_copd]
+    exact:
+      quantity:
+        use: copd.post_exacerbation_followup_weeks
+      unit: weeks
+    transitions:
+      - to: post_exacerbation_followup_encounter
+
+  post_exacerbation_followup_encounter:
+    type: encounter
+    encounter_type: "COPD Post-Exacerbation Follow-up"
+    reason: "Assess recovery after recent exacerbation"
+    provider_role: "Pulmonologist"
+    location: "Pulmonary Clinic"
+    sources: [gold_copd]
+    transitions:
+      - to: post_exacerbation_assessment
+
+  post_exacerbation_assessment:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "19926-5"
+        name: "FEV1/FVC pre-bronchodilator"
+        units: "%"
+        value_range:
+          min: 30
+          max: 55
+      - loinc: "59408-5"
+        name: "Pulse Oximetry"
+        units: "%"
+        value_range:
+          min: 88
+          max: 95
+    sources: [gold_copd]
+    transitions:
+      - to: continue_cycle_decision
+
+  routine_followup_encounter:
+    type: encounter
+    encounter_type: "COPD Controller Follow-up"
+    reason: "Routine COPD stability visit"
+    provider_role: "Pulmonologist"
+    location: "Pulmonary Clinic"
+    sources: [gold_copd]
+    transitions:
+      - to: routine_observations
+
+  routine_observations:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "19926-5"
+        name: "FEV1/FVC pre-bronchodilator"
+        units: "%"
+        value_range:
+          min: 40
+          max: 65
+      - loinc: "59408-5"
+        name: "Pulse Oximetry"
+        units: "%"
+        value_range:
+          min: 90
+          max: 96
+    sources: [gold_copd]
+    transitions:
+      - to: continue_cycle_decision
+
+  continue_cycle_decision:
+    type: decision
+    sources: [generic_author_estimate]
+    transitions:
+      - probability:
+          use: copd.cycle_continuation_probability
+        to: six_month_followup_delay
+      - probability:
+          use: copd.cycle_completion_probability
+        to: maintenance_consolidation
+
+  maintenance_consolidation:
+    type: encounter
+    encounter_type: "COPD Annual Review"
+    reason: "Transition to maintenance monitoring"
+    provider_role: "Primary Care"
+    location: "Community Clinic"
+    sources: [gold_copd]
+    transitions:
+      - to: maintenance_observations
+
+  maintenance_observations:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "19926-5"
+        name: "FEV1/FVC pre-bronchodilator"
+        units: "%"
+        value_range:
+          min: 42
+          max: 65
+      - loinc: "59408-5"
+        name: "Pulse Oximetry"
+        units: "%"
+        value_range:
+          min: 90
+          max: 96
+    sources: [gold_copd]
+    transitions:
+      - to: end
+
+  end:
+    type: terminal

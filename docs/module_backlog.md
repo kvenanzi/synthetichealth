@@ -18,6 +18,7 @@ Legend
 - oncology_survivorship — modules/oncology_survivorship.yaml
 - pediatric_asthma_management — modules/pediatric_asthma_management.yaml
 - asthma_v2 — modules/asthma_v2.yaml
+- copd_v2 — modules/copd_v2.yaml
 - pregnancy_loss_support — modules/pregnancy_loss_support.yaml
 - prenatal_care_management — modules/prenatal_care_management.yaml
 - sepsis_survivorship — modules/sepsis_survivorship.yaml

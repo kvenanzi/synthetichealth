@@ -15,6 +15,11 @@ def test_module_linter_accepts_asthma_v2():
     assert issues == []
 
 
+def test_module_linter_accepts_copd_v2():
+    issues = lint_module(Path("modules"), "copd_v2")
+    assert issues == []
+
+
 def test_module_linter_detects_missing_codes(tmp_path: Path):
     module_text = """
 name: invalid

@@ -74,6 +74,22 @@ def test_asthma_v2_module_generates_events():
     assert any(obs["loinc_code"] == "2019-8" for obs in result.observations)
 
 
+def test_copd_v2_module_generates_events():
+    patient = {
+        "patient_id": "copd-2",
+        "birthdate": "1955-11-03",
+        "age": 69,
+        "gender": "male",
+        "race": "Black",
+    }
+    result = run_module("copd_v2", patient, seed=3)
+
+    assert any(cond["icd10_code"] == "J44.9" for cond in result.conditions)
+    assert any(enc["type"] == "COPD Baseline Assessment" for enc in result.encounters)
+    assert any(med["name"] == "Tiotropium" for med in result.medications)
+    assert any(obs["loinc_code"] == "19926-5" for obs in result.observations)
+
+
 def test_pediatric_module_covers_immunizations_and_procedures():
     patient = {
         "patient_id": "child-1",
