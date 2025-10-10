@@ -1,0 +1,15 @@
+name: lung_cancer_screening
+description: Placeholder scaffold for lung cancer screening module (v2 DSL pending).
+categories:
+  encounters: augment
+  conditions: augment
+  procedures: augment
+  observations: augment
+states:
+  start:
+    type: start
+    transitions:
+      - to: end
+  end:
+    type: terminal
+

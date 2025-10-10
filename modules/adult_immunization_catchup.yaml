@@ -1,0 +1,14 @@
+name: adult_immunization_catchup
+description: Placeholder scaffold for adult immunization catch-up module (v2 DSL pending).
+categories:
+  encounters: augment
+  immunizations: augment
+  observations: augment
+states:
+  start:
+    type: start
+    transitions:
+      - to: end
+  end:
+    type: terminal
+

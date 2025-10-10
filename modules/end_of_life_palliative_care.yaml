@@ -1,0 +1,15 @@
+name: end_of_life_palliative_care
+description: Placeholder scaffold for end-of-life and palliative care module (v2 DSL pending).
+categories:
+  encounters: augment
+  conditions: augment
+  medications: augment
+  observations: augment
+states:
+  start:
+    type: start
+    transitions:
+      - to: end
+  end:
+    type: terminal
+

@@ -1,0 +1,14 @@
+name: adolescent_depression_screening
+description: Placeholder scaffold for adolescent depression screening module (v2 DSL pending).
+categories:
+  encounters: augment
+  conditions: augment
+  observations: augment
+states:
+  start:
+    type: start
+    transitions:
+      - to: end
+  end:
+    type: terminal
+

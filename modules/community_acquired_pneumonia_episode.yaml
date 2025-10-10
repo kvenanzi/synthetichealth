@@ -1,0 +1,15 @@
+name: community_acquired_pneumonia_episode
+description: Placeholder scaffold for community-acquired pneumonia episode module (v2 DSL pending).
+categories:
+  encounters: augment
+  conditions: augment
+  medications: augment
+  observations: augment
+states:
+  start:
+    type: start
+    transitions:
+      - to: end
+  end:
+    type: terminal
+

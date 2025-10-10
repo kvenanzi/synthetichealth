@@ -1,0 +1,15 @@
+name: contraception_family_planning
+description: Placeholder scaffold for contraception and family planning module (v2 DSL pending).
+categories:
+  encounters: augment
+  conditions: augment
+  medications: augment
+  observations: augment
+states:
+  start:
+    type: start
+    transitions:
+      - to: end
+  end:
+    type: terminal
+
