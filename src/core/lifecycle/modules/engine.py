@@ -11,6 +11,7 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Set
 import yaml
 
 from .validation import ModuleValidationError, validate_module_definition
+from .reference_utils import ParameterResolutionError, resolve_definition_parameters
 
 
 MODULES_ROOT = Path("modules")
@@ -66,6 +67,10 @@ class ModuleDefinition:
     description: str
     categories: Dict[str, str]
     states: Dict[str, ModuleState]
+    version: Optional[str] = None
+    gmf_version: Optional[int] = None
+    sources: List[str] = field(default_factory=list)
+    remarks: List[str] = field(default_factory=list)
 
     @classmethod
     def from_dict(cls, payload: Dict[str, Any]) -> "ModuleDefinition":
@@ -93,7 +98,20 @@ class ModuleDefinition:
                 },
                 transitions=transitions,
             )
-        return cls(name=name, description=description, categories=categories, states=states)
+        version = payload.get("version")
+        gmf_version = payload.get("gmf_version")
+        sources = list(payload.get("sources") or [])
+        remarks = list(payload.get("remarks") or [])
+        return cls(
+            name=name,
+            description=description,
+            categories=categories,
+            states=states,
+            version=version,
+            gmf_version=gmf_version,
+            sources=sources,
+            remarks=remarks,
+        )
 
     @staticmethod
     def _normalize_transitions(state_payload: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -174,6 +192,10 @@ class ModuleEngine:
         self.definitions: List[ModuleDefinition] = []
         for module_name in module_names:
             definition = self._load_module(module_name)
+            try:
+                resolve_definition_parameters(definition)
+            except ParameterResolutionError as exc:
+                raise ModuleValidationError(module_name, [str(exc)]) from exc
             issues = validate_module_definition(definition)
             if issues:
                 raise ModuleValidationError(module_name, issues)

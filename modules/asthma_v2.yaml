@@ -1,0 +1,440 @@
+name: asthma_v2
+description: High-fidelity asthma management with atopy screening, onset stratification, and exacerbation loops.
+version: 0.1.0
+gmf_version: 2
+categories:
+  encounters: replace
+  conditions: replace
+  medications: replace
+  observations: augment
+  procedures: augment
+  immunizations: augment
+  care_plans: augment
+sources:
+  - aaaai_asthma_stats
+  - cdc_asthma_ed
+  - cdc_asthma_children
+  - cdc_asthma_adults
+  - cdc_influenza_coverage
+  - generic_author_estimate
+remarks:
+  - Mirrors Synthea asthma blueprint with six-month controller reviews and probabilistic exacerbations.
+states:
+  start:
+    type: start
+    transitions:
+      - to: atopy_screening
+
+  atopy_screening:
+    type: decision
+    sources: [aaaai_asthma_stats]
+    distributed_transition:
+      - transition: set_atopy_positive
+        distribution:
+          use: asthma.atopy_prevalence
+      - transition: set_atopy_negative
+        distribution:
+          use: asthma.atopy_absence_probability
+
+  set_atopy_positive:
+    type: set_attribute
+    attribute: atopic
+    value: true
+    transitions:
+      - to: asthma_onset_pathway
+
+  set_atopy_negative:
+    type: set_attribute
+    attribute: atopic
+    value: false
+    transitions:
+      - to: asthma_onset_pathway
+
+  asthma_onset_pathway:
+    type: decision
+    sources: [aaaai_asthma_stats]
+    transitions:
+      - condition:
+          type: age
+          operator: "<"
+          quantity: 18
+          unit: years
+        to: childhood_profile
+      - probability:
+          use: asthma.childhood_vs_adult_onset_split.childhood_fraction
+        to: childhood_profile
+      - probability:
+          use: asthma.childhood_vs_adult_onset_split.adult_fraction
+        to: adult_profile
+
+  childhood_profile:
+    type: set_attribute
+    attribute: asthma_type
+    value: childhood
+    transitions:
+      - to: pediatric_smoking_status
+
+  pediatric_smoking_status:
+    type: set_attribute
+    attribute: smoking_status
+    value: never
+    transitions:
+      - to: baseline_intake_encounter
+
+  adult_profile:
+    type: set_attribute
+    attribute: asthma_type
+    value: lifelong
+    transitions:
+      - to: adult_smoking_status
+
+  adult_smoking_status:
+    type: decision
+    sources: [generic_author_estimate]
+    distributed_transition:
+      - transition: set_current_smoker
+        distribution:
+          use: asthma.smoker_branch_probability
+      - transition: set_non_smoker
+        distribution:
+          use: asthma.non_smoker_branch_probability
+
+  set_current_smoker:
+    type: set_attribute
+    attribute: smoking_status
+    value: current
+    transitions:
+      - to: baseline_intake_encounter
+
+  set_non_smoker:
+    type: set_attribute
+    attribute: smoking_status
+    value: non_smoker
+    transitions:
+      - to: baseline_intake_encounter
+
+  baseline_intake_encounter:
+    type: encounter
+    encounter_type: "Asthma Intake Visit"
+    reason: "Initial comprehensive asthma assessment"
+    provider_role: "Pulmonologist"
+    location: "Specialty Asthma Center"
+    sources: [aaaai_asthma_stats]
+    transitions:
+      - to: establish_diagnosis
+
+  establish_diagnosis:
+    type: condition_onset
+    attach_to_last_encounter: true
+    assign_to_attribute: asthma_condition_id
+    conditions:
+      - name: "Persistent Asthma"
+        icd10: "J45.40"
+        snomed: "195967001"
+        category: "respiratory"
+    sources: [aaaai_asthma_stats]
+    transitions:
+      - to: immunization_review
+
+  immunization_review:
+    type: immunization
+    attach_to_last_encounter: true
+    immunizations:
+      - name: "Influenza, injectable quadrivalent"
+        cvx: "150"
+        dose_number: 1
+        status: completed
+    sources: [cdc_influenza_coverage]
+    transitions:
+      - to: establish_care_plan
+
+  establish_care_plan:
+    type: care_plan_start
+    name: "Asthma Action Plan"
+    category: self_management
+    goal: "Maintain symptom control and minimize exacerbations"
+    activities:
+      - "Daily ICS/LABA adherence monitoring"
+      - "Trigger avoidance reinforcement"
+      - "Spirometry every 6 months"
+    assign_to_attribute: asthma_care_plan_id
+    sources: [aaaai_asthma_stats]
+    transitions:
+      - to: controller_medications
+
+  controller_medications:
+    type: medication_start
+    attach_to_last_encounter: true
+    assign_to_attribute: controller_regimen_id
+    medications:
+      - name: "Budesonide/Formoterol"
+        rxnorm: "859038"
+        dose: "80/4.5 mcg two inhalations twice daily"
+        therapy_category: controller
+      - name: "Montelukast"
+        rxnorm: "856641"
+        dose: "5 mg nightly"
+        therapy_category: controller
+    sources: [aaaai_asthma_stats]
+    transitions:
+      - to: baseline_observations
+
+  baseline_observations:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "2019-8"
+        name: "Peak Expiratory Flow"
+        units: "L/min"
+        value_range:
+          min: 300
+          max: 480
+      - loinc: "44261-6"
+        name: "Asthma Control Test"
+        units: "score"
+        value_range:
+          min: 16
+          max: 22
+    sources: [aaaai_asthma_stats]
+    transitions:
+      - to: six_month_followup_delay
+
+  six_month_followup_delay:
+    type: delay
+    sources: [aaaai_asthma_stats]
+    exact:
+      quantity:
+        use: asthma.semiannual_followup_months
+      unit: months
+    transitions:
+      - to: attack_path_selector
+
+  attack_path_selector:
+    type: decision
+    sources: [aaaai_asthma_stats]
+    transitions:
+      - condition:
+          type: attribute
+          attribute: asthma_type
+          operator: ==
+          value: childhood
+        to: pediatric_attack_decision
+      - condition:
+          type: attribute
+          attribute: asthma_type
+          operator: ==
+          value: lifelong
+        probability: 1.0
+        to: adult_attack_decision
+
+  pediatric_attack_decision:
+    type: decision
+    sources: [aaaai_asthma_stats]
+    transitions:
+      - probability:
+          use: asthma.attack_rate_semiannual_children
+        to: attack_severity_branch
+      - probability:
+          use: asthma.attack_rate_semiannual_children_no_attack
+        to: routine_stability_review
+
+  adult_attack_decision:
+    type: decision
+    sources: [aaaai_asthma_stats]
+    transitions:
+      - probability:
+          use: asthma.attack_rate_semiannual_adults
+        to: attack_severity_branch
+      - probability:
+          use: asthma.attack_rate_semiannual_adults_no_attack
+        to: routine_stability_review
+
+  attack_severity_branch:
+    type: decision
+    sources: [cdc_asthma_ed]
+    distributed_transition:
+      - transition: ed_exacerbation_encounter
+        distribution:
+          use: asthma.ed_visit_probability_per_attack
+      - transition: clinic_exacerbation_encounter
+        distribution:
+          use: asthma.outpatient_attack_probability
+
+  ed_exacerbation_encounter:
+    type: encounter
+    encounter_type: "Emergency Department"
+    reason: "Acute asthma exacerbation with respiratory distress"
+    provider_role: "Emergency Medicine"
+    location: "Emergency Department"
+    sources: [cdc_asthma_ed]
+    transitions:
+      - to: ed_rescue_therapies
+
+  ed_rescue_therapies:
+    type: medication_start
+    attach_to_last_encounter: true
+    medications:
+      - name: "Albuterol"
+        rxnorm: "435"
+        dose: "2.5 mg nebulized every 20 minutes for 3 doses, then as needed"
+        therapy_category: rescue
+      - name: "Prednisone"
+        rxnorm: "8640"
+        dose: "40 mg orally daily for 5 days"
+        therapy_category: systemic_steroid
+    sources: [cdc_asthma_ed]
+    transitions:
+      - to: ed_procedures
+
+  ed_procedures:
+    type: procedure
+    attach_to_last_encounter: true
+    procedures:
+      - name: "Nebulizer Therapy"
+        code: "94640"
+        system: "CPT"
+        reason: "Severe exacerbation"
+        status: completed
+    sources: [cdc_asthma_ed]
+    transitions:
+      - to: attack_followup_delay
+
+  clinic_exacerbation_encounter:
+    type: encounter
+    encounter_type: "Urgent Clinic Visit"
+    reason: "Moderate asthma exacerbation"
+    provider_role: "Pulmonologist"
+    location: "Asthma Clinic"
+    sources: [aaaai_asthma_stats]
+    transitions:
+      - to: clinic_rescue_therapies
+
+  clinic_rescue_therapies:
+    type: medication_start
+    attach_to_last_encounter: true
+    medications:
+      - name: "Albuterol"
+        rxnorm: "435"
+        dose: "2 puffs every 4 hours as needed"
+        therapy_category: rescue
+      - name: "Prednisone"
+        rxnorm: "8640"
+        dose: "20 mg orally daily for 5 days"
+        therapy_category: systemic_steroid
+    sources: [aaaai_asthma_stats]
+    transitions:
+      - to: attack_followup_delay
+
+  attack_followup_delay:
+    type: delay
+    sources: [aaaai_asthma_stats]
+    exact:
+      quantity:
+        use: asthma.post_attack_followup_weeks
+      unit: weeks
+    transitions:
+      - to: post_attack_followup_encounter
+
+  post_attack_followup_encounter:
+    type: encounter
+    encounter_type: "Post-Exacerbation Follow-up"
+    reason: "Assess recovery after acute asthma event"
+    provider_role: "Pulmonologist"
+    location: "Asthma Clinic"
+    sources: [aaaai_asthma_stats]
+    transitions:
+      - to: post_attack_control_assessment
+
+  post_attack_control_assessment:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "2019-8"
+        name: "Peak Expiratory Flow"
+        units: "L/min"
+        value_range:
+          min: 250
+          max: 420
+      - loinc: "44261-6"
+        name: "Asthma Control Test"
+        units: "score"
+        value_range:
+          min: 14
+          max: 22
+    sources: [aaaai_asthma_stats]
+    transitions:
+      - to: continue_cycle_decision
+
+  routine_stability_review:
+    type: encounter
+    encounter_type: "Asthma Stability Visit"
+    reason: "Routine controller therapy review"
+    provider_role: "Pulmonologist"
+    location: "Asthma Clinic"
+    sources: [aaaai_asthma_stats]
+    transitions:
+      - to: routine_control_observations
+
+  routine_control_observations:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "2019-8"
+        name: "Peak Expiratory Flow"
+        units: "L/min"
+        value_range:
+          min: 320
+          max: 500
+      - loinc: "44261-6"
+        name: "Asthma Control Test"
+        units: "score"
+        value_range:
+          min: 18
+          max: 25
+    sources: [aaaai_asthma_stats]
+    transitions:
+      - to: continue_cycle_decision
+
+  continue_cycle_decision:
+    type: decision
+    sources: [generic_author_estimate]
+    transitions:
+      - probability:
+          use: asthma.cycle_continuation_probability
+        to: six_month_followup_delay
+      - probability:
+          use: asthma.cycle_completion_probability
+        to: maintenance_consolidation
+
+  maintenance_consolidation:
+    type: encounter
+    encounter_type: "Asthma Annual Review"
+    reason: "Transition to long-term maintenance"
+    provider_role: "Primary Care"
+    location: "Community Clinic"
+    sources: [aaaai_asthma_stats]
+    transitions:
+      - to: long_term_monitoring_observations
+
+  long_term_monitoring_observations:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "2019-8"
+        name: "Peak Expiratory Flow"
+        units: "L/min"
+        value_range:
+          min: 310
+          max: 470
+      - loinc: "44261-6"
+        name: "Asthma Control Test"
+        units: "score"
+        value_range:
+          min: 18
+          max: 24
+    sources: [aaaai_asthma_stats]
+    transitions:
+      - to: end
+
+  end:
+    type: terminal

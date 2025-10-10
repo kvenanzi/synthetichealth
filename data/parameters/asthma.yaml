@@ -18,6 +18,15 @@ parameters:
       value: 0.05
       source_id: aaaai_asthma_stats
 
+  atopy_prevalence:
+    value: 0.65
+    source_id: aaaai_asthma_stats
+    notes: Sensitization to aeroallergens among persistent asthma cohorts.
+  atopy_absence_probability:
+    value: 0.35
+    source_id: aaaai_asthma_stats
+    notes: Complement of atopy prevalence for non-sensitized patients.
+
   # Attack and ED metrics
   attack_rate_annual_overall:
     value: 0.53
@@ -32,12 +41,58 @@ parameters:
   attack_rate_semiannual:
     value: 0.265
     source_id: aaaai_asthma_stats
+  attack_rate_semiannual_children:
+    value: 0.285
+    source_id: aaaai_asthma_stats
+    notes: Approximation of 57% annual incidence over two six-month periods.
+  attack_rate_semiannual_children_no_attack:
+    value: 0.715
+    source_id: aaaai_asthma_stats
+    notes: Complement of pediatric semiannual attack probability.
+  attack_rate_semiannual_adults:
+    value: 0.255
+    source_id: aaaai_asthma_stats
+    notes: Approximation of 51% annual incidence over two six-month periods.
+  attack_rate_semiannual_adults_no_attack:
+    value: 0.745
+    source_id: aaaai_asthma_stats
+    notes: Complement of adult semiannual attack probability.
   ed_visits_per_100_ptyears:
     value: 10.0
     source_id: cdc_asthma_ed
+  ed_visit_probability_per_attack:
+    value: 0.19
+    source_id: cdc_asthma_ed
+    notes: 10 ED visits per 100 pt-years divided by annual attack rate.
+  outpatient_attack_probability:
+    value: 0.81
+    source_id: cdc_asthma_ed
+    notes: Complement of ED visit probability per attack.
 
   # Smoking branch influence (example effect size for care plans)
   smoker_branch_probability:
     value: 0.2
     source_id: generic_author_estimate
     notes: Placeholder; refine with GINA/EPR‑3 where applicable.
+  non_smoker_branch_probability:
+    value: 0.8
+    source_id: generic_author_estimate
+    notes: Complement of smoker branch probability.
+
+  # Follow-up intervals and loop intensity
+  semiannual_followup_months:
+    value: 6
+    source_id: aaaai_asthma_stats
+    notes: Controller therapy reviews at 6-month cadence.
+  post_attack_followup_weeks:
+    value: 4
+    source_id: aaaai_asthma_stats
+    notes: Post-exacerbation follow-up within one month.
+  cycle_continuation_probability:
+    value: 0.67
+    source_id: generic_author_estimate
+    notes: Probability of continuing intensive follow-up after reassessment.
+  cycle_completion_probability:
+    value: 0.33
+    source_id: generic_author_estimate
+    notes: Complement of continuation probability (transition to maintenance).

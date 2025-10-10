@@ -17,6 +17,7 @@ Legend
 - mental_health_integrated_care — modules/mental_health_integrated_care.yaml
 - oncology_survivorship — modules/oncology_survivorship.yaml
 - pediatric_asthma_management — modules/pediatric_asthma_management.yaml
+- asthma_v2 — modules/asthma_v2.yaml
 - pregnancy_loss_support — modules/pregnancy_loss_support.yaml
 - prenatal_care_management — modules/prenatal_care_management.yaml
 - sepsis_survivorship — modules/sepsis_survivorship.yaml
@@ -72,4 +73,3 @@ Legend
 ## Notes
 - These scaffolds intentionally contain only structural start→end states to satisfy linting and allow incremental expansion.
 - As we implement v2 DSL, modules will be migrated to richer flows that reference `data/parameters/*.yaml` and `docs/sources.yml`.
-

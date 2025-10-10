@@ -57,6 +57,23 @@ def test_module_engine_generates_structured_events():
     assert "Metformin" in medication_names
 
 
+def test_asthma_v2_module_generates_events():
+    patient = {
+        "patient_id": "asthma-1",
+        "birthdate": "1988-04-12",
+        "age": 36,
+        "gender": "female",
+        "race": "White",
+    }
+    result = run_module("asthma_v2", patient, seed=2)
+
+    assert any(cond["icd10_code"] == "J45.40" for cond in result.conditions)
+    assert any(plan["name"] == "Asthma Action Plan" for plan in result.care_plans)
+    assert any(enc["type"] == "Asthma Intake Visit" for enc in result.encounters)
+    assert any(med["name"] == "Budesonide/Formoterol" for med in result.medications)
+    assert any(obs["loinc_code"] == "2019-8" for obs in result.observations)
+
+
 def test_pediatric_module_covers_immunizations_and_procedures():
     patient = {
         "patient_id": "child-1",
