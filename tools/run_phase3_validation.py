@@ -82,6 +82,11 @@ MONTE_CARLO_JOBS = [
     },
 ]
 
+KPI_SPECS = [
+    PROJECT_ROOT / "validation" / "module_kpis" / "asthma.yaml",
+    PROJECT_ROOT / "validation" / "module_kpis" / "copd.yaml",
+]
+
 def run(cmd: list[str]) -> None:
     print("→", " ".join(cmd))
     subprocess.run(cmd, check=True)
@@ -114,6 +119,10 @@ def main() -> int:
         for code in job["required_icd10"]:
             cmd.extend(["--required-icd10", code])
         run(cmd)
+    kpi_cmd = [PYTHON, "tools/module_kpi_validator.py"]
+    for spec in KPI_SPECS:
+        kpi_cmd.extend(["--spec", str(spec)])
+    run(kpi_cmd)
     print("Phase 3 validation suite completed successfully.")
     return 0
 

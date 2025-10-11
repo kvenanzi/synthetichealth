@@ -3083,6 +3083,7 @@ def main():
     all_deaths = []
     all_family_history = []
     all_care_plans = []
+    all_module_attributes = []
     lifecycle_patients: List[LifecyclePatient] = []
 
     print("Generating related healthcare data...")
@@ -3091,6 +3092,17 @@ def main():
         patient_dict = patient.to_dict()
         module_result = module_engine.execute(patient_dict) if module_engine else ModuleExecutionResult()
         replaced = module_result.replacements
+
+        if getattr(module_result, "attributes", None):
+            patient_dict.setdefault("module_attributes", {}).update(module_result.attributes)
+            for attr, value in module_result.attributes.items():
+                all_module_attributes.append(
+                    {
+                        "patient_id": patient.patient_id,
+                        "attribute": attr,
+                        "value": value,
+                    }
+                )
 
         module_condition_names: List[str] = []
         if module_result.conditions:
@@ -3300,6 +3312,8 @@ def main():
         patient_snapshot["family_history_entries"] = family_history
         if death:
             patient_snapshot["death_record"] = death
+        if "module_attributes" in patient_dict:
+            patient_snapshot["module_attributes"] = patient_dict["module_attributes"]
         lifecycle_patients.append(
             orchestrator.build_patient(
                 patient_snapshot,
@@ -3705,6 +3719,9 @@ def main():
         (_sanitize_frame(all_immunizations), "immunizations"),
         (_sanitize_frame(all_observations), "observations"),
     ]
+    
+    if all_module_attributes:
+        tables_to_save.append((_sanitize_frame(all_module_attributes), "module_attributes"))
     
     if all_deaths:
         tables_to_save.append((pl.DataFrame(all_deaths), "deaths"))

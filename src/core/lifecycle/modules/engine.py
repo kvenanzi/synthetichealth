@@ -167,6 +167,7 @@ class ModuleExecutionResult:
     immunizations: List[Dict[str, Any]] = field(default_factory=list)
     care_plans: List[Dict[str, Any]] = field(default_factory=list)
     replacements: Set[str] = field(default_factory=set)
+    attributes: Dict[str, Any] = field(default_factory=dict)
 
     def merge(self, other: "ModuleExecutionResult") -> None:
         self.encounters.extend(other.encounters)
@@ -177,6 +178,7 @@ class ModuleExecutionResult:
         self.immunizations.extend(other.immunizations)
         self.care_plans.extend(other.care_plans)
         self.replacements.update(other.replacements)
+        self.attributes.update(other.attributes)
 
 
 class ModuleEngine:
@@ -273,6 +275,8 @@ class _ModuleRunner:
                 break
             state_name = next_state
             self.visited += 1
+        if self.attributes:
+            self.output.attributes.update(self.attributes)
         return self.output
 
     # State execution helpers -------------------------------------------------

@@ -7,6 +7,9 @@ parameters:
   steroid_or_antibiotic_rescue_probability:
     value: 0.45
     source_id: gold_copd
+  steroid_or_antibiotic_rescue_absence:
+    value: 0.55
+    source_id: gold_copd
   oxygen_therapy_prevalence_severe:
     value: 0.35
     source_id: gold_copd
@@ -35,12 +38,12 @@ parameters:
 
   smoker_probability:
     value: 0.3
-    source_id: generic_author_estimate
-    notes: Placeholder for current smokers among COPD cohort; refine with CDC NHIS.
+    source_id: cdc_copd_smoking
+    notes: Approximate share of adults with COPD reporting current smoking (NHIS).
   non_smoker_probability:
     value: 0.7
-    source_id: generic_author_estimate
-    notes: Complement of smoker probability (former/never smokers).
+    source_id: cdc_copd_smoking
+    notes: Complement of COPD cohort current smokers (former/never).
 
   exacerbation_probability_semiannual:
     value: 0.4

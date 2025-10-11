@@ -276,6 +276,25 @@ states:
         rxnorm: "8640"
         dose: "40 mg orally daily for 5 days"
         therapy_category: systemic_steroid
+    sources: [gold_copd]
+    transitions:
+      - to: hospital_antibiotic_decision
+
+  hospital_antibiotic_decision:
+    type: decision
+    sources: [gold_copd]
+    distributed_transition:
+      - transition: hospital_antibiotic_course
+        distribution:
+          use: copd.steroid_or_antibiotic_rescue_probability
+      - transition: record_exacerbation_event
+        distribution:
+          use: copd.steroid_or_antibiotic_rescue_absence
+
+  hospital_antibiotic_course:
+    type: medication_start
+    attach_to_last_encounter: true
+    medications:
       - name: "Levofloxacin"
         rxnorm: "206953"
         dose: "500 mg orally daily for 7 days"
@@ -302,6 +321,25 @@ states:
         rxnorm: "8640"
         dose: "40 mg orally daily for 5 days"
         therapy_category: systemic_steroid
+    sources: [gold_copd]
+    transitions:
+      - to: outpatient_antibiotic_decision
+
+  outpatient_antibiotic_decision:
+    type: decision
+    sources: [gold_copd]
+    distributed_transition:
+      - transition: outpatient_antibiotic_course
+        distribution:
+          use: copd.steroid_or_antibiotic_rescue_probability
+      - transition: record_exacerbation_event
+        distribution:
+          use: copd.steroid_or_antibiotic_rescue_absence
+
+  outpatient_antibiotic_course:
+    type: medication_start
+    attach_to_last_encounter: true
+    medications:
       - name: "Azithromycin"
         rxnorm: "750149"
         dose: "500 mg orally day 1, then 250 mg daily for 4 days"

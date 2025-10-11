@@ -46,3 +46,9 @@ sources:
     org: Internal
     url: https://example.org/
     date_accessed: 2025-10-10
+
+  - id: cdc_copd_smoking
+    title: COPD and Smoking - National Health Interview Survey
+    org: CDC
+    url: https://www.cdc.gov/copd/data.html
+    date_accessed: 2025-10-10

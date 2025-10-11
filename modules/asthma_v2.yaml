@@ -297,6 +297,24 @@ states:
         status: completed
     sources: [cdc_asthma_ed]
     transitions:
+      - to: record_ed_attack_event
+
+  record_ed_attack_event:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "EVE.ASTHMA"
+        name: "Asthma Exacerbation"
+        units: "event"
+        value: 1
+        panel: asthma_attack
+      - loinc: "EVE.ASTHMA.ED"
+        name: "Asthma ED Encounter"
+        units: "event"
+        value: 1
+        panel: asthma_ed_visit
+    sources: [cdc_asthma_ed]
+    transitions:
       - to: attack_followup_delay
 
   clinic_exacerbation_encounter:
@@ -321,6 +339,19 @@ states:
         rxnorm: "8640"
         dose: "20 mg orally daily for 5 days"
         therapy_category: systemic_steroid
+    sources: [aaaai_asthma_stats]
+    transitions:
+      - to: record_clinic_attack_event
+
+  record_clinic_attack_event:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "EVE.ASTHMA"
+        name: "Asthma Exacerbation"
+        units: "event"
+        value: 1
+        panel: asthma_attack
     sources: [aaaai_asthma_stats]
     transitions:
       - to: attack_followup_delay
