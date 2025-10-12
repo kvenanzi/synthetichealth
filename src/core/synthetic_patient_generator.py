@@ -2938,6 +2938,10 @@ def main():
         default=VistaFormatter.FILEMAN_INTERNAL_MODE,
         help="Control VistA export encoding (default: fileman_internal)",
     )
+    parser.add_argument("--skip-fhir", action="store_true", help="Skip FHIR bundle export")
+    parser.add_argument("--skip-hl7", action="store_true", help="Skip HL7 v2 message export")
+    parser.add_argument("--skip-vista", action="store_true", help="Skip VistA MUMPS export")
+    parser.add_argument("--skip-report", action="store_true", help="Skip textual summary report")
 
     args, unknown = parser.parse_known_args()
 
@@ -3736,111 +3740,125 @@ def main():
     lifecycle_output = save_lifecycle_patients(lifecycle_patients)
     print(f"Lifecycle patient payload saved: {os.path.basename(lifecycle_output)}")
 
-    print("\nExporting specialized formats...")
+    if not args.skip_fhir or not args.skip_hl7 or not args.skip_vista:
+        print("\nExporting specialized formats...")
     
     # Export FHIR bundle (Phase 1: basic Patient and Condition resources)
-    print("Creating FHIR bundle...")
-    save_fhir_bundle(lifecycle_patients, terminology_lookup, "fhir_bundle.json")
-    save_terminology_reference(terminology_lookup, output_dir)
+    if args.skip_fhir:
+        print("Skipping FHIR bundle export (--skip-fhir).")
+    else:
+        print("Creating FHIR bundle...")
+        save_fhir_bundle(lifecycle_patients, terminology_lookup, "fhir_bundle.json")
+        save_terminology_reference(terminology_lookup, output_dir)
     
     # Export HL7 v2 messages (Phase 2: ADT and ORU messages)
-    print("Creating HL7 v2 messages...")
-    save_hl7_messages(lifecycle_patients, all_encounters, all_observations, "hl7_messages")
+    if args.skip_hl7:
+        print("Skipping HL7 v2 message export (--skip-hl7).")
+    else:
+        print("Creating HL7 v2 messages...")
+        save_hl7_messages(lifecycle_patients, all_encounters, all_observations, "hl7_messages")
     
     # Export VistA MUMPS globals (Phase 3: VA migration simulation)
-    print("Creating VistA MUMPS globals...")
-    vista_output_file = os.path.join(output_dir, "vista_globals.mumps")
-    vista_stats = VistaFormatter.export_vista_globals(
-        patients,
-        all_encounters,
-        all_conditions,
-        all_medications,
-        all_observations,
-        all_allergies,
-        all_immunizations,
-        all_family_history,
-        all_deaths,
-        vista_output_file,
-        export_mode=vista_mode,
-    )
+    if args.skip_vista:
+        print("Skipping VistA MUMPS export (--skip-vista).")
+        vista_stats = {}
+    else:
+        print("Creating VistA MUMPS globals...")
+        vista_output_file = os.path.join(output_dir, "vista_globals.mumps")
+        vista_stats = VistaFormatter.export_vista_globals(
+            patients,
+            all_encounters,
+            all_conditions,
+            all_medications,
+            all_observations,
+            all_allergies,
+            all_immunizations,
+            all_family_history,
+            all_deaths,
+            vista_output_file,
+            export_mode=vista_mode,
+        )
 
     print(f"Done! Files written to {output_dir}: patients, encounters, conditions, medications, allergies, procedures, immunizations, observations, deaths, family_history (CSV and/or Parquet), FHIR bundle, HL7 messages, VistA MUMPS globals")
 
     # Summary report
-    import collections
-    def value_counts(lst, bins=None):
-        if bins:
-            binned = collections.Counter()
-            for v in lst:
-                for label, (a, b) in bins.items():
-                    if a <= v <= b:
-                        binned[label] += 1
-                        break
-            return binned
-        return collections.Counter(lst)
+    if not args.skip_report:
+        import collections
 
-    age_bins_dict = {f"{a}-{b}": (a, b) for a, b in AGE_BINS}
-    patients_df = pl.DataFrame(patients)
-    report_lines = []
-    report_lines.append(f"Scenario: {active_scenario_name}")
-    report_lines.append(f"Patients: {len(patients)}")
-    report_lines.append(f"Encounters: {len(all_encounters)}")
-    report_lines.append(f"Conditions: {len(all_conditions)}")
-    report_lines.append(f"Medications: {len(all_medications)}")
-    report_lines.append(f"Allergies: {len(all_allergies)}")
-    report_lines.append(f"Procedures: {len(all_procedures)}")
-    report_lines.append(f"Immunizations: {len(all_immunizations)}")
-    report_lines.append(f"Observations: {len(all_observations)}")
-    report_lines.append(f"Deaths: {len(all_deaths)}")
-    report_lines.append(f"Family History: {len(all_family_history)}")
-    report_lines.append("")
-    # Age
-    ages = patients_df['age'].to_list()
-    age_counts = value_counts(ages, bins=age_bins_dict)
-    report_lines.append("Age distribution:")
-    for k, v in age_counts.items():
-        report_lines.append(f"  {k}: {v}")
-    # Gender
-    report_lines.append("Gender distribution:")
-    for k, v in value_counts(patients_df['gender'].to_list()).items():
-        report_lines.append(f"  {k}: {v}")
-    # Race
-    report_lines.append("Race distribution:")
-    for k, v in value_counts(patients_df['race'].to_list()).items():
-        report_lines.append(f"  {k}: {v}")
-    # SDOH fields
-    for field, label in [
-        ('smoking_status', 'Smoking'),
-        ('alcohol_use', 'Alcohol'),
-        ('education', 'Education'),
-        ('employment_status', 'Employment'),
-        ('housing_status', 'Housing')]:
-        report_lines.append(f"{label} distribution:")
-        for k, v in value_counts(patients_df[field].to_list()).items():
+        def value_counts(lst, bins=None):
+            if bins:
+                binned = collections.Counter()
+                for v in lst:
+                    for label, (a, b) in bins.items():
+                        if a <= v <= b:
+                            binned[label] += 1
+                            break
+                return binned
+            return collections.Counter(lst)
+
+        age_bins_dict = {f"{a}-{b}": (a, b) for a, b in AGE_BINS}
+        patients_df = pl.DataFrame(patients)
+        report_lines = []
+        report_lines.append(f"Scenario: {active_scenario_name}")
+        report_lines.append(f"Patients: {len(patients)}")
+        report_lines.append(f"Encounters: {len(all_encounters)}")
+        report_lines.append(f"Conditions: {len(all_conditions)}")
+        report_lines.append(f"Medications: {len(all_medications)}")
+        report_lines.append(f"Allergies: {len(all_allergies)}")
+        report_lines.append(f"Procedures: {len(all_procedures)}")
+        report_lines.append(f"Immunizations: {len(all_immunizations)}")
+        report_lines.append(f"Observations: {len(all_observations)}")
+        report_lines.append(f"Deaths: {len(all_deaths)}")
+        report_lines.append(f"Family History: {len(all_family_history)}")
+        report_lines.append("")
+        # Age
+        ages = patients_df["age"].to_list()
+        age_counts = value_counts(ages, bins=age_bins_dict)
+        report_lines.append("Age distribution:")
+        for k, v in age_counts.items():
             report_lines.append(f"  {k}: {v}")
-    # Top conditions
-    cond_names = [c['name'] for c in all_conditions]
-    cond_counts = value_counts(cond_names)
-    report_lines.append("Top 10 conditions:")
-    for k, v in cond_counts.most_common(10):
-        report_lines.append(f"  {k}: {v}")
+        # Gender
+        report_lines.append("Gender distribution:")
+        for k, v in value_counts(patients_df["gender"].to_list()).items():
+            report_lines.append(f"  {k}: {v}")
+        # Race
+        report_lines.append("Race distribution:")
+        for k, v in value_counts(patients_df["race"].to_list()).items():
+            report_lines.append(f"  {k}: {v}")
+        # SDOH fields
+        for field, label in [
+            ("smoking_status", "Smoking"),
+            ("alcohol_use", "Alcohol"),
+            ("education", "Education"),
+            ("employment_status", "Employment"),
+            ("housing_status", "Housing"),
+        ]:
+            report_lines.append(f"{label} distribution:")
+            for k, v in value_counts(patients_df[field].to_list()).items():
+                report_lines.append(f"  {k}: {v}")
+        # Top conditions
+        cond_names = [c["name"] for c in all_conditions]
+        cond_counts = value_counts(cond_names)
+        report_lines.append("Top 10 conditions:")
+        for k, v in cond_counts.most_common(10):
+            report_lines.append(f"  {k}: {v}")
     
-    # VistA MUMPS global statistics
-    report_lines.append("")
-    report_lines.append("VistA MUMPS Global Export Summary:")
-    report_lines.append(f"  Total global nodes: {vista_stats['total_globals']}")
-    report_lines.append(f"  Patient records (^DPT): {vista_stats['patient_records']}")
-    report_lines.append(f"  Visit records (^AUPNVSIT): {vista_stats['visit_records']}")
-    report_lines.append(f"  Problem records (^AUPNPROB): {vista_stats['problem_records']}")
-    report_lines.append(f"  Medication records (^AUPNVMED): {vista_stats.get('medication_records', 0)}")
-    report_lines.append(f"  Lab records (^AUPNVLAB): {vista_stats.get('lab_records', 0)}")
-    report_lines.append(f"  Allergy records (^GMR(120.8,)): {vista_stats.get('allergy_records', 0)}")
-    report_lines.append(f"  Immunization records (^AUPNVIMM): {vista_stats.get('immunization_records', 0)}")
-    report_lines.append(f"  Family history records (^AUPNFH): {vista_stats.get('family_history_records', 0)}")
-    report_lines.append(f"  Cross-references: {vista_stats['cross_references']}")
+        if not args.skip_vista and vista_stats:
+            report_lines.append("")
+            report_lines.append("VistA MUMPS Global Export Summary:")
+            report_lines.append(f"  Total global nodes: {vista_stats['total_globals']}")
+            report_lines.append(f"  Patient records (^DPT): {vista_stats['patient_records']}")
+            report_lines.append(f"  Visit records (^AUPNVSIT): {vista_stats['visit_records']}")
+            report_lines.append(f"  Problem records (^AUPNPROB): {vista_stats['problem_records']}")
+            report_lines.append(f"  Medication records (^AUPNVMED): {vista_stats.get('medication_records', 0)}")
+            report_lines.append(f"  Lab records (^AUPNVLAB): {vista_stats.get('lab_records', 0)}")
+            report_lines.append(f"  Allergy records (^GMR(120.8,)): {vista_stats.get('allergy_records', 0)}")
+            report_lines.append(f"  Immunization records (^AUPNVIMM): {vista_stats.get('immunization_records', 0)}")
+            report_lines.append(f"  Family history records (^AUPNFH): {vista_stats.get('family_history_records', 0)}")
+            report_lines.append(f"  Cross-references: {vista_stats['cross_references']}")
     
-    report = "\n".join(report_lines)
-    print_and_save_report(report, get_config('report_file', None))
+        report = "\n".join(report_lines)
+        print_and_save_report(report, get_config('report_file', None))
     
     print(f"\nAll outputs saved to: {output_dir}")
     print("Generation completed successfully!")

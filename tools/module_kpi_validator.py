@@ -219,6 +219,7 @@ def run_kpi_jobs(spec: Dict[str, Any], *, output_root: Path) -> List[KPIResult]:
                     seed=job.get("seed"),
                     iteration=i,
                     output_dir=job_root,
+                    extra_args=["--skip-fhir", "--skip-hl7", "--skip-vista", "--skip-report"],
                 )
                 run_dirs.append(run_dir)
             results.extend(evaluate_kpis(run_dirs, job.get("kpis", [])))

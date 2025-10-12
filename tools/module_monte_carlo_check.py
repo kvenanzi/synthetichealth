@@ -35,6 +35,7 @@ def run_generator(
     seed: Optional[int],
     iteration: int,
     output_dir: Path,
+    extra_args: Optional[List[str]] = None,
 ) -> Path:
     run_dir = output_dir / f"run_{iteration:03d}"
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -56,6 +57,8 @@ def run_generator(
         cmd.extend(["--module", module])
     if seed is not None:
         cmd.extend(["--seed", str(seed + iteration)])
+    if extra_args:
+        cmd.extend(extra_args)
 
     subprocess.run(cmd, check=True)
     return run_dir
@@ -136,6 +139,10 @@ def main() -> int:
     parser.add_argument("--required-loinc", action="append", default=None)
     parser.add_argument("--required-icd10", action="append", default=None)
     parser.add_argument("--max-med-std", type=float, default=0.25, help="Allowable coefficient of variation for medications" )
+    parser.add_argument("--skip-fhir", action="store_true", help="Skip FHIR bundle export during generation")
+    parser.add_argument("--skip-hl7", action="store_true", help="Skip HL7 export during generation")
+    parser.add_argument("--skip-vista", action="store_true", help="Skip VistA MUMPS export during generation")
+    parser.add_argument("--skip-report", action="store_true", help="Skip textual summary report during generation")
 
     args = parser.parse_args()
     modules = args.modules or []
@@ -147,6 +154,16 @@ def main() -> int:
     run_dirs: List[Path] = []
     try:
         for i in range(args.iterations):
+            extra_args: List[str] = []
+            if args.skip_fhir:
+                extra_args.append("--skip-fhir")
+            if args.skip_hl7:
+                extra_args.append("--skip-hl7")
+            if args.skip_vista:
+                extra_args.append("--skip-vista")
+            if args.skip_report:
+                extra_args.append("--skip-report")
+
             run_dir = run_generator(
                 scenario=args.scenario,
                 modules=modules,
@@ -154,6 +171,7 @@ def main() -> int:
                 seed=args.seed,
                 iteration=i,
                 output_dir=args.output_root,
+                extra_args=extra_args,
             )
             run_dirs.append(run_dir)
 
