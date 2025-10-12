@@ -52,7 +52,7 @@ def _concat_frames(run_dirs: Sequence[Path], filename: str) -> pl.DataFrame:
         return pl.DataFrame()
     if len(frames) == 1:
         return frames[0]
-    return pl.concat(frames, how="vertical")
+    return pl.concat(frames, how="diagonal_relaxed")
 
 
 def load_run_data(run_dirs: Sequence[Path]) -> Dict[str, pl.DataFrame]:
