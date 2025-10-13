@@ -1,0 +1,101 @@
+%% Mermaid diagram for modules/copd_v2.yaml
+graph TD
+    classDef start fill:#e0f7fa,stroke:#006064,stroke-width:1.5;
+    classDef decision fill:#ede7f6,stroke:#512da8,stroke-width:1.2;
+    classDef attr fill:#fff3e0,stroke:#ef6c00,stroke-width:1;
+    classDef encounter fill:#f5f0ff,stroke:#4a3aff,stroke-width:1;
+    classDef condition fill:#fff7e6,stroke:#d17d00,stroke-width:1;
+    classDef medication fill:#fce4ec,stroke:#c2185b,stroke-width:1;
+    classDef immunization fill:#e8f5e9,stroke:#2e7d32,stroke-width:1;
+    classDef observation fill:#eefaf1,stroke:#1b7a3f,stroke-width:1;
+    classDef delay fill:#fff3e0,stroke:#ef6c00,stroke-width:1;
+    classDef care_plan fill:#e0f2f1,stroke:#00695c,stroke-width:1;
+    classDef terminal fill:#ede7f6,stroke:#512da8,stroke-width:1.5;
+
+    start_state([start<br/>Start]):::start
+    severity_assignment{"severity_assignment<br/>Decision"}:::decision
+    set_moderate["set_moderate_severity<br/>Set Attribute: copd_severity=moderate"]:::attr
+    set_severe["set_severe_severity<br/>Set Attribute: copd_severity=severe"]:::attr
+    set_very_severe["set_very_severe_severity<br/>Set Attribute: copd_severity=very_severe"]:::attr
+    mark_not_oxygen["mark_not_oxygen_candidate<br/>Set Attribute: oxygen_candidate=false"]:::attr
+    mark_oxygen["mark_oxygen_candidate<br/>Set Attribute: oxygen_candidate=true"]:::attr
+    smoking_assignment{"smoking_status_assignment<br/>Decision"}:::decision
+    smoker["set_current_smoker<br/>Set Attribute: smoking_status=current"]:::attr
+    former["set_non_smoker<br/>Set Attribute: smoking_status=former"]:::attr
+    intake_encounter["baseline_intake_encounter<br/>Encounter: COPD Baseline Assessment"]:::encounter
+    copd_dx["establish_copd_diagnosis<br/>Condition: COPD"]:::condition
+    oxygen_decision{"oxygen_therapy_decision<br/>Decision"}:::decision
+    oxygen_med["initiate_oxygen_therapy<br/>Medication: Home Oxygen Therapy"]:::medication
+    care_plan["establish_care_plan<br/>Care Plan: COPD Self-Management"]:::care_plan
+    controller_meds["controller_medications<br/>Medications: Tiotropium; Fluticasone/Salmeterol"]:::medication
+    immunizations["immunization_review<br/>Immunizations: Influenza; Pneumococcal"]:::immunization
+    baseline_obs["baseline_observations<br/>Observations: FEV1/FVC 35-65; Pulse Ox 88-96"]:::observation
+    followup_delay["six_month_followup_delay<br/>Delay: copd.semiannual_followup_months"]:::delay
+    exacerbation_decision{"exacerbation_decision<br/>Decision"}:::decision
+    exacerbation_branch{"exacerbation_site_branch<br/>Decision"}:::decision
+    hospital_encounter["hospital_exacerbation_encounter<br/>Encounter: Inpatient Hospitalization"]:::encounter
+    hospital_rescue["hospital_rescue_therapies<br/>Medication: Prednisone"]:::medication
+    hospital_abx_decision{"hospital_antibiotic_decision<br/>Decision"}:::decision
+    hospital_abx["hospital_antibiotic_course<br/>Medication: Levofloxacin"]:::medication
+    outpatient_encounter["outpatient_exacerbation_encounter<br/>Encounter: Emergency Department"]:::encounter
+    outpatient_rescue["outpatient_rescue_therapies<br/>Medication: Prednisone"]:::medication
+    outpatient_abx_decision{"outpatient_antibiotic_decision<br/>Decision"}:::decision
+    outpatient_abx["outpatient_antibiotic_course<br/>Medication: Azithromycin"]:::medication
+    record_exacerbation["record_exacerbation_event<br/>Observation: COPD Exacerbation Event"]:::observation
+    post_exacerbation_delay["post_exacerbation_delay<br/>Delay: copd.post_exacerbation_followup_weeks"]:::delay
+    post_exacerbation_followup["post_exacerbation_followup_encounter<br/>Encounter: COPD Post-Exacerbation Follow-up"]:::encounter
+    post_exacerbation_assessment["post_exacerbation_assessment<br/>Observations: FEV1/FVC 30-55; Pulse Ox 88-95"]:::observation
+    routine_followup["routine_followup_encounter<br/>Encounter: COPD Controller Follow-up"]:::encounter
+    routine_obs["routine_observations<br/>Observations: FEV1/FVC 40-65; Pulse Ox 90-96"]:::observation
+    continue_cycle{"continue_cycle_decision<br/>Decision"}:::decision
+    maintenance_encounter["maintenance_consolidation<br/>Encounter: COPD Annual Review"]:::encounter
+    maintenance_obs["maintenance_observations<br/>Observations: FEV1/FVC 42-65; Pulse Ox 90-96"]:::observation
+    end_state([end<br/>Terminal]):::terminal
+
+    start_state --> severity_assignment
+    severity_assignment --> set_moderate
+    severity_assignment --> set_severe
+    severity_assignment --> set_very_severe
+    set_moderate --> mark_not_oxygen
+    set_severe --> mark_oxygen
+    set_very_severe --> mark_oxygen
+    mark_not_oxygen --> smoking_assignment
+    mark_oxygen --> smoking_assignment
+    smoking_assignment --> smoker
+    smoking_assignment --> former
+    smoker --> intake_encounter
+    former --> intake_encounter
+    intake_encounter --> copd_dx
+    copd_dx --> oxygen_decision
+    oxygen_decision --> oxygen_med
+    oxygen_decision --> care_plan
+    oxygen_med --> care_plan
+    care_plan --> controller_meds
+    controller_meds --> immunizations
+    immunizations --> baseline_obs
+    baseline_obs --> followup_delay
+    followup_delay --> exacerbation_decision
+    exacerbation_decision --> exacerbation_branch
+    exacerbation_decision --> routine_followup
+    exacerbation_branch --> hospital_encounter
+    exacerbation_branch --> outpatient_encounter
+    hospital_encounter --> hospital_rescue
+    hospital_rescue --> hospital_abx_decision
+    hospital_abx_decision --> hospital_abx
+    hospital_abx_decision --> record_exacerbation
+    hospital_abx --> record_exacerbation
+    outpatient_encounter --> outpatient_rescue
+    outpatient_rescue --> outpatient_abx_decision
+    outpatient_abx_decision --> outpatient_abx
+    outpatient_abx_decision --> record_exacerbation
+    outpatient_abx --> record_exacerbation
+    record_exacerbation --> post_exacerbation_delay
+    post_exacerbation_delay --> post_exacerbation_followup
+    post_exacerbation_followup --> post_exacerbation_assessment
+    post_exacerbation_assessment --> continue_cycle
+    routine_followup --> routine_obs
+    routine_obs --> continue_cycle
+    continue_cycle --> followup_delay
+    continue_cycle --> maintenance_encounter
+    maintenance_encounter --> maintenance_obs
+    maintenance_obs --> end_state
