@@ -8,7 +8,9 @@ import re
 import string
 import uuid
 from collections import Counter, defaultdict
+from collections.abc import Mapping, Sequence
 from datetime import date, datetime, timedelta
+from functools import lru_cache
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from faker import Faker
@@ -36,6 +38,82 @@ from ...terminology.loaders import (
     load_snomed_conditions,
     load_snomed_icd10_crosswalk,
 )
+
+
+class LazyMapping(Mapping):
+    """Deferred dictionary that loads data on first access."""
+
+    def __init__(self, loader):
+        self._loader = loader
+        self._data: Optional[Dict[str, Any]] = None
+
+    def _ensure(self) -> Dict[str, Any]:
+        if self._data is None:
+            self._data = dict(self._loader())
+        return self._data
+
+    def __getitem__(self, key: str) -> Any:
+        return self._ensure()[key]
+
+    def __iter__(self):
+        return iter(self._ensure())
+
+    def __len__(self) -> int:
+        return len(self._ensure())
+
+    def __contains__(self, key: object) -> bool:
+        return key in self._ensure()
+
+    def keys(self):
+        return self._ensure().keys()
+
+    def items(self):
+        return self._ensure().items()
+
+    def values(self):
+        return self._ensure().values()
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return self._ensure().get(key, default)
+
+    def __repr__(self) -> str:
+        if self._data is None:
+            return f"<LazyMapping loader={self._loader.__name__}>"
+        return repr(self._data)
+
+
+class LazySequence(Sequence):
+    """Deferred sequence that materializes to a list on first access."""
+
+    def __init__(self, loader):
+        self._loader = loader
+        self._data: Optional[List[Any]] = None
+
+    def _ensure(self) -> List[Any]:
+        if self._data is None:
+            result = self._loader()
+            if isinstance(result, list):
+                self._data = result
+            else:
+                self._data = list(result)
+        return self._data
+
+    def __getitem__(self, index: int) -> Any:
+        return self._ensure()[index]
+
+    def __len__(self) -> int:
+        return len(self._ensure())
+
+    def __iter__(self):
+        return iter(self._ensure())
+
+    def __contains__(self, value: object) -> bool:
+        return value in self._ensure()
+
+    def __repr__(self) -> str:
+        if self._data is None:
+            return f"<LazySequence loader={self._loader.__name__}>"
+        return repr(self._data)
 
 
 CURATED_CONDITION_ENTRIES = {entry["display"]: entry for entry in CONDITION_TERMS}
@@ -823,32 +901,59 @@ def _build_dynamic_condition_catalog() -> Dict[str, Dict[str, Any]]:
     return catalog
 
 
-try:
-    CONDITION_CATALOG = _build_dynamic_condition_catalog()
-except Exception:
-    CONDITION_CATALOG = {}
+@lru_cache(maxsize=1)
+def _load_condition_catalog() -> Dict[str, Dict[str, Any]]:
+    try:
+        catalog = _build_dynamic_condition_catalog()
+    except Exception:
+        catalog = {}
 
-if not CONDITION_CATALOG:
-    CONDITION_CATALOG = {
-        _normalize_condition_display(entry["display"]): _augment_condition_entry(
-            _normalize_condition_display(entry["display"]),
-            _icd10_with_dot(entry.get("icd10", "")),
-            entry.get("snomed", ""),
-            entry.get("category"),
-            {},
-        )
-        for entry in CONDITION_TERMS
-    }
+    if not catalog:
+        catalog = {
+            _normalize_condition_display(entry["display"]): _augment_condition_entry(
+                _normalize_condition_display(entry["display"]),
+                _icd10_with_dot(entry.get("icd10", "")),
+                entry.get("snomed", ""),
+                entry.get("category"),
+                {},
+            )
+            for entry in CONDITION_TERMS
+        }
+    return catalog
 
-IMMUNIZATION_CATALOG = {entry["display"]: entry for entry in IMMUNIZATION_TERMS}
-IMMUNIZATION_BY_CVX = {
-    entry.get("cvx"): entry for entry in IMMUNIZATION_TERMS if entry.get("cvx")
-}
-PROCEDURE_CATALOG = {entry["display"]: entry for entry in PROCEDURE_TERMS}
 
-CONDITION_NAMES = list(CONDITION_CATALOG.keys())
-PROCEDURES = list(PROCEDURE_CATALOG.keys())
-IMMUNIZATIONS = list(IMMUNIZATION_CATALOG.keys())
+def get_condition_catalog() -> Dict[str, Dict[str, Any]]:
+    return _load_condition_catalog()
+
+
+CONDITION_CATALOG = LazyMapping(_load_condition_catalog)
+CONDITION_NAMES = LazySequence(lambda: list(_load_condition_catalog().keys()))
+
+
+@lru_cache(maxsize=1)
+def _load_immunization_catalog() -> Dict[str, Dict[str, Any]]:
+    return {entry["display"]: entry for entry in IMMUNIZATION_TERMS}
+
+
+def get_immunization_catalog() -> Dict[str, Dict[str, Any]]:
+    return _load_immunization_catalog()
+
+
+IMMUNIZATION_CATALOG = LazyMapping(_load_immunization_catalog)
+IMMUNIZATION_BY_CVX = LazyMapping(
+    lambda: {entry.get("cvx"): entry for entry in _load_immunization_catalog().values() if entry.get("cvx")}
+)
+IMMUNIZATIONS = LazySequence(lambda: list(_load_immunization_catalog().keys()))
+
+
+@lru_cache(maxsize=1)
+def _load_procedure_catalog() -> Dict[str, Dict[str, Any]]:
+    return {entry["display"]: entry for entry in PROCEDURE_TERMS}
+
+
+PROCEDURE_CATALOG = LazyMapping(_load_procedure_catalog)
+PROCEDURES = LazySequence(lambda: list(_load_procedure_catalog().keys()))
+
 
 IMMUNIZATION_SERIES_DEFINITIONS = [
     {
@@ -1066,25 +1171,27 @@ IMMUNIZATION_RECURRENT_DEFINITIONS = [
     },
 ]
 
-try:
-    _ALLERGEN_LOADER_ENTRIES = load_allergen_entries()
-except Exception:  # pragma: no cover - loader fallback
-    _ALLERGEN_LOADER_ENTRIES = []
+@lru_cache(maxsize=1)
+def _load_allergen_entries_cached() -> List[Dict[str, Any]]:
+    try:
+        loader_entries = load_allergen_entries()
+    except Exception:  # pragma: no cover - loader fallback
+        loader_entries = []
 
-if _ALLERGEN_LOADER_ENTRIES:
-    ALLERGEN_ENTRIES = [
-        {
-            "display": entry.display,
-            "rxnorm_code": str(entry.code) if entry.code else "",
-            "unii_code": entry.metadata.get("unii", ""),
-            "category": entry.metadata.get("category", ""),
-            "snomed_code": entry.metadata.get("snomed_code", ""),
-            "rxnorm_name": entry.metadata.get("rxnorm_name", entry.display),
-        }
-        for entry in _ALLERGEN_LOADER_ENTRIES
-    ]
-else:
-    ALLERGEN_ENTRIES = [
+    if loader_entries:
+        return [
+            {
+                "display": entry.display,
+                "rxnorm_code": str(entry.code) if entry.code else "",
+                "unii_code": entry.metadata.get("unii", ""),
+                "category": entry.metadata.get("category", ""),
+                "snomed_code": entry.metadata.get("snomed_code", ""),
+                "rxnorm_name": entry.metadata.get("rxnorm_name", entry.display),
+            }
+            for entry in loader_entries
+        ]
+
+    return [
         {
             "display": item.get("display"),
             "rxnorm_code": str(item.get("rxnorm", "")),
@@ -1096,93 +1203,136 @@ else:
         for item in FALLBACK_ALLERGEN_TERMS
     ]
 
-ALLERGEN_CATALOG = {entry["display"]: entry for entry in ALLERGEN_ENTRIES}
-ALLERGY_SUBSTANCES = list(ALLERGEN_CATALOG.keys())
 
-try:
-    _ALLERGY_REACTIONS = load_allergy_reaction_entries()
-except Exception:  # pragma: no cover - loader fallback
-    _ALLERGY_REACTIONS = []
+@lru_cache(maxsize=1)
+def _load_allergen_catalog() -> Dict[str, Dict[str, Any]]:
+    entries = _load_allergen_entries_cached()
+    return {entry["display"]: entry for entry in entries}
 
-if not _ALLERGY_REACTIONS:
-    _ALLERGY_REACTIONS = [
-        {"display": "Anaphylaxis", "code": "", "system": ""},
-        {"display": "Urticaria", "code": "", "system": ""},
-        {"display": "Angioedema", "code": "", "system": ""},
-        {"display": "Wheezing", "code": "", "system": ""},
-        {"display": "Shortness of breath", "code": "", "system": ""},
-        {"display": "Nausea", "code": "", "system": ""},
-        {"display": "Vomiting", "code": "", "system": ""},
-        {"display": "Rash", "code": "", "system": ""},
-        {"display": "Itching", "code": "", "system": ""},
-    ]
 
-ALLERGY_REACTIONS = _ALLERGY_REACTIONS
+def get_allergen_catalog() -> Dict[str, Dict[str, Any]]:
+    return _load_allergen_catalog()
+
+
+ALLERGEN_ENTRIES = LazySequence(_load_allergen_entries_cached)
+ALLERGEN_CATALOG = LazyMapping(_load_allergen_catalog)
+ALLERGY_SUBSTANCES = LazySequence(lambda: list(_load_allergen_catalog().keys()))
+
+
+@lru_cache(maxsize=1)
+def _load_allergy_reactions() -> List[Dict[str, Any]]:
+    try:
+        reactions = load_allergy_reaction_entries()
+    except Exception:  # pragma: no cover - loader fallback
+        reactions = []
+
+    if not reactions:
+        reactions = [
+            {"display": "Anaphylaxis", "code": "", "system": ""},
+            {"display": "Urticaria", "code": "", "system": ""},
+            {"display": "Angioedema", "code": "", "system": ""},
+            {"display": "Wheezing", "code": "", "system": ""},
+            {"display": "Shortness of breath", "code": "", "system": ""},
+            {"display": "Nausea", "code": "", "system": ""},
+            {"display": "Vomiting", "code": "", "system": ""},
+            {"display": "Rash", "code": "", "system": ""},
+            {"display": "Itching", "code": "", "system": ""},
+        ]
+    return reactions
+
+
+ALLERGY_REACTIONS = LazySequence(_load_allergy_reactions)
 ALLERGY_SEVERITIES = [
     {"display": "mild", "code": "255604002", "system": "http://snomed.info/sct"},
     {"display": "moderate", "code": "6736007", "system": "http://snomed.info/sct"},
     {"display": "severe", "code": "24484000", "system": "http://snomed.info/sct"},
 ]
 
-try:
-    _MEDICATION_LOADER_ENTRIES = load_medication_entries()
-except Exception:  # pragma: no cover - loader fallback
-    _MEDICATION_LOADER_ENTRIES = []
+@lru_cache(maxsize=1)
+def _load_medication_catalog() -> Dict[str, Dict[str, Any]]:
+    try:
+        loader_entries = load_medication_entries()
+    except Exception:  # pragma: no cover - loader fallback
+        loader_entries = []
 
-MEDICATION_CATALOG: Dict[str, Dict[str, Any]] = {}
-if _MEDICATION_LOADER_ENTRIES:
-    for entry in _MEDICATION_LOADER_ENTRIES:
-        metadata = dict(entry.metadata)
-        med_record = {
-            "display": entry.display,
-            "rxnorm_code": entry.code,
-            "rxnorm": entry.code,
-            "ndc": metadata.get("ndc_example") or metadata.get("ndc"),
-            "ndc_example": metadata.get("ndc_example") or metadata.get("ndc"),
-            "therapeutic_class": metadata.get("therapeutic_class", ""),
-            "rxnorm_name": metadata.get("rxnorm_name", entry.display),
-        }
-        MEDICATION_CATALOG[entry.display] = med_record
-        alias = entry.display.replace(" ", "_")
-        MEDICATION_CATALOG.setdefault(alias, med_record)
-        for alias_name in metadata.get("aliases", []):
-            MEDICATION_CATALOG.setdefault(alias_name, med_record)
-else:
+    catalog: Dict[str, Dict[str, Any]] = {}
+    if loader_entries:
+        for entry in loader_entries:
+            metadata = dict(entry.metadata)
+            med_record = {
+                "display": entry.display,
+                "rxnorm_code": entry.code,
+                "rxnorm": entry.code,
+                "ndc": metadata.get("ndc_example") or metadata.get("ndc"),
+                "ndc_example": metadata.get("ndc_example") or metadata.get("ndc"),
+                "therapeutic_class": metadata.get("therapeutic_class", ""),
+                "rxnorm_name": metadata.get("rxnorm_name", entry.display),
+            }
+            catalog[entry.display] = med_record
+            alias = entry.display.replace(" ", "_")
+            catalog.setdefault(alias, med_record)
+            for alias_name in metadata.get("aliases", []):
+                catalog.setdefault(alias_name, med_record)
+    else:
+        for item in FALLBACK_MEDICATION_TERMS:
+            display = item.get("display")
+            med_record = {
+                "display": display,
+                "rxnorm_code": str(item.get("rxnorm", "")) if item.get("rxnorm") else "",
+                "rxnorm": item.get("rxnorm"),
+                "ndc": item.get("ndc"),
+                "ndc_example": item.get("ndc"),
+                "therapeutic_class": item.get("therapeutic_class", ""),
+            }
+            catalog[display] = med_record
+            catalog.setdefault(display.replace(" ", "_"), med_record)
+
     for item in FALLBACK_MEDICATION_TERMS:
         display = item.get("display")
-        med_record = {
-            "display": display,
-            "rxnorm_code": str(item.get("rxnorm", "")) if item.get("rxnorm") else "",
-            "rxnorm": item.get("rxnorm"),
-            "ndc": item.get("ndc"),
-            "ndc_example": item.get("ndc"),
-            "therapeutic_class": item.get("therapeutic_class", ""),
-        }
-        MEDICATION_CATALOG[display] = med_record
-        MEDICATION_CATALOG.setdefault(display.replace(" ", "_"), med_record)
+        if display not in catalog:
+            med_record = {
+                "display": display,
+                "rxnorm_code": str(item.get("rxnorm", "")) if item.get("rxnorm") else "",
+                "rxnorm": item.get("rxnorm"),
+                "ndc": item.get("ndc"),
+                "ndc_example": item.get("ndc"),
+                "therapeutic_class": item.get("therapeutic_class", ""),
+            }
+            catalog[display] = med_record
+            catalog.setdefault(display.replace(" ", "_"), med_record)
 
-for item in FALLBACK_MEDICATION_TERMS:
-    display = item.get("display")
-    if display not in MEDICATION_CATALOG:
-        med_record = {
-            "display": display,
-            "rxnorm_code": str(item.get("rxnorm", "")) if item.get("rxnorm") else "",
-            "rxnorm": item.get("rxnorm"),
-            "ndc": item.get("ndc"),
-            "ndc_example": item.get("ndc"),
-            "therapeutic_class": item.get("therapeutic_class", ""),
-        }
-        MEDICATION_CATALOG[display] = med_record
-        MEDICATION_CATALOG.setdefault(display.replace(" ", "_"), med_record)
+    return catalog
 
-MEDICATIONS = sorted({record["display"] for record in MEDICATION_CATALOG.values()})
 
-try:
-    LAB_TEST_ENTRIES = load_lab_test_entries()
-except Exception:  # pragma: no cover - loader fallback
-    LAB_TEST_ENTRIES = []
+MEDICATION_CATALOG = LazyMapping(_load_medication_catalog)
+MEDICATIONS = LazySequence(
+    lambda: sorted({record["display"] for record in _load_medication_catalog().values()})
+)
 
-LAB_TEST_CATALOG = {entry["name"]: entry for entry in LAB_TEST_ENTRIES}
+
+def get_medication_catalog() -> Dict[str, Dict[str, Any]]:
+    return _load_medication_catalog()
+
+
+@lru_cache(maxsize=1)
+def _load_lab_test_entries_cached() -> List[Dict[str, Any]]:
+    try:
+        return list(load_lab_test_entries())
+    except Exception:  # pragma: no cover - loader fallback
+        return []
+
+
+@lru_cache(maxsize=1)
+def _load_lab_test_catalog() -> Dict[str, Dict[str, Any]]:
+    return {entry["name"]: entry for entry in _load_lab_test_entries_cached()}
+
+
+LAB_TEST_ENTRIES = LazySequence(_load_lab_test_entries_cached)
+LAB_TEST_CATALOG = LazyMapping(_load_lab_test_catalog)
+
+
+def get_lab_test_catalog() -> Dict[str, Dict[str, Any]]:
+    return _load_lab_test_catalog()
 
 
 def build_lab_test(
