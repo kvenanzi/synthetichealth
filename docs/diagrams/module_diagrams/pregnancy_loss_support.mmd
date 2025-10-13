@@ -1,0 +1,51 @@
+%% Mermaid diagram for modules/pregnancy_loss_support.yaml
+graph TD
+    classDef start fill:#e0f7fa,stroke:#006064,stroke-width:1.5;
+    classDef encounter fill:#f5f0ff,stroke:#4a3aff,stroke-width:1;
+    classDef condition fill:#fff7e6,stroke:#d17d00,stroke-width:1;
+    classDef observation fill:#eefaf1,stroke:#1b7a3f,stroke-width:1;
+    classDef medication fill:#fce4ec,stroke:#c2185b,stroke-width:1;
+    classDef care_plan fill:#e8f5e9,stroke:#2e7d32,stroke-width:1;
+    classDef delay fill:#fff3e0,stroke:#ef6c00,stroke-width:1;
+    classDef decision fill:#f3e5f5,stroke:#6a1b9a,stroke-width:1;
+    classDef procedure fill:#e3f2fd,stroke:#1565c0,stroke-width:1;
+    classDef terminal fill:#ede7f6,stroke:#512da8,stroke-width:1.5;
+
+    start_state([start<br/>Start]):::start
+    post_loss_visit["post_loss_visit<br/>Encounter: Post-Loss Follow-up"]:::encounter
+    document_conditions["document_conditions<br/>Condition Onset: Pregnancy Loss Aftercare, Acute Grief Reaction"]:::condition
+    baseline_observations["baseline_observations<br/>Observations: Hemoglobin, Blood Pressure Panel, Postpartum Care Plan"]:::observation
+    symptom_management_medications["symptom_management_medications<br/>Medications: Ibuprofen, Docusate Sodium"]:::medication
+    bereavement_care_plan["bereavement_care_plan<br/>Care Plan: Bereavement Support Plan"]:::care_plan
+    follow_up_delay["follow_up_delay<br/>Delay: 14 days"]:::delay
+    mental_health_screening["mental_health_screening<br/>Encounter: Post-Loss Telehealth Check-in"]:::encounter
+    edinburgh_screen["edinburgh_screen<br/>Observation: Edinburgh Postnatal Depression Scale"]:::observation
+    screening_decision{"screening_decision<br/>Decision"}:::decision
+    routine_follow_up["routine_follow_up<br/>Encounter: Primary Care Follow-up"]:::encounter
+    routine_assessments["routine_assessments<br/>Observation: Edinburgh Postnatal Depression Scale (4-12)"]:::observation
+    counseling_referral["counseling_referral<br/>Procedure: Bereavement Counseling Referral"]:::procedure
+    ssri_trial["ssri_trial<br/>Medication: Sertraline"]:::medication
+    therapy_care_plan["therapy_care_plan<br/>Care Plan: Therapy Engagement Plan"]:::care_plan
+    urgent_mental_health_support["urgent_mental_health_support<br/>Encounter: Urgent Behavioral Health Visit"]:::encounter
+    crisis_safety_plan["crisis_safety_plan<br/>Care Plan: Crisis Safety Plan"]:::care_plan
+    end_state([end<br/>Terminal]):::terminal
+
+    start_state --> post_loss_visit
+    post_loss_visit --> document_conditions
+    document_conditions --> baseline_observations
+    baseline_observations --> symptom_management_medications
+    symptom_management_medications --> bereavement_care_plan
+    bereavement_care_plan --> follow_up_delay
+    follow_up_delay --> mental_health_screening
+    mental_health_screening --> edinburgh_screen
+    edinburgh_screen --> screening_decision
+    screening_decision -->|65%| routine_follow_up
+    screening_decision -->|25%| counseling_referral
+    screening_decision -->|10%| urgent_mental_health_support
+    routine_follow_up --> routine_assessments
+    routine_assessments --> end_state
+    counseling_referral --> ssri_trial
+    ssri_trial --> therapy_care_plan
+    therapy_care_plan --> end_state
+    urgent_mental_health_support --> crisis_safety_plan
+    crisis_safety_plan --> end_state
