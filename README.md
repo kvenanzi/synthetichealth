@@ -162,6 +162,14 @@ synthetichealth/
 └── docs/                              # Additional documentation
 ```
 
+## Diagram rendering
+
+- Install Mermaid CLI once per environment: `npm install -g @mermaid-js/mermaid-cli`.
+- Render all repository diagrams (both `.mmd` files and Markdown embeds) with `tools/render_mermaid.sh`. Pass explicit paths to rerender a subset, e.g. `tools/render_mermaid.sh docs/diagrams/synthetic_data_pipeline.md`.
+- The helper script writes SVGs alongside the sources and ensures `docs/diagrams/puppeteer-config.json` exists so Puppeteer can launch headless Chromium without sandboxing.
+- Markdown sources that include multiple Mermaid fences emit `*-2.svg`, `*-3.svg`, etc. alongside the base file; commit the generated SVGs with the documentation changes.
+- Re-run the script whenever a diagram changes to keep exported SVGs synchronized with the Markdown or `.mmd` source before opening a PR.
+
 ## Generated data formats
 
 ### Healthcare interoperability standards
