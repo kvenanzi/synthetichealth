@@ -1387,12 +1387,15 @@ THERAPEUTIC_CLASS_ROUTE_MAP = {
     "targeted_therapy": "intravenous",
     "biologic_dmard": "subcutaneous",
     "emergency_anaphylaxis": "intramuscular",
+    "emergency": "intramuscular",
 }
 
 MEDICATION_MONITORING_MAP = {
     "anticoagulant": ["Coagulation_Panel"],
     "antiplatelet": ["Coagulation_Panel"],
     "statin": ["Lipid_Panel", "Liver_Function_Panel"],
+    "antihistamine": ["Allergy_IgE"],
+    "emergency": ["Anaphylaxis_Workup"],
     "ace_inhibitor": ["Renal_Function_Panel"],
     "arb": ["Renal_Function_Panel"],
     "thiazide_diuretic": ["Renal_Function_Panel"],
@@ -1706,6 +1709,37 @@ COMPREHENSIVE_LAB_PANELS.update(
             ],
             "frequency": "as_needed",
             "indications": ["sepsis", "systemic_inflammation"],
+        },
+        "Allergy_IgE": {
+            "tests": [
+                build_lab_test("Total IgE"),
+                build_lab_test("Peanut Specific IgE"),
+            ],
+            "frequency": "as_needed",
+            "indications": ["allergy_evaluation", "food_allergy", "drug_allergy"],
+        },
+        "Food_Allergen_IgE": {
+            "tests": [
+                build_lab_test("Peanut Specific IgE"),
+                build_lab_test("Egg White Specific IgE"),
+            ],
+            "frequency": "as_needed",
+            "indications": ["food_allergy"],
+        },
+        "Drug_Allergy_IgE": {
+            "tests": [
+                build_lab_test("Penicillin Specific IgE"),
+            ],
+            "frequency": "as_needed",
+            "indications": ["drug_allergy"],
+        },
+        "Anaphylaxis_Workup": {
+            "tests": [
+                build_lab_test("Serum Tryptase"),
+                build_lab_test("Total IgE"),
+            ],
+            "frequency": "acute",
+            "indications": ["anaphylaxis"],
         },
         "Endocrine": {
             "tests": [
@@ -4616,14 +4650,19 @@ def prescribe_evidence_based_medication(patient, condition, encounters, contrain
                 medications.append(create_medication_record(patient, condition, encounters, selected_med, "supportive"))
     
     else:
-        # For other conditions, select from first available category
+        # For other conditions, allow multiple categories (primary + supportive)
         for category, med_list in treatment_guidelines.items():
-            if med_list:  # Skip empty categories
-                selected_med = select_safe_medication(med_list, contraindications)
-                if selected_med:
-                    medications.append(create_medication_record(patient, condition, encounters, selected_med, category))
-                    break
-    
+            if not med_list:
+                continue
+            selected_med = select_safe_medication(med_list, contraindications)
+            if not selected_med:
+                continue
+            medications.append(create_medication_record(patient, condition, encounters, selected_med, category))
+            if category in {"supportive", "emergency"}:
+                continue
+            if len(medications) >= 2:
+                break
+
     return medications
 
 def select_safe_medication(medication_list, contraindications):
@@ -4735,6 +4774,169 @@ def generate_allergies(patient, min_all=0, max_all=2):
         })
 
     return allergies
+
+def _create_allergy_observation(
+    patient: Dict[str, Any],
+    encounters: List[Dict[str, Any]],
+    test_name: str,
+    panel_name: str,
+) -> Optional[Dict[str, Any]]:
+    test_config = LAB_TEST_CATALOG.get(test_name)
+    if not test_config:
+        return None
+    config = dict(test_config)
+    config.setdefault("name", test_name)
+    enc = random.choice(encounters) if encounters else None
+    date_value = enc["date"] if enc else patient.get("birthdate")
+    age = patient.get("age", 40)
+    gender = patient.get("gender", "")
+    value = generate_lab_value(test_name, age, gender, config)
+    status = "normal"
+    if is_critical_value(value, config):
+        status = "critical"
+    elif not is_normal_value(value, config, age, gender):
+        status = "abnormal"
+    return {
+        "observation_id": str(uuid.uuid4()),
+        "patient_id": patient["patient_id"],
+        "encounter_id": enc["encounter_id"] if enc else None,
+        "type": test_name,
+        "loinc_code": config.get("loinc", ""),
+        "value": str(round(float(value), 3)),
+        "value_numeric": float(value),
+        "units": config.get("units", ""),
+        "reference_range": get_reference_range_string(config, age, gender),
+        "status": status,
+        "date": date_value,
+        "panel": panel_name,
+    }
+
+
+def _create_allergy_procedure(
+    patient: Dict[str, Any],
+    encounters: List[Dict[str, Any]],
+    name: str,
+    cpt_code: str,
+    *,
+    specialty: str = "Allergy_Immunology",
+    category: str = "diagnostic",
+    complexity: str = "moderate",
+) -> Dict[str, Any]:
+    enc = random.choice(encounters) if encounters else None
+    date_value = enc["date"] if enc else patient.get("birthdate")
+    return {
+        "procedure_id": str(uuid.uuid4()),
+        "patient_id": patient["patient_id"],
+        "encounter_id": enc["encounter_id"] if enc else None,
+        "name": name,
+        "cpt_code": cpt_code,
+        "specialty": specialty,
+        "category": category,
+        "complexity": complexity,
+        "indication": "allergy_management",
+        "date": date_value,
+        "outcome": "completed",
+    }
+
+
+def plan_allergy_followups(
+    patient: Dict[str, Any],
+    encounters: List[Dict[str, Any]],
+    allergies: List[Dict[str, Any]],
+) -> Dict[str, List[Dict[str, Any]]]:
+    followups = {"medications": [], "procedures": [], "observations": []}
+    if not allergies:
+        return followups
+
+    added_medications: Set[str] = set()
+    added_tests: Set[str] = set()
+    added_procedures: Set[str] = set()
+
+    for allergy in allergies:
+        severity = (allergy.get("severity") or "").lower()
+        substance = (allergy.get("substance") or "").lower()
+        category = (allergy.get("category") or "environment").lower()
+
+        if severity == "severe":
+            if "epinephrine" not in added_medications:
+                followups["medications"].append(
+                    create_medication_record(
+                        patient,
+                        {"name": "Allergy"},
+                        encounters,
+                        "Epinephrine",
+                        "emergency",
+                    )
+                )
+                added_medications.add("epinephrine")
+            if "serum tryptase" not in added_tests:
+                observation = _create_allergy_observation(patient, encounters, "Serum Tryptase", "Anaphylaxis_Workup")
+                if observation:
+                    followups["observations"].append(observation)
+                    added_tests.add("serum tryptase")
+            if "allergy_skin_test" not in added_procedures:
+                followups["procedures"].append(
+                    _create_allergy_procedure(
+                        patient,
+                        encounters,
+                        "Allergy Skin Test Percutaneous",
+                        "95018",
+                    )
+                )
+                added_procedures.add("allergy_skin_test")
+
+        if severity in {"moderate", "severe"} and category != "drug" and "cetirizine" not in added_medications:
+            followups["medications"].append(
+                create_medication_record(
+                    patient,
+                    {"name": "Allergy"},
+                    encounters,
+                    "Cetirizine",
+                    "supportive",
+                )
+            )
+            added_medications.add("cetirizine")
+
+        if category == "food":
+            if "total ige" not in added_tests:
+                observation = _create_allergy_observation(patient, encounters, "Total IgE", "Allergy_IgE")
+                if observation:
+                    followups["observations"].append(observation)
+                    added_tests.add("total ige")
+            if "peanut" in substance and "peanut specific ige" not in added_tests:
+                observation = _create_allergy_observation(patient, encounters, "Peanut Specific IgE", "Food_Allergen_IgE")
+                if observation:
+                    followups["observations"].append(observation)
+                    added_tests.add("peanut specific ige")
+            if "egg" in substance and "egg white specific ige" not in added_tests:
+                observation = _create_allergy_observation(patient, encounters, "Egg White Specific IgE", "Food_Allergen_IgE")
+                if observation:
+                    followups["observations"].append(observation)
+                    added_tests.add("egg white specific ige")
+
+        if category == "drug" and any(term in substance for term in ["penicillin", "amoxicillin", "ampicillin"]):
+            if "penicillin specific ige" not in added_tests:
+                observation = _create_allergy_observation(patient, encounters, "Penicillin Specific IgE", "Drug_Allergy_IgE")
+                if observation:
+                    followups["observations"].append(observation)
+                    added_tests.add("penicillin specific ige")
+
+        if category == "insect" and severity == "severe" and "venom_immunotherapy" not in added_procedures:
+            followups["procedures"].append(
+                _create_allergy_procedure(
+                    patient,
+                    encounters,
+                    "Venom Immunotherapy Consultation",
+                    "95144",
+                    category="therapeutic",
+                )
+            )
+            added_procedures.add("venom_immunotherapy")
+
+    return followups
+
+
+
 
 # PHASE 2: Enhanced procedure generation with clinical appropriateness and CPT coding
 def generate_procedures(patient, encounters, conditions=None, min_proc=0, max_proc=3):

@@ -50,6 +50,7 @@ from .lifecycle.generation.clinical import (
     MEDICATION_CATALOG,
     IMMUNIZATION_CATALOG,
     generate_allergies,
+    plan_allergy_followups,
     generate_care_plans,
     generate_conditions,
     generate_death,
@@ -3207,9 +3208,25 @@ def main():
             if isinstance(condition.get("care_plan"), list):
                 condition["care_plan"] = ",".join(condition["care_plan"])
         allergies = generate_allergies(patient_dict)
+        allergy_followups = plan_allergy_followups(patient_dict, encounters, allergies)
+        if allergy_followups.get("medications"):
+            medications.extend(allergy_followups["medications"])
+            all_medications.extend(allergy_followups["medications"])
+            patient_dict["medications"] = medications
+            patient_dict["medication_profile"] = [m.get("name") for m in medications]
+        pending_allergy_observations = allergy_followups.get("observations", [])
+        allergy_procedures = allergy_followups.get("procedures", [])
+        if allergy_followups.get("medications") or allergy_procedures or pending_allergy_observations:
+            patient_dict["allergy_followups"] = {
+                "medications": len(allergy_followups.get("medications", [])),
+                "procedures": len(allergy_procedures),
+                "observations": len(pending_allergy_observations),
+            }
         all_allergies.extend(allergies)
         patient_dict["allergies"] = allergies
         procedures = generate_procedures(patient_dict, encounters, conditions)
+        if allergy_procedures:
+            procedures.extend(allergy_procedures)
         if module_result.procedures:
             if "procedures" in replaced:
                 procedures = module_result.procedures
@@ -3246,6 +3263,8 @@ def main():
                 observations.extend(module_result.observations)
         if immunization_followups and "observations" in replaced:
             observations.extend(immunization_followups)
+        if pending_allergy_observations:
+            observations.extend(pending_allergy_observations)
         all_observations.extend(observations)
         patient_dict["observations"] = observations
         care_plans = generate_care_plans(

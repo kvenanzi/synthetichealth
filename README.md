@@ -13,6 +13,11 @@ A lifecycle-focused synthetic healthcare simulator that produces richly coded pa
 - **Referential integrity** – patient identifiers stay consistent across every export format.
 - **Optional migration toolchain** – legacy migration simulators, analytics, and demos remain available for teams rehearsing data conversions but are no longer the primary focus of the project.
 
+## Documentation
+
+- Project docs live under `docs/` – start with `docs/README.md` for an index and `docs/implementation.md` for the active roadmap.
+- Legacy migration notes moved to the long-lived `migration` branch; see the section below for details.
+
 ## Quick Start
 
 ### Installation
@@ -229,6 +234,8 @@ All formats maintain referential integrity via `patient_id` linkage:
 - DuckDB-backed lookups activate automatically when `TERMINOLOGY_DB_PATH` is supplied.
 
 ## Optional migration tooling
+Legacy migration simulators now live primarily on the long-lived `migration` branch. Switch with `git switch migration` when you need the ETL rehearsal assets; the main branch keeps only lightweight helpers.
+
 
 Legacy migration simulation capabilities remain for organizations rehearsing Extract-Transform-Validate-Load (ETVL) pipelines. Demos under `demos/migration_*.py`, analytics helpers in `src/core/analytics/`, and configuration profiles in `config/phase5_enhanced_config.yaml` illustrate how to adapt the synthetic records for migration rehearsals without changing the core generation workflow.
 

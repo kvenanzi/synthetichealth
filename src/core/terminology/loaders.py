@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
 import polars as pl
+from ..terminology_catalogs import ALLERGENS as FALLBACK_ALLERGEN_TERMS
 
 try:  # optional dependency for DuckDB-backed lookups
     import duckdb  # type: ignore
@@ -376,6 +377,28 @@ def _classify_allergen(raw: str, default: str = "environment") -> str:
     return default
 
 
+def _value_set_contains_allergen(name: str, metadata: Dict[str, Any]) -> bool:
+    tokens = [name.lower()]
+    for key in ('clinical_focus', 'value_set_name'):
+        value = metadata.get(key)
+        if value:
+            tokens.append(str(value).lower())
+    haystack = ' '.join(tokens)
+    keywords = [
+        'allergen',
+        'allergy',
+        'hypersens',
+        'ige',
+        'anaphylaxis',
+        'immunotherapy',
+        'venom',
+        'latex',
+        'drug allergy',
+        'food allergy',
+    ]
+    return any(keyword in haystack for keyword in keywords)
+
+
 CURATED_MEDICATIONS = [
     {"display": "Lisinopril", "therapeutic_class": "ace_inhibitor", "keywords": ["lisinopril"]},
     {"display": "Enalapril", "therapeutic_class": "ace_inhibitor", "keywords": ["enalapril"]},
@@ -578,6 +601,46 @@ CURATED_LAB_TESTS = [
         "critical_high": 10,
         "panels": ["Sepsis_Markers", "Inflammatory_Markers"],
     },
+    {
+        "name": "Total IgE",
+        "loinc": "19113-0",
+        "units": "kU/L",
+        "normal_range": (0, 100),
+        "critical_high": 500,
+        "panels": ["Allergy_IgE"],
+    },
+    {
+        "name": "Peanut Specific IgE",
+        "loinc": "39517-9",
+        "units": "kU/L",
+        "normal_range": (0, 0.35),
+        "critical_high": 100,
+        "panels": ["Allergy_IgE", "Food_Allergen_IgE"],
+    },
+    {
+        "name": "Egg White Specific IgE",
+        "loinc": "6106-7",
+        "units": "kU/L",
+        "normal_range": (0, 0.35),
+        "critical_high": 100,
+        "panels": ["Food_Allergen_IgE"],
+    },
+    {
+        "name": "Penicillin Specific IgE",
+        "loinc": "6130-2",
+        "units": "kU/L",
+        "normal_range": (0, 0.35),
+        "critical_high": 100,
+        "panels": ["Drug_Allergy_IgE"],
+    },
+    {
+        "name": "Serum Tryptase",
+        "loinc": "21582-2",
+        "units": "ng/mL",
+        "normal_range": (0, 11.4),
+        "critical_high": 30,
+        "panels": ["Anaphylaxis_Workup"],
+    },
 ]
 
 def load_allergen_entries(
@@ -585,145 +648,177 @@ def load_allergen_entries(
     *,
     max_allergens: int = 120,
 ) -> List[TerminologyEntry]:
-    frame = _load_rxnorm_frame(root)
-    if frame is None or frame.is_empty():
-        return []
+    try:
+        vsac_members = load_vsac_value_sets(root)
+    except Exception:  # pragma: no cover - VSAC loader fallback
+        vsac_members = []
 
-    frame = frame.with_columns(
-        pl.col("rxnorm_cui").cast(pl.Utf8),
-        pl.col("ingredient_name").str.strip_chars(),
-    )
-    frame = frame.filter(pl.col("ingredient_name").is_not_null() & (pl.col("ingredient_name") != ""))
+    frame = _load_rxnorm_frame(root)
+    fallback_lookup = {
+        item["display"].lower(): item for item in FALLBACK_ALLERGEN_TERMS
+    }
 
     allergens: Dict[str, TerminologyEntry] = {}
 
-    def _add_entry(row: Dict[str, Any], category: str, preferred_display: Optional[str] = None) -> None:
-        if row is None:
+    def _score(metadata: Dict[str, Any]) -> int:
+        score = 0
+        if metadata.get("rxnorm_name"):
+            score += 2
+        if metadata.get("value_set_oid"):
+            score += 1
+        if metadata.get("snomed_code"):
+            score += 1
+        return score
+
+    def _store(entry: TerminologyEntry) -> None:
+        key = entry.display.lower()
+        fallback = fallback_lookup.get(key)
+        if fallback:
+            if fallback.get("unii") and not entry.metadata.get("unii"):
+                entry.metadata["unii"] = fallback["unii"]
+            if fallback.get("snomed") and not entry.metadata.get("snomed_code"):
+                entry.metadata["snomed_code"] = fallback["snomed"]
+            if fallback.get("rxnorm") and not entry.metadata.get("rxnorm_name"):
+                entry.metadata["rxnorm_name"] = fallback["display"]
+        existing = allergens.get(key)
+        if existing is None:
+            allergens[key] = entry
             return
-        raw_name = row.get("ingredient_name") or ""
-        if not raw_name:
-            return
-        display = preferred_display or raw_name
-        cleaned = _clean_allergen_display(display)
-        key = cleaned.lower()
-        if key in allergens:
-            return
-        code = str(row.get("rxnorm_cui") or cleaned)
+        if _score(entry.metadata) > _score(existing.metadata):
+            allergens[key] = entry
+
+    for member in vsac_members:
+        display = _clean_allergen_display(member.display or "")
+        if not display:
+            continue
+        context_name = f"{member.value_set_name} {member.display}"
+        if not _value_set_contains_allergen(context_name, member.metadata):
+            continue
+        category = _classify_allergen(display, default="drug")
         metadata = {
             "category": category,
-            "rxnorm_name": raw_name,
+            "value_set_oid": member.value_set_oid,
+            "value_set_name": member.value_set_name,
         }
-        if row.get("ndc_example"):
-            metadata["ndc_example"] = str(row["ndc_example"])
-        if row.get("ncbi_url"):
-            metadata["ncbi_url"] = str(row["ncbi_url"])
-        allergens[key] = TerminologyEntry(code=code, display=cleaned, metadata=metadata)
+        code_system = (member.metadata.get("code_system") or "").lower()
+        if code_system:
+            metadata["code_system"] = member.metadata.get("code_system")
+        if "rxnorm" in code_system:
+            metadata["rxnorm_name"] = display
+        if "snomed" in code_system:
+            metadata["snomed_code"] = member.code
+        metadata.update(
+            {
+                key: value
+                for key, value in member.metadata.items()
+                if key not in {"code_system", "code_system_version"}
+            }
+        )
+        entry = TerminologyEntry(code=str(member.code or display), display=display, metadata=metadata)
+        _store(entry)
 
-    lowercase_name = pl.col("ingredient_name").str.to_lowercase()
-    candidates: List[pl.DataFrame] = [
-        frame.filter(lowercase_name.str.contains("allergenic extract")),
-        frame.filter(lowercase_name.str.contains("venom")),
-        frame.filter(lowercase_name.str.contains("dander")),
-        frame.filter(lowercase_name.str.contains("pollen")),
-        frame.filter(lowercase_name.str.contains("mite")),
-    ]
+    if frame is not None and not frame.is_empty():
+        frame = frame.with_columns(
+            pl.col("rxnorm_cui").cast(pl.Utf8),
+            pl.col("ingredient_name").str.strip_chars(),
+        )
+        frame = frame.filter(pl.col("ingredient_name").is_not_null() & (pl.col("ingredient_name") != ""))
 
-    for candidate in candidates:
-        if candidate.is_empty():
-            continue
-        for row in candidate.to_dicts():
-            category = _classify_allergen(row.get("ingredient_name", ""), "environment")
-            _add_entry(row, category)
+        lowercase_name = pl.col("ingredient_name").str.to_lowercase()
 
-    curated_drugs = [
-        "penicillin g",
-        "penicillin v",
-        "amoxicillin",
-        "ampicillin",
-        "cephalexin",
-        "ceftriaxone",
-        "sulfamethoxazole",
-        "trimethoprim",
-        "azithromycin",
-        "erythromycin",
-        "ibuprofen",
-        "acetaminophen",
-        "aspirin",
-        "ketorolac",
-        "naproxen",
-        "lisinopril",
-        "losartan",
-        "metformin",
-        "insulin lispro",
-        "hydrochlorothiazide",
-        "morphine",
-        "oxycodone",
-        "ondansetron",
-        "piperacillin",
-        "clindamycin",
-        "vancomycin",
-    ]
+        def _add_entry(row: Dict[str, Any], preferred_display: Optional[str] = None) -> None:
+            if not row:
+                return
+            raw_name = row.get("ingredient_name") or ""
+            if not raw_name:
+                return
+            display = _clean_allergen_display(preferred_display or raw_name)
+            category = _classify_allergen(raw_name)
+            metadata = {
+                "category": category,
+                "rxnorm_name": row.get("ingredient_name", display),
+            }
+            if row.get("ndc_example"):
+                metadata["ndc_example"] = str(row["ndc_example"])
+            if row.get("ncbi_url"):
+                metadata["ncbi_url"] = str(row["ncbi_url"])
+            entry = TerminologyEntry(code=str(row.get("rxnorm_cui") or display), display=display, metadata=metadata)
+            _store(entry)
 
-    lower_name = pl.col("ingredient_name").str.to_lowercase()
-    for term in curated_drugs:
-        matches = frame.filter(lower_name == term)
-        if matches.is_empty():
-            matches = frame.filter(lower_name.str.contains(term))
-        if matches.is_empty():
-            continue
-        row = matches.row(0, named=True)
-        _add_entry(row, "drug")
+        candidates: List[pl.DataFrame] = [
+            frame.filter(lowercase_name.str.contains("allergenic extract")),
+            frame.filter(lowercase_name.str.contains("venom")),
+            frame.filter(lowercase_name.str.contains("dander")),
+            frame.filter(lowercase_name.str.contains("pollen")),
+            frame.filter(lowercase_name.str.contains("mite")),
+        ]
 
-    food_terms = [
-        "peanut allergenic extract",
-        "egg white (chicken) allergenic extract",
-        "egg yolk (chicken) allergenic extract",
-        "goat milk allergenic extract",
-        "cow milk allergenic extract",
-        "soybean allergenic extract",
-        "wheat allergenic extract",
-        "shrimp allergenic extract",
-        "crab allergenic extract",
-        "lobster allergenic extract",
-        "tuna allergenic extract",
-        "salmon allergenic extract",
-        "cashew nut allergenic extract",
-        "pistachio nut allergenic extract",
-        "almond allergenic extract",
-        "hazelnut allergenic extract",
-        "pecan allergenic extract",
-        "walnut allergenic extract",
-        "sesame seed allergenic extract",
-        "banana allergenic extract",
-        "strawberry allergenic extract",
-        "avocado allergenic extract",
-    ]
+        for candidate in candidates:
+            if candidate.is_empty():
+                continue
+            for row in candidate.to_dicts():
+                _add_entry(row)
 
-    for term in food_terms:
-        matches = frame.filter(lower_name == term)
-        if matches.is_empty():
-            matches = frame.filter(lower_name.str.contains(term.split()[0]))
-        if matches.is_empty():
-            continue
-        row = matches.row(0, named=True)
-        _add_entry(row, "food")
+        curated_terms = [
+            "penicillin",
+            "penicillin g",
+            "penicillin v",
+            "amoxicillin",
+            "ampicillin",
+            "cephalexin",
+            "ceftriaxone",
+            "sulfamethoxazole",
+            "trimethoprim",
+            "azithromycin",
+            "erythromycin",
+            "ibuprofen",
+            "acetaminophen",
+            "aspirin",
+            "ketorolac",
+            "naproxen",
+            "lisinopril",
+            "losartan",
+            "metformin",
+            "insulin",
+            "hydrochlorothiazide",
+            "morphine",
+            "oxycodone",
+            "ondansetron",
+            "piperacillin",
+            "clindamycin",
+            "vancomycin",
+        ]
 
-    # Manual additions for common allergens not present in RxNorm ingredient list
-    manual_allergens = [
-        TerminologyEntry(
-            code="latex",
-            display="Natural Rubber Latex",
-            metadata={
-                "category": "environment",
-                "snomed_code": "1003754000",
-            },
-        ),
-    ]
+        lower_name = pl.col("ingredient_name").str.to_lowercase()
+        for term in curated_terms:
+            matches = frame.filter(lower_name == term)
+            if matches.is_empty():
+                matches = frame.filter(lower_name.str.contains(term))
+            if matches.is_empty():
+                continue
+            row = matches.row(0, named=True)
+            _add_entry(row, preferred_display=term)
 
-    for entry in manual_allergens:
-        key = entry.display.lower()
-        if key not in allergens:
-            allergens[key] = entry
+    if max_allergens:
+        for item in FALLBACK_ALLERGEN_TERMS:
+            key = item["display"].lower()
+            if key in allergens:
+                continue
+            metadata = {
+                "category": item.get("category", "fallback"),
+                "unii": item.get("unii", ""),
+                "snomed_code": item.get("snomed", ""),
+            }
+            if item.get("rxnorm"):
+                metadata["rxnorm_name"] = item["display"]
+            entry = TerminologyEntry(
+                code=str(item.get("rxnorm") or item["display"]),
+                display=item["display"],
+                metadata=metadata,
+            )
+            _store(entry)
+            if len(allergens) >= max_allergens:
+                break
 
     category_groups: Dict[str, List[TerminologyEntry]] = {}
     for entry in allergens.values():
@@ -733,8 +828,8 @@ def load_allergen_entries(
     for bucket in category_groups.values():
         bucket.sort(key=lambda item: item.display)
 
-    total_entries = sum(len(bucket) for bucket in category_groups.values())
-    if max_allergens and total_entries > max_allergens:
+    entries: List[TerminologyEntry] = []
+    if max_allergens and len(allergens) > max_allergens:
         selected: List[TerminologyEntry] = []
         categories = [cat for cat, bucket in category_groups.items() if bucket]
         index = 0
@@ -748,12 +843,12 @@ def load_allergen_entries(
                 index = 0
                 continue
             index += 1
-        return selected
+        entries = selected
+    else:
+        for category in sorted(category_groups.keys()):
+            entries.extend(category_groups[category])
 
-    ordered: List[TerminologyEntry] = []
-    for category in sorted(category_groups.keys()):
-        ordered.extend(category_groups[category])
-    return ordered
+    return entries
 
 
 def load_medication_entries(

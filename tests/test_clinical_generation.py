@@ -601,6 +601,106 @@ def test_parse_distribution_accepts_mapping():
 
 
 def test_generate_immunizations_schedule():
+
+
+def test_allergen_catalog_expanded_with_categories():
+    entries = list(clinical.ALLERGEN_ENTRIES)
+    assert len(entries) >= 60
+    categories = {entry.get("category") for entry in entries}
+    assert {"drug", "food", "environment", "insect"}.issubset(categories)
+    assert any(entry.get("rxnorm_code") for entry in entries if entry.get("category") == "drug")
+    assert any(entry.get("snomed_code") for entry in entries if entry.get("category") != "drug")
+
+
+
+def test_plan_allergy_followups_generates_expected_resources():
+    seed_random(42)
+    patient = base_patient()
+    encounters = clinical.generate_encounters(patient)
+    if not encounters:
+        encounters = [{"encounter_id": "enc-fallback", "date": patient["birthdate"]}]
+    allergies = [
+        {
+            "allergy_id": "allergy-1",
+            "patient_id": patient["patient_id"],
+            "substance": "Peanut",
+            "category": "food",
+            "reaction": "Anaphylaxis",
+            "severity": "severe",
+            "severity_code": "24484000",
+            "severity_system": "http://snomed.info/sct",
+            "rxnorm_code": "",
+            "snomed_code": "256349002",
+        }
+    ]
+    followups = clinical.plan_allergy_followups(patient, encounters, allergies)
+    med_names = {med.get("name") for med in followups["medications"]}
+    assert "Epinephrine" in med_names
+    observation_types = {obs.get("type") for obs in followups["observations"]}
+    assert {"Total IgE", "Peanut Specific IgE"}.issubset(observation_types)
+    cpt_codes = {proc.get("cpt_code") for proc in followups["procedures"]}
+    assert "95018" in cpt_codes
+
+
+
+def test_plan_allergy_followups_insect_allergy_adds_consult():
+    seed_random(84)
+    patient = base_patient()
+    encounters = clinical.generate_encounters(patient)
+    if not encounters:
+        encounters = [{"encounter_id": "enc-fallback", "date": patient["birthdate"]}]
+    allergies = [
+        {
+            "allergy_id": "allergy-2",
+            "patient_id": patient["patient_id"],
+            "substance": "Honey Bee Venom",
+            "category": "insect",
+            "reaction": "Anaphylaxis",
+            "severity": "severe",
+            "severity_code": "24484000",
+            "severity_system": "http://snomed.info/sct",
+            "rxnorm_code": "",
+            "snomed_code": "248480008",
+        }
+    ]
+    followups = clinical.plan_allergy_followups(patient, encounters, allergies)
+    cpt_codes = {proc.get("cpt_code") for proc in followups["procedures"]}
+    assert "95144" in cpt_codes
+    observation_types = {obs.get("type") for obs in followups["observations"]}
+    assert "Serum Tryptase" in observation_types
+
+
+def test_medication_variety_meets_threshold():
+    unique_meds = set()
+    for idx in range(40):
+        seed_random(1000 + idx)
+        patient = base_patient()
+        patient["birthdate"] = "1970-01-01"
+        patient["age"] = random.randint(25, 80)
+        assigned = clinical.assign_conditions(patient)
+        encounters = clinical.generate_encounters(patient, preassigned_conditions=assigned)
+        conditions = clinical.generate_conditions(patient, encounters, preassigned_conditions=assigned)
+        meds = clinical.generate_medications(patient, encounters, conditions)
+        unique_meds.update(med.get("name") for med in meds if med.get("name"))
+    assert len(unique_meds) >= 25
+
+
+def test_lab_loinc_breadth_meets_threshold():
+    unique_loinc = set()
+    for idx in range(30):
+        seed_random(2000 + idx)
+        patient = base_patient()
+        patient["birthdate"] = "1985-01-01"
+        patient["age"] = random.randint(20, 75)
+        assigned = clinical.assign_conditions(patient)
+        encounters = clinical.generate_encounters(patient, preassigned_conditions=assigned)
+        conditions = clinical.generate_conditions(patient, encounters, preassigned_conditions=assigned)
+        medications = clinical.generate_medications(patient, encounters, conditions)
+        observations = clinical.generate_observations(patient, encounters, conditions, medications)
+        unique_loinc.update(obs.get("loinc_code") for obs in observations if obs.get("loinc_code"))
+    assert len(unique_loinc) >= 50
+
+def test_generate_immunizations_schedule():
     seed_random(321)
     patient = base_patient()
     patient["birthdate"] = "2018-01-01"

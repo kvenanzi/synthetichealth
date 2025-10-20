@@ -1,15 +1,255 @@
 name: hypertension_management
-description: Placeholder scaffold for hypertension management module (v2 DSL pending).
+description: Lifecycle workflow modeling guideline-driven hypertension management with medication titration and monitoring.
 categories:
   encounters: augment
   conditions: augment
   medications: augment
   observations: augment
+  care_plans: augment
 states:
   start:
     type: start
     transitions:
-      - to: end
+      - to: intake_visit
+
+  intake_visit:
+    type: encounter
+    encounter_type: "Primary Care Visit"
+    reason: "Elevated blood pressure evaluation"
+    provider_role: "Primary Care Physician"
+    location: "Internal Medicine Clinic"
+    transitions:
+      - to: diagnosis
+
+  diagnosis:
+    type: condition_onset
+    attach_to_last_encounter: true
+    conditions:
+      - name: "Hypertension"
+        icd10: "I10"
+        snomed: "38341003"
+        category: "cardiovascular"
+    transitions:
+      - to: baseline_observations
+
+  baseline_observations:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "8480-6"
+        name: "Systolic Blood Pressure"
+        units: "mmHg"
+        value_range:
+          min: 142
+          max: 168
+      - loinc: "8462-4"
+        name: "Diastolic Blood Pressure"
+        units: "mmHg"
+        value_range:
+          min: 88
+          max: 102
+      - loinc: "2160-0"
+        name: "Serum Creatinine"
+        units: "mg/dL"
+        value_range:
+          min: 0.8
+          max: 1.3
+      - loinc: "2093-3"
+        name: "Total Cholesterol"
+        units: "mg/dL"
+        value_range:
+          min: 185
+          max: 240
+    transitions:
+      - to: lifestyle_plan
+
+  lifestyle_plan:
+    type: care_plan
+    care_plans:
+      - name: "Hypertension Lifestyle Coaching"
+        category: "cardiology"
+        goal: "Reduce systolic blood pressure below 130 mmHg"
+        activities:
+          - "DASH diet counseling"
+          - "150 minutes of aerobic exercise per week"
+          - "Home blood pressure monitoring twice daily"
+    transitions:
+      - to: first_line_medication
+
+  first_line_medication:
+    type: medication_start
+    attach_to_last_encounter: true
+    medications:
+      - name: "Lisinopril"
+        rxnorm: "617314"
+        dose: "10 mg daily"
+        therapy_category: "ace_inhibitor"
+    transitions:
+      - to: first_follow_up_delay
+
+  first_follow_up_delay:
+    type: delay
+    duration_days: 45
+    transitions:
+      - to: follow_up_visit
+
+  follow_up_visit:
+    type: encounter
+    encounter_type: "Hypertension Follow-up"
+    reason: "Assess blood pressure control"
+    provider_role: "Primary Care Physician"
+    location: "Internal Medicine Clinic"
+    transitions:
+      - to: follow_up_observations
+
+  follow_up_observations:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "8480-6"
+        name: "Systolic Blood Pressure"
+        units: "mmHg"
+        value_range:
+          min: 128
+          max: 158
+      - loinc: "8462-4"
+        name: "Diastolic Blood Pressure"
+        units: "mmHg"
+        value_range:
+          min: 80
+          max: 96
+      - loinc: "2823-3"
+        name: "Serum Potassium"
+        units: "mmol/L"
+        value_range:
+          min: 3.6
+          max: 5.1
+    transitions:
+      - to: control_decision
+
+  control_decision:
+    type: decision
+    branches:
+      - probability: 0.55
+        to: controlled_plan
+      - probability: 0.30
+        to: escalate_medication
+      - probability: 0.10
+        to: specialist_referral
+      - probability: 0.05
+        to: end
+
+  controlled_plan:
+    type: care_plan
+    care_plans:
+      - name: "Hypertension Maintenance"
+        category: "cardiology"
+        goal: "Maintain BP under 130/80 mmHg"
+        activities:
+          - "Continue ACE inhibitor therapy"
+          - "Monthly home BP logs"
+          - "Low sodium diet reinforcement"
+    transitions:
+      - to: maintenance_delay
+
+  maintenance_delay:
+    type: delay
+    duration_days: 120
+    transitions:
+      - to: follow_up_visit
+
+  escalate_medication:
+    type: medication_start
+    attach_to_last_encounter: true
+    medications:
+      - name: "Amlodipine"
+        rxnorm: "197361"
+        dose: "5 mg daily"
+        therapy_category: "calcium_channel_blocker"
+    transitions:
+      - to: escalation_labs
+
+  escalation_labs:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "2951-2"
+        name: "Serum Sodium"
+        units: "mmol/L"
+        value_range:
+          min: 134
+          max: 144
+      - loinc: "30934-4"
+        name: "B-type Natriuretic Peptide"
+        units: "pg/mL"
+        value_range:
+          min: 80
+          max: 160
+    transitions:
+      - to: post_escalation_delay
+
+  post_escalation_delay:
+    type: delay
+    duration_days: 60
+    transitions:
+      - to: follow_up_visit
+
+  specialist_referral:
+    type: encounter
+    encounter_type: "Cardiology Consultation"
+    reason: "Resistant hypertension management"
+    provider_role: "Cardiologist"
+    location: "Cardiology Clinic"
+    transitions:
+      - to: specialist_actions
+
+  specialist_actions:
+    type: procedure
+    attach_to_last_encounter: true
+    procedures:
+      - name: "Echocardiogram"
+        code: "93306"
+        system: "CPT"
+        reason: "Assess hypertensive heart disease"
+        status: "completed"
+      - name: "Renal Artery Ultrasound"
+        code: "76770"
+        system: "CPT"
+        reason: "Rule out renovascular hypertension"
+        status: "ordered"
+    transitions:
+      - to: specialist_follow_up
+
+  specialist_follow_up:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "8480-6"
+        name: "Systolic Blood Pressure"
+        units: "mmHg"
+        value_range:
+          min: 122
+          max: 150
+      - loinc: "8462-4"
+        name: "Diastolic Blood Pressure"
+        units: "mmHg"
+        value_range:
+          min: 78
+          max: 92
+      - loinc: "21582-2"
+        name: "Serum Tryptase"
+        units: "ng/mL"
+        value_range:
+          min: 4.8
+          max: 14.2
+    transitions:
+      - to: post_specialist_delay
+
+  post_specialist_delay:
+    type: delay
+    duration_days: 90
+    transitions:
+      - to: follow_up_visit
+
   end:
     type: terminal
-

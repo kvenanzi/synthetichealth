@@ -10,6 +10,7 @@ Legend
 ## Implemented
 - adult_primary_care_wellness — modules/adult_primary_care_wellness.yaml
 - cardiometabolic_intensive — modules/cardiometabolic_intensive.yaml
+- hypertension_management — modules/hypertension_management.yaml
 - ckd_dialysis_planning — modules/ckd_dialysis_planning.yaml
 - copd_home_oxygen — modules/copd_home_oxygen.yaml
 - geriatric_polypharmacy — modules/geriatric_polypharmacy.yaml
@@ -24,7 +25,6 @@ Legend
 - sepsis_survivorship — modules/sepsis_survivorship.yaml
 
 ## Scaffolded (ready to expand)
-- hypertension_management — modules/hypertension_management.yaml
 - type2_diabetes_management — modules/type2_diabetes_management.yaml
 - hyperlipidemia_management — modules/hyperlipidemia_management.yaml
 - heart_failure_management — modules/heart_failure_management.yaml
