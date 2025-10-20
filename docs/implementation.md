@@ -109,6 +109,7 @@ Implementation Steps
 
 Acceptance Criteria
 - >40 distinct allergens available per run (configurable) with RxNorm/UNII (where available) and VSAC provenance.
+- Deterministic fallbacks always include high-signal substances (Peanut, Peanut Oil, Almond, Shrimp, Penicillin) so regression tests and emergency-care scenarios have consistent coverage.
 - Reactions include at least rash, urticaria, angioedema, anaphylaxis, wheeze/dyspnea, nausea/vomiting, each mapped to SNOMED and exported.
 - Appropriate downstream tests/procedures/meds are emitted for severe cases (e.g., epinephrine for anaphylaxis, IgE labs for food/drug allergies) with the correct LOINC/CPT/RxNorm codes.
 - All exporters remain internally consistent (pointers in VistA, codings in FHIR/HL7, normalized CSV tables).
@@ -146,8 +147,9 @@ Implementation Steps
 5. Tests: unit tests for (a) med variety per 100 pts, (b) class coverage by condition, (c) lab breadth and LOINC/unit integrity, (d) VistA pointer/xref correctness; Monte Carlo checks for plausible distributions.
 
 Acceptance Criteria
-- Medication variety: ≥25 distinct ingredients across cohorts, with class‑appropriate selection and no contraindicated picks in rule scenarios.
+- Medication variety: ≥25 distinct ingredients across cohorts, with class-appropriate selection and no contraindicated picks in rule scenarios.
 - Lab breadth: ≥50 distinct LOINC tests across panels with correct UCUM units and age/sex-appropriate reference ranges.
+- Regression tests enforce these thresholds; keep catalog fallbacks and panel sampling aligned to prevent accidental drops.
 - Orders reflect clinical logic: meds trigger monitoring labs; conditions map to guideline panels; timing windows look plausible.
 - Exporters remain consistent (FileMan pointers, FHIR/HL7 coding), and regression tests pass.
 
@@ -231,6 +233,7 @@ Implementation Steps
 
 Acceptance Criteria
 - Visit counts correlate with condition severity and care plans.
+- Respiratory-heavy cohorts surface Pulmonology specialty visits (e.g., COPD management) so condition-driven encounter tests remain satisfied.
 - Stop codes and locations valid; datetimes properly formatted.
 
 ## Immunizations Realism (Plan)

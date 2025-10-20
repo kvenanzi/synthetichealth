@@ -682,6 +682,20 @@ def test_medication_variety_meets_threshold():
     assert len(unique_meds) >= 25
 
 
+def test_prescribe_medication_handles_condition_alias():
+    seed_random(4242)
+    patient = base_patient()
+    patient["patient_id"] = "alias-copd"
+    condition = {
+        "name": "Chronic obstructive pulmonary disease",
+        "condition_category": "respiratory",
+    }
+    medications = clinical.prescribe_evidence_based_medication(patient, condition, [], [])
+    med_names = {med["name"] for med in medications}
+    expected = {"Tiotropium", "Salmeterol/Fluticasone", "Albuterol", "Ipratropium"}
+    assert med_names & expected
+
+
 def test_lab_loinc_breadth_meets_threshold():
     unique_loinc = set()
     for idx in range(30):

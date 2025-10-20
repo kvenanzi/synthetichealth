@@ -29,7 +29,7 @@ import uuid
 
 # Import the enhanced migration components
 try:
-    from enhanced_migration_tracker import (
+    from src.core.enhanced_migration_tracker import (
         PatientMigrationStatus,
         HealthcareDataQualityScorer,
         ClinicalDataDegradationSimulator,
@@ -38,11 +38,11 @@ try:
         AlertSeverity,
         MigrationStageStatus
     )
-    from enhanced_migration_simulator import (
+    from src.core.enhanced_migration_simulator import (
         EnhancedMigrationSimulator,
         HIPAAComplianceTracker
     )
-    from healthcare_migration_config import (
+    from src.config.healthcare_migration_config import (
         HealthcareMigrationConfig,
         ClinicalValidationRule,
         ClinicalDataType

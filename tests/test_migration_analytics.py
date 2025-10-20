@@ -32,9 +32,10 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Any
 import uuid
+import random
 
 # Import components to test
-from migration_analytics_engine import (
+from src.analytics.migration_analytics_engine import (
     HealthcareAnalyticsEngine,
     BusinessKPI,
     ComplianceMetric,
@@ -45,11 +46,11 @@ from migration_analytics_engine import (
     InteroperabilityStandard
 )
 
-from migration_report_generator import HealthcareReportGenerator
+from src.analytics.migration_report_generator import HealthcareReportGenerator
 
-from real_time_dashboard import RealTimeDashboard, DashboardMetric, AlertManager
+from src.analytics.real_time_dashboard import RealTimeDashboard, DashboardMetric, AlertManager
 
-from healthcare_interoperability_validator import (
+from src.validation.healthcare_interoperability_validator import (
     HealthcareInteroperabilityValidator,
     FHIRValidator,
     HL7V2Validator,
@@ -61,7 +62,7 @@ from healthcare_interoperability_validator import (
     ComplianceLevel
 )
 
-from enhanced_migration_tracker import (
+from src.core.enhanced_migration_tracker import (
     PatientMigrationStatus,
     HealthcareDataQualityScorer,
     MigrationQualityMonitor,
@@ -238,6 +239,27 @@ class TestHealthcareAnalyticsEngine(unittest.TestCase):
         active_migrations = dashboard_data["active_migrations"]
         self.assertIn("total_patients", active_migrations)
         self.assertIn("by_stage", active_migrations)
+
+    def test_timeframe_inclusion_buffer(self):
+        """Patients updated moments after timeframe end should still be counted"""
+        late_patient = PatientMigrationStatus(
+            patient_id=str(uuid.uuid4()),
+            mrn="MRNBUFFER001",
+            patient_name="Buffer Case",
+            migration_batch_id="BUFFER-BATCH"
+        )
+        self.analytics_engine.register_patient_migration(late_patient)
+        recent = self.analytics_engine.patient_statuses[late_patient.patient_id]
+        recent.last_updated = datetime.now()
+
+        buffer_timeframe = AnalyticsTimeframe(
+            start_time=datetime.now() - timedelta(hours=1),
+            end_time=datetime.now() - timedelta(minutes=2),
+            description="Buffer inclusion window"
+        )
+
+        patients_in_window = self.analytics_engine._get_patients_in_timeframe(buffer_timeframe)
+        self.assertIn(recent, patients_in_window)
 
 class TestHealthcareReportGenerator(unittest.TestCase):
     """Test suite for HealthcareReportGenerator"""
@@ -511,6 +533,8 @@ class TestRealTimeDashboard(unittest.TestCase):
         # Resolve alert
         alert_manager.resolve_alert("test-alert-001", "Test resolution")
         self.assertTrue(alert_manager.active_alerts["test-alert-001"].resolved)
+        self.assertEqual(alert_manager.active_alerts["test-alert-001"].resolution_notes, "Test resolution")
+        self.assertIsNotNone(alert_manager.active_alerts["test-alert-001"].resolved_at)
     
     def test_migration_status_summary(self):
         """Test migration status summary generation"""

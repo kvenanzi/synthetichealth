@@ -489,7 +489,7 @@ class MigrationAnalyticsDemo:
             f.write(dashboard_html)
         
         print(f"   📄 Real-time dashboard HTML generated: {dashboard_path}")
-        print("   🌐 Start dashboard server: python -c \"import asyncio; from real_time_dashboard import RealTimeDashboard; from migration_analytics_engine import HealthcareAnalyticsEngine; asyncio.run(RealTimeDashboard(HealthcareAnalyticsEngine()).start_dashboard())\"")
+        print("   🌐 Start dashboard server: python -c \"import asyncio; from src.analytics.real_time_dashboard import RealTimeDashboard; from src.analytics.migration_analytics_engine import HealthcareAnalyticsEngine; asyncio.run(RealTimeDashboard(HealthcareAnalyticsEngine()).start_dashboard())\"")
     
     def demo_post_migration_analysis(self):
         """Demonstrate post-migration analysis and recommendations"""

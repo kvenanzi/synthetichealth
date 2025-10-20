@@ -590,7 +590,7 @@ class RealTimeDashboard:
     async def generate_dashboard_report(self, report_type: str, timeframe_hours: int) -> str:
         """Generate dashboard report for export"""
         try:
-            from migration_report_generator import HealthcareReportGenerator
+            from .migration_report_generator import HealthcareReportGenerator
             
             report_generator = HealthcareReportGenerator(self.analytics_engine)
             

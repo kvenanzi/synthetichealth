@@ -22,7 +22,6 @@ Author: Healthcare Systems Architect
 Date: 2025-09-09
 """
 
-import builtins
 import json
 import logging
 import random
@@ -62,9 +61,6 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
-
-if not hasattr(builtins, "random"):
-    builtins.random = random
 
 class ReportFormat(Enum):
     """Supported report output formats"""
