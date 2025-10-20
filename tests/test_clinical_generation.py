@@ -667,6 +667,37 @@ def test_plan_allergy_followups_insect_allergy_adds_consult():
     assert "Serum Tryptase" in observation_types
 
 
+def test_allergen_profile_followup_metadata():
+    profile = clinical.get_allergen_profile("Peanut")
+    assert profile is not None
+    assert profile.risk_level == "high"
+    moderate_plan = profile.followups.get("moderate")
+    assert moderate_plan is not None
+    assert "peanut_specific_ige" in moderate_plan.tests
+
+
+def test_penicillin_allergy_followup_includes_specific_ige():
+    patient = base_patient()
+    patient["patient_id"] = "penicillin-case"
+    encounters = [{"encounter_id": "enc-pen", "date": "2024-01-10"}]
+    allergies = [
+        {
+            "allergy_id": "all-pen-1",
+            "patient_id": patient["patient_id"],
+            "substance": "Penicillin",
+            "category": "drug",
+            "reaction": "Rash",
+            "severity": "severe",
+        }
+    ]
+
+    followups = clinical.plan_allergy_followups(patient, encounters, allergies)
+    observation_types = {obs.get("type") for obs in followups["observations"]}
+    assert "Penicillin Specific IgE" in observation_types
+    procedure_names = {proc.get("name") for proc in followups["procedures"]}
+    assert "Allergy Skin Test Percutaneous" in procedure_names
+
+
 def test_medication_variety_meets_threshold():
     unique_meds = set()
     for idx in range(40):

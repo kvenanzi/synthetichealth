@@ -12,6 +12,8 @@ from collections.abc import Mapping, Sequence
 from datetime import date, datetime, timedelta
 from functools import lru_cache
 from typing import Any, Dict, List, Optional, Set, Tuple
+from dataclasses import dataclass
+from types import MappingProxyType
 
 from faker import Faker
 
@@ -1210,13 +1212,330 @@ def _load_allergen_catalog() -> Dict[str, Dict[str, Any]]:
     return {entry["display"]: entry for entry in entries}
 
 
+@dataclass(frozen=True)
+class AllergyFollowupPlan:
+    medications: Tuple[str, ...] = ()
+    tests: Tuple[str, ...] = ()
+    procedures: Tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class AllergenProfile:
+    display: str
+    category: str
+    rxnorm_code: str
+    snomed_code: str
+    unii_code: str
+    risk_level: str
+    severity_weights: Tuple[float, float, float]
+    followups: Mapping[str, AllergyFollowupPlan]
+    source: str = "registry"
+
+
+DEFAULT_SEVERITY_WEIGHTS: Tuple[float, float, float] = (0.7, 0.2, 0.1)
+
+FOLLOWUP_ACTION_LIBRARY: Dict[str, Dict[str, Any]] = {
+    "epinephrine_autoinjector": {
+        "type": "medication",
+        "name": "Epinephrine",
+        "therapy_category": "emergency",
+        "indication": "allergy_management",
+    },
+    "cetirizine": {
+        "type": "medication",
+        "name": "Cetirizine",
+        "therapy_category": "supportive",
+        "indication": "allergy_management",
+    },
+    "intranasal_steroid": {
+        "type": "medication",
+        "name": "Fluticasone_nasal",
+        "therapy_category": "supportive",
+        "indication": "allergy_management",
+    },
+    "serum_tryptase": {
+        "type": "observation",
+        "test": "Serum Tryptase",
+        "panel": "Anaphylaxis_Workup",
+    },
+    "total_ige": {
+        "type": "observation",
+        "test": "Total IgE",
+        "panel": "Allergy_IgE",
+    },
+    "peanut_specific_ige": {
+        "type": "observation",
+        "test": "Peanut Specific IgE",
+        "panel": "Food_Allergen_IgE",
+    },
+    "egg_white_specific_ige": {
+        "type": "observation",
+        "test": "Egg White Specific IgE",
+        "panel": "Food_Allergen_IgE",
+    },
+    "penicillin_specific_ige": {
+        "type": "observation",
+        "test": "Penicillin Specific IgE",
+        "panel": "Drug_Allergy_IgE",
+    },
+    "allergy_skin_test": {
+        "type": "procedure",
+        "name": "Allergy Skin Test Percutaneous",
+        "cpt": "95018",
+        "specialty": "Allergy_Immunology",
+        "category": "diagnostic",
+        "complexity": "moderate",
+    },
+    "oral_food_challenge": {
+        "type": "procedure",
+        "name": "Oral Food Challenge",
+        "cpt": "95076",
+        "specialty": "Allergy_Immunology",
+        "category": "diagnostic",
+        "complexity": "moderate",
+    },
+    "venom_immunotherapy": {
+        "type": "procedure",
+        "name": "Venom Immunotherapy Consultation",
+        "cpt": "95144",
+        "specialty": "Allergy_Immunology",
+        "category": "therapeutic",
+        "complexity": "moderate",
+    },
+}
+
+GLOBAL_SEVERITY_FOLLOWUPS: Dict[str, AllergyFollowupPlan] = {
+    "severe": AllergyFollowupPlan(
+        medications=("epinephrine_autoinjector",),
+        tests=("serum_tryptase",),
+        procedures=("allergy_skin_test",),
+    )
+}
+
+CATEGORY_FOLLOWUPS: Dict[str, Dict[str, AllergyFollowupPlan]] = {
+    "food": {
+        "moderate": AllergyFollowupPlan(
+            medications=("cetirizine",),
+            tests=("total_ige",),
+        ),
+        "severe": AllergyFollowupPlan(
+            medications=("cetirizine",),
+            tests=("total_ige",),
+            procedures=("allergy_skin_test",),
+        ),
+    },
+    "environment": {
+        "moderate": AllergyFollowupPlan(medications=("cetirizine",)),
+        "severe": AllergyFollowupPlan(
+            medications=("cetirizine",),
+            procedures=("allergy_skin_test",),
+        ),
+    },
+    "insect": {
+        "severe": AllergyFollowupPlan(procedures=("venom_immunotherapy",)),
+    },
+}
+
+CURATED_ALLERGEN_KNOWLEDGE: Dict[str, Dict[str, Any]] = {
+    "peanut": {
+        "risk_level": "high",
+        "category": "food",
+        "severity_weights": (0.1, 0.4, 0.5),
+        "followups": {
+            "moderate": {"tests": ("peanut_specific_ige",), "medications": ("cetirizine",)},
+            "severe": {"tests": ("peanut_specific_ige",), "procedures": ("oral_food_challenge",)},
+        },
+    },
+    "peanut oil": {
+        "risk_level": "high",
+        "category": "food",
+        "severity_weights": (0.15, 0.4, 0.45),
+        "followups": {
+            "moderate": {"tests": ("peanut_specific_ige",), "medications": ("cetirizine",)},
+            "severe": {"tests": ("peanut_specific_ige",), "procedures": ("oral_food_challenge",)},
+        },
+    },
+    "shrimp": {
+        "risk_level": "high",
+        "category": "food",
+        "severity_weights": (0.2, 0.45, 0.35),
+    },
+    "shellfish": {
+        "risk_level": "high",
+        "category": "food",
+        "severity_weights": (0.2, 0.45, 0.35),
+    },
+    "egg": {
+        "risk_level": "medium",
+        "category": "food",
+        "severity_weights": (0.4, 0.4, 0.2),
+        "followups": {
+            "moderate": {"tests": ("egg_white_specific_ige",)},
+            "severe": {"tests": ("egg_white_specific_ige",)},
+        },
+    },
+    "cow's milk": {
+        "risk_level": "medium",
+        "category": "food",
+        "severity_weights": (0.45, 0.4, 0.15),
+    },
+    "penicillin": {
+        "risk_level": "high",
+        "category": "drug",
+        "severity_weights": (0.2, 0.4, 0.4),
+        "followups": {
+            "severe": {"tests": ("penicillin_specific_ige",), "procedures": ("allergy_skin_test",)},
+        },
+    },
+    "amoxicillin": {
+        "risk_level": "high",
+        "category": "drug",
+        "severity_weights": (0.2, 0.4, 0.4),
+        "followups": {
+            "severe": {"tests": ("penicillin_specific_ige",), "procedures": ("allergy_skin_test",)},
+        },
+    },
+    "ampicillin": {
+        "risk_level": "high",
+        "category": "drug",
+        "severity_weights": (0.2, 0.4, 0.4),
+        "followups": {
+            "severe": {"tests": ("penicillin_specific_ige",), "procedures": ("allergy_skin_test",)},
+        },
+    },
+    "bee venom": {
+        "risk_level": "high",
+        "category": "insect",
+        "severity_weights": (0.3, 0.3, 0.4),
+        "followups": {
+            "severe": {"procedures": ("venom_immunotherapy",)},
+        },
+    },
+    "wasp venom": {
+        "risk_level": "high",
+        "category": "insect",
+        "severity_weights": (0.3, 0.3, 0.4),
+        "followups": {
+            "severe": {"procedures": ("venom_immunotherapy",)},
+        },
+    },
+    "latex": {
+        "risk_level": "medium",
+        "category": "environment",
+        "severity_weights": (0.45, 0.35, 0.2),
+        "followups": {
+            "moderate": {"medications": ("intranasal_steroid",)},
+        },
+    },
+}
+
+
+CURATED_ALLERGY_REACTIONS: List[Dict[str, str]] = [
+    {"display": "Anaphylaxis", "code": "39579001", "system": "http://snomed.info/sct"},
+    {"display": "Urticaria", "code": "126485001", "system": "http://snomed.info/sct"},
+    {"display": "Angioedema", "code": "41291007", "system": "http://snomed.info/sct"},
+    {"display": "Bronchospasm", "code": "427461000", "system": "http://snomed.info/sct"},
+    {"display": "Wheezing", "code": "56018004", "system": "http://snomed.info/sct"},
+    {"display": "Shortness of breath", "code": "267036007", "system": "http://snomed.info/sct"},
+    {"display": "Nausea", "code": "422587007", "system": "http://snomed.info/sct"},
+    {"display": "Vomiting", "code": "422400008", "system": "http://snomed.info/sct"},
+    {"display": "Rash", "code": "271807003", "system": "http://snomed.info/sct"},
+    {"display": "Itching", "code": "418290006", "system": "http://snomed.info/sct"},
+]
+
+
 def get_allergen_catalog() -> Dict[str, Dict[str, Any]]:
     return _load_allergen_catalog()
+
+
+def _make_followup_plan(plan_definition: Dict[str, Tuple[str, ...]]) -> AllergyFollowupPlan:
+    return AllergyFollowupPlan(
+        medications=tuple(plan_definition.get("medications", ())),
+        tests=tuple(plan_definition.get("tests", ())),
+        procedures=tuple(plan_definition.get("procedures", ())),
+    )
+
+
+def _normalize_severity_weights(weights: Tuple[float, float, float]) -> Tuple[float, float, float]:
+    if not weights or len(weights) != 3:
+        return DEFAULT_SEVERITY_WEIGHTS
+    total = sum(weights)
+    if total <= 0:
+        return DEFAULT_SEVERITY_WEIGHTS
+    normalized = tuple(max(w, 0.0) for w in weights)
+    total = sum(normalized)
+    if total == 0:
+        return DEFAULT_SEVERITY_WEIGHTS
+    return tuple(w / total for w in normalized)
+
+
+@lru_cache(maxsize=1)
+def _build_allergen_profiles() -> Dict[str, AllergenProfile]:
+    raw_entries = _load_allergen_entries_cached()
+    entries_by_lower = {entry["display"].lower(): dict(entry) for entry in raw_entries}
+    profiles: Dict[str, AllergenProfile] = {}
+
+    for key, entry in entries_by_lower.items():
+        curated = CURATED_ALLERGEN_KNOWLEDGE.get(key, {})
+        followups = {
+            severity.lower(): _make_followup_plan(plan_def)
+            for severity, plan_def in curated.get("followups", {}).items()
+        }
+        profile = AllergenProfile(
+            display=entry["display"],
+            category=curated.get("category", entry.get("category", "environment")),
+            rxnorm_code=entry.get("rxnorm_code", ""),
+            snomed_code=entry.get("snomed_code", ""),
+            unii_code=entry.get("unii_code", ""),
+            risk_level=curated.get("risk_level", "standard"),
+            severity_weights=_normalize_severity_weights(
+                tuple(curated.get("severity_weights", DEFAULT_SEVERITY_WEIGHTS))
+            ),
+            followups=MappingProxyType(followups),
+            source="warehouse" if entry.get("rxnorm_code") or entry.get("snomed_code") else "fallback",
+        )
+        profiles[key] = profile
+
+    for key, curated in CURATED_ALLERGEN_KNOWLEDGE.items():
+        if key in profiles:
+            continue
+        followups = {
+            severity.lower(): _make_followup_plan(plan_def)
+            for severity, plan_def in curated.get("followups", {}).items()
+        }
+        display = curated.get("display", key.title())
+        profiles[key] = AllergenProfile(
+            display=display,
+            category=curated.get("category", "fallback"),
+            rxnorm_code=curated.get("rxnorm_code", ""),
+            snomed_code=curated.get("snomed_code", ""),
+            unii_code=curated.get("unii_code", ""),
+            risk_level=curated.get("risk_level", "standard"),
+            severity_weights=_normalize_severity_weights(
+                tuple(curated.get("severity_weights", DEFAULT_SEVERITY_WEIGHTS))
+            ),
+            followups=MappingProxyType(followups),
+            source="curated",
+        )
+
+    return profiles
+
+
+def get_allergen_profiles() -> Mapping[str, AllergenProfile]:
+    return ALLERGEN_PROFILES
+
+
+def get_allergen_profile(substance: str) -> Optional[AllergenProfile]:
+    if not substance:
+        return None
+    return ALLERGEN_PROFILES.get(substance.lower())
 
 
 ALLERGEN_ENTRIES = LazySequence(_load_allergen_entries_cached)
 ALLERGEN_CATALOG = LazyMapping(_load_allergen_catalog)
 ALLERGY_SUBSTANCES = LazySequence(lambda: list(_load_allergen_catalog().keys()))
+ALLERGEN_PROFILES = LazyMapping(_build_allergen_profiles)
+ALLERGEN_PROFILE_LIST = LazySequence(lambda: list(ALLERGEN_PROFILES.values()))
 
 
 @lru_cache(maxsize=1)
@@ -1226,19 +1545,33 @@ def _load_allergy_reactions() -> List[Dict[str, Any]]:
     except Exception:  # pragma: no cover - loader fallback
         reactions = []
 
-    if not reactions:
-        reactions = [
-            {"display": "Anaphylaxis", "code": "", "system": ""},
-            {"display": "Urticaria", "code": "", "system": ""},
-            {"display": "Angioedema", "code": "", "system": ""},
-            {"display": "Wheezing", "code": "", "system": ""},
-            {"display": "Shortness of breath", "code": "", "system": ""},
-            {"display": "Nausea", "code": "", "system": ""},
-            {"display": "Vomiting", "code": "", "system": ""},
-            {"display": "Rash", "code": "", "system": ""},
-            {"display": "Itching", "code": "", "system": ""},
-        ]
-    return reactions
+    reaction_lookup: Dict[str, Dict[str, Any]] = {}
+    for item in reactions:
+        display = item.get("display")
+        if not display:
+            continue
+        key = display.lower()
+        reaction_lookup[key] = {
+            "display": display,
+            "code": item.get("code", ""),
+            "system": item.get("system", ""),
+        }
+
+    for curated in CURATED_ALLERGY_REACTIONS:
+        key = curated["display"].lower()
+        existing = reaction_lookup.get(key)
+        if existing:
+            if not existing.get("code"):
+                existing["code"] = curated["code"]
+            if not existing.get("system"):
+                existing["system"] = curated["system"]
+        else:
+            reaction_lookup[key] = dict(curated)
+
+    if not reaction_lookup:
+        return list(CURATED_ALLERGY_REACTIONS)
+
+    return sorted(reaction_lookup.values(), key=lambda item: item["display"])
 
 
 ALLERGY_REACTIONS = LazySequence(_load_allergy_reactions)
@@ -4906,9 +5239,17 @@ def create_medication_record(patient, condition, encounters, medication_name, th
         "status": "active" if not end_date else "completed",
     }
 
+def _sample_allergy_severity(weights: Tuple[float, float, float]) -> Dict[str, Any]:
+    try:
+        return random.choices(ALLERGY_SEVERITIES, weights=weights, k=1)[0]
+    except Exception:
+        return random.choice(ALLERGY_SEVERITIES)
+
+
 def generate_allergies(patient, min_all=0, max_all=2):
     n = random.randint(min_all, max_all)
-    if not ALLERGEN_ENTRIES or n <= 0:
+    profile_pool = ALLERGEN_PROFILE_LIST
+    if not profile_pool or n <= 0:
         return []
 
     allergies = []
@@ -4922,9 +5263,9 @@ def generate_allergies(patient, min_all=0, max_all=2):
             birth_dt = None
 
     for _ in range(n):
-        allergen = random.choice(ALLERGEN_ENTRIES)
+        profile = random.choice(profile_pool)
         reaction = random.choice(ALLERGY_REACTIONS)
-        severity = random.choice(ALLERGY_SEVERITIES)
+        severity_entry = _sample_allergy_severity(profile.severity_weights)
 
         recorded_date = None
         if birth_dt:
@@ -4935,17 +5276,19 @@ def generate_allergies(patient, min_all=0, max_all=2):
         allergies.append({
             "allergy_id": str(uuid.uuid4()),
             "patient_id": patient["patient_id"],
-            "substance": allergen["display"],
-            "category": allergen.get("category"),
+            "substance": profile.display,
+            "category": profile.category,
             "reaction": reaction["display"],
             "reaction_code": reaction.get("code"),
             "reaction_system": reaction.get("system"),
-            "severity": severity["display"],
-            "severity_code": severity.get("code"),
-            "severity_system": severity.get("system"),
-            "rxnorm_code": allergen.get("rxnorm_code"),
-            "unii_code": allergen.get("unii_code"),
-            "snomed_code": allergen.get("snomed_code"),
+            "severity": severity_entry["display"],
+            "severity_code": severity_entry.get("code"),
+            "severity_system": severity_entry.get("system"),
+            "rxnorm_code": profile.rxnorm_code,
+            "unii_code": profile.unii_code,
+            "snomed_code": profile.snomed_code,
+            "risk_level": profile.risk_level,
+            "registry_source": profile.source,
             "recorded_date": recorded_date,
         })
 
@@ -5015,6 +5358,67 @@ def _create_allergy_procedure(
     }
 
 
+def _merge_followup_plan_sets(action_sets: Dict[str, Set[str]], plan: Optional[AllergyFollowupPlan]) -> None:
+    if not plan:
+        return
+    action_sets["medications"].update(plan.medications)
+    action_sets["tests"].update(plan.tests)
+    action_sets["procedures"].update(plan.procedures)
+
+
+def _apply_followup_action(
+    patient: Dict[str, Any],
+    encounters: List[Dict[str, Any]],
+    action_key: str,
+    followups: Dict[str, List[Dict[str, Any]]],
+    added: Dict[str, Set[str]],
+) -> None:
+    action = FOLLOWUP_ACTION_LIBRARY.get(action_key)
+    if not action:
+        return
+
+    action_type = action.get("type")
+    if action_type == "medication":
+        if action_key in added["medications"]:
+            return
+        medication_record = create_medication_record(
+            patient,
+            {"name": "Allergy"},
+            encounters,
+            action["name"],
+            action.get("therapy_category", "supportive"),
+        )
+        medication_record["indication"] = action.get("indication", "allergy_management")
+        followups["medications"].append(medication_record)
+        added["medications"].add(action_key)
+    elif action_type == "observation":
+        if action_key in added["observations"]:
+            return
+        observation = _create_allergy_observation(
+            patient,
+            encounters,
+            action["test"],
+            action.get("panel", "Allergy_IgE"),
+        )
+        if observation:
+            followups["observations"].append(observation)
+            added["observations"].add(action_key)
+    elif action_type == "procedure":
+        if action_key in added["procedures"]:
+            return
+        procedure = _create_allergy_procedure(
+            patient,
+            encounters,
+            action["name"],
+            action.get("cpt", ""),
+            specialty=action.get("specialty", "Allergy_Immunology"),
+            category=action.get("category", "diagnostic"),
+            complexity=action.get("complexity", "moderate"),
+        )
+        followups["procedures"].append(procedure)
+        added["procedures"].add(action_key)
+
+
 def plan_allergy_followups(
     patient: Dict[str, Any],
     encounters: List[Dict[str, Any]],
@@ -5024,90 +5428,36 @@ def plan_allergy_followups(
     if not allergies:
         return followups
 
-    added_medications: Set[str] = set()
-    added_tests: Set[str] = set()
-    added_procedures: Set[str] = set()
+    added_actions = {
+        "medications": set(),
+        "procedures": set(),
+        "observations": set(),
+    }
 
     for allergy in allergies:
-        severity = (allergy.get("severity") or "").lower()
-        substance = (allergy.get("substance") or "").lower()
-        category = (allergy.get("category") or "environment").lower()
+        severity = (allergy.get("severity") or "mild").lower()
+        substance_key = (allergy.get("substance") or "").lower()
+        profile = get_allergen_profile(substance_key)
+        category = (profile.category if profile else allergy.get("category") or "environment").lower()
 
-        if severity == "severe":
-            if "epinephrine" not in added_medications:
-                followups["medications"].append(
-                    create_medication_record(
-                        patient,
-                        {"name": "Allergy"},
-                        encounters,
-                        "Epinephrine",
-                        "emergency",
-                    )
-                )
-                added_medications.add("epinephrine")
-            if "serum tryptase" not in added_tests:
-                observation = _create_allergy_observation(patient, encounters, "Serum Tryptase", "Anaphylaxis_Workup")
-                if observation:
-                    followups["observations"].append(observation)
-                    added_tests.add("serum tryptase")
-            if "allergy_skin_test" not in added_procedures:
-                followups["procedures"].append(
-                    _create_allergy_procedure(
-                        patient,
-                        encounters,
-                        "Allergy Skin Test Percutaneous",
-                        "95018",
-                    )
-                )
-                added_procedures.add("allergy_skin_test")
+        action_sets = {
+            "medications": set(),
+            "tests": set(),
+            "procedures": set(),
+        }
 
-        if severity in {"moderate", "severe"} and category != "drug" and "cetirizine" not in added_medications:
-            followups["medications"].append(
-                create_medication_record(
-                    patient,
-                    {"name": "Allergy"},
-                    encounters,
-                    "Cetirizine",
-                    "supportive",
-                )
-            )
-            added_medications.add("cetirizine")
+        _merge_followup_plan_sets(action_sets, GLOBAL_SEVERITY_FOLLOWUPS.get(severity))
+        category_plans = CATEGORY_FOLLOWUPS.get(category, {})
+        _merge_followup_plan_sets(action_sets, category_plans.get(severity))
+        if profile:
+            _merge_followup_plan_sets(action_sets, profile.followups.get(severity))
 
-        if category == "food":
-            if "total ige" not in added_tests:
-                observation = _create_allergy_observation(patient, encounters, "Total IgE", "Allergy_IgE")
-                if observation:
-                    followups["observations"].append(observation)
-                    added_tests.add("total ige")
-            if "peanut" in substance and "peanut specific ige" not in added_tests:
-                observation = _create_allergy_observation(patient, encounters, "Peanut Specific IgE", "Food_Allergen_IgE")
-                if observation:
-                    followups["observations"].append(observation)
-                    added_tests.add("peanut specific ige")
-            if "egg" in substance and "egg white specific ige" not in added_tests:
-                observation = _create_allergy_observation(patient, encounters, "Egg White Specific IgE", "Food_Allergen_IgE")
-                if observation:
-                    followups["observations"].append(observation)
-                    added_tests.add("egg white specific ige")
-
-        if category == "drug" and any(term in substance for term in ["penicillin", "amoxicillin", "ampicillin"]):
-            if "penicillin specific ige" not in added_tests:
-                observation = _create_allergy_observation(patient, encounters, "Penicillin Specific IgE", "Drug_Allergy_IgE")
-                if observation:
-                    followups["observations"].append(observation)
-                    added_tests.add("penicillin specific ige")
-
-        if category == "insect" and severity == "severe" and "venom_immunotherapy" not in added_procedures:
-            followups["procedures"].append(
-                _create_allergy_procedure(
-                    patient,
-                    encounters,
-                    "Venom Immunotherapy Consultation",
-                    "95144",
-                    category="therapeutic",
-                )
-            )
-            added_procedures.add("venom_immunotherapy")
+        for medication_action in action_sets["medications"]:
+            _apply_followup_action(patient, encounters, medication_action, followups, added_actions)
+        for test_action in action_sets["tests"]:
+            _apply_followup_action(patient, encounters, test_action, followups, added_actions)
+        for procedure_action in action_sets["procedures"]:
+            _apply_followup_action(patient, encounters, procedure_action, followups, added_actions)
 
     return followups
 

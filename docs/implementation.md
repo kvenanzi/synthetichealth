@@ -95,16 +95,16 @@ Exporter Consistency
 - VistA: continue writing `^GMR(120.8)` entries; ensure `^GMR(120.82)` allergen dictionary contains all selected substances; keep reactions in node `1` and severities in node `3`.
 
 Implementation Steps
-1. Add a warehouse-backed allergen/reaction loader:
+1. ✅ Add a warehouse-backed allergen/reaction loader:
    - Prefer VSAC sets for substance lists; fall back to RxNorm ingredient list filtered by allergen classes.
    - Pull a curated set of reaction terms from SNOMED CT; expose via loader API.
-2. Replace `ALLERGENS` and `ALLERGY_REACTIONS` seeds with dynamic catalogs built at startup (configurable cap for cohort realism vs. performance).
-3. Update `generate_allergies` to sample from the expanded catalogs and attach severity; add optional downstream orders (procedures, labs, meds) based on substance and severity.
-4. Wire new catalogs to exporters:
+2. ✅ Replace `ALLERGENS` and `ALLERGY_REACTIONS` seeds with dynamic catalogs built at startup (configurable cap for cohort realism vs. performance) and curated fallbacks for high-signal substances.
+3. ✅ Update `generate_allergies`/`plan_allergy_followups` to sample from the expanded catalogs, apply severity weighting, and emit downstream labs/procedures/meds tied to substance risk.
+4. 🔄 Wire new catalogs to exporters:
    - FHIR: enrich AllergyIntolerance + associated resources (MedicationRequest, ServiceRequest/Procedure, Observation) with correct codes.
    - VistA: ensure `^PSDRUG`, `^LAB(60)`, and `^GMR(120.82)` contain pointer targets for every generated entry.
-5. Validation:
-   - Unit tests that verify minimum allergen count (>40), presence of coded reactions, and exporter integrity across CSV/FHIR/VistA/HL7.
+5. ✅ Validation:
+   - Regression tests cover allergen minimums, Penicillin-specific follow-ups, and severity-driven IgE panels; suite passes `tests/test_clinical_generation.py` and `tests/test_allergen_loader.py`.
    - Monte Carlo check: distribution of allergens, reactions, and severities across cohorts looks plausible.
 
 Acceptance Criteria
