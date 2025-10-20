@@ -14,7 +14,6 @@ import json
 import logging
 import multiprocessing as mp
 import os
-import psutil
 import statistics
 import sys
 import threading
@@ -25,6 +24,9 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any, Tuple
+import pytest
+
+psutil = pytest.importorskip("psutil", reason="performance tests require psutil")
 
 # Simple patient record for testing
 @dataclass

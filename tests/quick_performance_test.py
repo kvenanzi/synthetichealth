@@ -7,7 +7,6 @@ Rapid performance testing for migration simulation system.
 
 import gc
 import json
-import psutil
 import statistics
 import sys
 import time
@@ -16,6 +15,9 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Dict, List, Any
+import pytest
+
+psutil = pytest.importorskip("psutil", reason="performance tests require psutil")
 
 @dataclass
 class QuickPatientRecord:
