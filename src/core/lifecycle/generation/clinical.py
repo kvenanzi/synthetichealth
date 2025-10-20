@@ -1715,6 +1715,7 @@ def build_lab_test(
     normal_range: Optional[tuple[float, float]] = None,
     critical_low: Optional[float] = None,
     critical_high: Optional[float] = None,
+    age_gender_adjustments: Optional[Dict[str, Dict[str, tuple[float, float]]]] = None,
 ) -> Dict[str, Any]:
     base = {
         "name": name,
@@ -1724,6 +1725,8 @@ def build_lab_test(
         "critical_low": critical_low,
         "critical_high": critical_high,
     }
+    if age_gender_adjustments:
+        base["age_gender_adjustments"] = age_gender_adjustments
     entry = LAB_TEST_CATALOG.get(name)
     if entry:
         base["loinc"] = entry.get("loinc", base["loinc"])
@@ -1781,7 +1784,7 @@ MEDICATION_MONITORING_MAP = {
     "chemotherapy": ["Oncology_Tumor_Markers", "Complete_Blood_Count"],
     "targeted_therapy": ["Oncology_Tumor_Markers"],
     "biologic_dmard": ["Inflammatory_Markers"],
-    "glucocorticoid": ["Inflammatory_Markers"],
+    "glucocorticoid": ["Inflammatory_Markers", "Bone_Health"],
     "thyroid_replacement": ["Thyroid_Function"],
     "bronchodilator": ["Pulmonary_Function"],
     "inhaled_combo": ["Pulmonary_Function"],
@@ -1997,6 +2000,52 @@ COMPREHENSIVE_LAB_PANELS = {
         ],
         "frequency": "annual",
         "indications": ["behavioral_health", "substance_use_screening"]
+    },
+    "Iron_Studies": {
+        "tests": [
+            {"name": "Serum Iron", "loinc": "2498-4", "units": "mcg/dL", "normal_range": (60, 170), "critical_low": 20, "critical_high": 300},
+            {"name": "Total Iron Binding Capacity", "loinc": "2500-7", "units": "mcg/dL", "normal_range": (250, 450), "critical_low": 150, "critical_high": 600},
+            {"name": "Ferritin", "loinc": "2276-4", "units": "ng/mL", "normal_range": (15, 150), "critical_low": 5, "critical_high": 800},
+            {"name": "Transferrin Saturation", "loinc": "2502-3", "units": "%", "normal_range": (20, 50), "critical_low": 10, "critical_high": 80}
+        ],
+        "frequency": "as_needed",
+        "indications": ["anemia", "iron_deficiency", "chronic_kidney_disease"]
+    },
+    "Hepatitis_Serology": {
+        "tests": [
+            {"name": "Hepatitis B Surface Antigen", "loinc": "5195-3", "units": "", "normal_range": (0, 1), "critical_low": None, "critical_high": None},
+            {"name": "Hepatitis B Surface Antibody", "loinc": "10900-9", "units": "mIU/mL", "normal_range": (10, 999), "critical_low": 0, "critical_high": None},
+            {"name": "Hepatitis C Virus Ab", "loinc": "13955-0", "units": "", "normal_range": (0, 1), "critical_low": None, "critical_high": None}
+        ],
+        "frequency": "as_needed",
+        "indications": ["liver_disease", "hepatitis_screening", "antiviral_therapy"]
+    },
+    "Bone_Health": {
+        "tests": [
+            {"name": "Vitamin D 25-Hydroxy", "loinc": "1989-3", "units": "ng/mL", "normal_range": (30, 100), "critical_low": 10, "critical_high": 150},
+            {"name": "Calcium", "loinc": "17861-6", "units": "mg/dL", "normal_range": (8.6, 10.3), "critical_low": 7.0, "critical_high": 12.5},
+            {"name": "Parathyroid Hormone Intact", "loinc": "2731-8", "units": "pg/mL", "normal_range": (10, 65), "critical_low": 5, "critical_high": 150}
+        ],
+        "frequency": "annual",
+        "indications": ["osteoporosis_risk", "chronic_kidney_disease"]
+    },
+    "Renal_Microalbumin": {
+        "tests": [
+            {"name": "Urine Microalbumin", "loinc": "14957-5", "units": "mg/L", "normal_range": (0, 30), "critical_low": None, "critical_high": 200},
+            {"name": "Urine Creatinine", "loinc": "2161-8", "units": "mg/dL", "normal_range": (20, 320), "critical_low": 10, "critical_high": 500},
+            {"name": "Microalbumin/Creatinine Ratio", "loinc": "9318-7", "units": "mg/g", "normal_range": (0, 30), "critical_low": None, "critical_high": 300}
+        ],
+        "frequency": "annual",
+        "indications": ["diabetes", "hypertension", "kidney_disease"]
+    },
+    "Autoimmune_Panel": {
+        "tests": [
+            {"name": "Antinuclear Antibody", "loinc": "3218-5", "units": "", "normal_range": (0, 1), "critical_low": None, "critical_high": None},
+            {"name": "Rheumatoid Factor", "loinc": "33910-9", "units": "IU/mL", "normal_range": (0, 20), "critical_low": None, "critical_high": 200},
+            {"name": "C-Reactive Protein", "loinc": "1988-5", "units": "mg/L", "normal_range": (0, 5), "critical_low": None, "critical_high": 200}
+        ],
+        "frequency": "as_needed",
+        "indications": ["autoimmune_disorder", "rheumatologic_condition"]
     },
     "Pulmonary_Function": {
         "tests": [
@@ -2237,6 +2286,29 @@ AGE_GENDER_ADJUSTMENTS = {
     "eGFR": {
         "elderly": {"normal_range": (60, 89)},
         "adult": {"normal_range": (90, 120)}
+    },
+    "HDL_Cholesterol": {
+        "male": {"normal_range": (40, 60)},
+        "female": {"normal_range": (50, 70)}
+    },
+    "Ferritin": {
+        "male": {"normal_range": (30, 400)},
+        "female": {"normal_range": (15, 150)},
+        "pediatric": {"normal_range": (7, 140)}
+    },
+    "Vitamin D 25-Hydroxy": {
+        "elderly": {"normal_range": (20, 80)},
+        "adult": {"normal_range": (30, 100)}
+    },
+    "FEV1": {
+        "adult": {"normal_range": (2.5, 4.0)},
+        "pediatric": {"normal_range": (1.5, 3.0)},
+        "elderly": {"normal_range": (2.0, 3.5)}
+    },
+    "FVC": {
+        "adult": {"normal_range": (3.0, 5.0)},
+        "pediatric": {"normal_range": (2.0, 4.0)},
+        "elderly": {"normal_range": (2.5, 4.5)}
     }
 }
 
@@ -4502,6 +4574,23 @@ CATEGORY_PANEL_DEFAULTS = {
     "genitourinary": {"Renal_Function_Panel"},
 }
 
+CONDITION_KEYWORD_LAB_PANELS: Dict[str, Set[str]] = {
+    "anemia": {"Iron_Studies"},
+    "iron": {"Iron_Studies"},
+    "thalassemia": {"Iron_Studies"},
+    "hepatitis": {"Hepatitis_Serology"},
+    "cirrhosis": {"Hepatitis_Serology"},
+    "osteoporosis": {"Bone_Health"},
+    "fracture": {"Bone_Health"},
+    "bone": {"Bone_Health"},
+    "kidney": {"Renal_Microalbumin"},
+    "nephropathy": {"Renal_Microalbumin"},
+    "proteinuria": {"Renal_Microalbumin"},
+    "autoimmune": {"Autoimmune_Panel"},
+    "lupus": {"Autoimmune_Panel"},
+    "rheumatoid": {"Autoimmune_Panel"},
+}
+
 # Basic contraindications to prevent dangerous prescribing
 MEDICATION_CONTRAINDICATIONS = {
     "Metformin": ["eGFR_less_than_30", "Severe_heart_failure", "Metabolic_acidosis"],
@@ -5876,6 +5965,11 @@ def determine_lab_panels(patient, conditions, medications=None):
         panels.add("Lipid_Panel")
     if age >= 30:
         panels.add("Complete_Blood_Count")
+    gender = (patient.get("gender") or "").lower()
+    if age >= 50 and gender == "female":
+        panels.add("Bone_Health")
+    if age >= 65 and gender in {"male", "female"}:
+        panels.add("Bone_Health")
     
     # Condition-based lab panels
     if conditions:
@@ -5897,6 +5991,15 @@ def determine_lab_panels(patient, conditions, medications=None):
                 panels.add("Thyroid_Function")
             elif category == "endocrine" and random.random() < 0.1:
                 panels.add("Thyroid_Function")
+            for keyword, panel_set in CONDITION_KEYWORD_LAB_PANELS.items():
+                if keyword in lowered:
+                    panels.update(panel_set)
+            if category == "hematologic":
+                panels.add("Iron_Studies")
+            if category in {"renal", "genitourinary"}:
+                panels.add("Renal_Microalbumin")
+            if category == "autoimmune":
+                panels.add("Autoimmune_Panel")
     
     med_classes = set()
     if medications:
@@ -6006,7 +6109,7 @@ def get_adjusted_normal_range(test_name, age, gender, test_config):
     base_range = test_config.get("normal_range", (0, 100))
     
     # Check for age/gender adjustments
-    adjustments = AGE_GENDER_ADJUSTMENTS.get(test_name, {})
+    adjustments = test_config.get("age_gender_adjustments") or AGE_GENDER_ADJUSTMENTS.get(test_name, {})
     
     if gender in adjustments:
         return adjustments[gender].get("normal_range", base_range)

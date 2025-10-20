@@ -142,7 +142,7 @@ Exporter Consistency
 Implementation Steps
 1. ✅ Add `medications_loader` hydration for curated therapeutics with class tags, default dosing, and RxNorm metadata; expose profiles for downstream use.
 2. ✅ Replace static medication picks with catalog-driven profiles that emit dose/route/frequency, apply therapeutic-class defaults, and attach monitoring panels.
-3. Extend lab panel registry with additional LOINC tests; add age/sex-aware reference ranges and disease-biased distributions; wire order logic from condition/meds.
+3. ✅ Extend lab panel registry with additional LOINC tests, age/sex-aware reference ranges, and condition/medication-driven panel selection.
 4. Update VistA registries if needed (e.g., support dose text nodes later) and verify pointer integrity for all new entries.
 5. Tests: unit tests for (a) med variety per 100 pts, (b) class coverage by condition, (c) lab breadth and LOINC/unit integrity, (d) VistA pointer/xref correctness; Monte Carlo checks for plausible distributions.
 

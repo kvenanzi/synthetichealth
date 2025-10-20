@@ -774,6 +774,34 @@ def test_medication_record_sets_duration_for_antivirals():
         assert record.get("end_date") is not None
 
 
+def test_age_gender_adjustment_applies():
+    test_config = {"name": "Ferritin", "normal_range": (15, 150)}
+    female_range = clinical.get_adjusted_normal_range("Ferritin", 35, "female", test_config)
+    male_range = clinical.get_adjusted_normal_range("Ferritin", 35, "male", test_config)
+    assert female_range[1] < male_range[1]
+
+
+def test_determine_lab_panels_includes_iron_studies_for_anemia():
+    patient = base_patient()
+    patient["age"] = 45
+    conditions = [
+        {
+            "name": "Iron deficiency anemia",
+            "condition_category": "hematologic",
+        }
+    ]
+    panels = clinical.determine_lab_panels(patient, conditions, [])
+    assert "Iron_Studies" in panels
+
+
+def test_age_triggers_bone_health_panel():
+    patient = base_patient()
+    patient["age"] = 68
+    patient["gender"] = "female"
+    panels = clinical.determine_lab_panels(patient, [], [])
+    assert "Bone_Health" in panels
+
+
 def test_lab_loinc_breadth_meets_threshold():
     unique_loinc = set()
     for idx in range(30):
