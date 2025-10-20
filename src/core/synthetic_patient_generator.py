@@ -578,6 +578,11 @@ class FHIRFormatter:
             reaction_entry["manifestation"].append(
                 {"text": reaction_text or "Allergic reaction"}
             )
+        if reaction_text:
+            reaction_entry["description"] = reaction_text
+        onset_date = allergy.get("recorded_date") or allergy.get("onset_date")
+        if onset_date:
+            reaction_entry["onset"] = onset_date
 
         severity = allergy.get("severity")
         if severity:
@@ -623,6 +628,8 @@ class FHIRFormatter:
             "reaction": [reaction_entry],
         }
 
+        resource["type"] = "allergy"
+
         recorded_date = allergy.get("recorded_date")
         if recorded_date:
             resource["recordedDate"] = recorded_date
@@ -630,8 +637,9 @@ class FHIRFormatter:
             resource["category"] = [category_value]
         if criticality:
             resource["criticality"] = criticality
+        extensions = resource.setdefault("extension", [])
         if severity_code:
-            resource.setdefault("extension", []).append(
+            extensions.append(
                 {
                     "url": "http://hl7.org/fhir/StructureDefinition/allergyintolerance-severity",
                     "valueCodeableConcept": {
@@ -645,6 +653,25 @@ class FHIRFormatter:
                     },
                 }
             )
+        risk_level = allergy.get("risk_level")
+        if risk_level:
+            extensions.append(
+                {
+                    "url": "http://synthetichealth.org/fhir/StructureDefinition/allergy-risk-level",
+                    "valueCode": str(risk_level).lower(),
+                }
+            )
+        registry_source = allergy.get("registry_source")
+        if registry_source:
+            extensions.append(
+                {
+                    "url": "http://synthetichealth.org/fhir/StructureDefinition/allergy-registry-source",
+                    "valueString": registry_source,
+                }
+            )
+        followup_summary = allergy.get("followup_summary")
+        if followup_summary:
+            resource.setdefault("note", []).append({"text": followup_summary})
 
         return resource
 
@@ -1758,11 +1785,13 @@ class VistaReferenceRegistry:
         name: Optional[str],
         rxnorm: Optional[str] = None,
         unii: Optional[str] = None,
+        snomed: Optional[str] = None,
+        risk_level: Optional[str] = None,
     ) -> str:
-        if not name and not rxnorm and not unii:
+        if not name and not rxnorm and not unii and not snomed:
             return ""
-        display_name = name or rxnorm or unii or "Unknown Allergen"
-        key = "|".join(filter(None, [rxnorm, unii, display_name])).upper()
+        display_name = name or rxnorm or snomed or unii or "Unknown Allergen"
+        key = "|".join(filter(None, [rxnorm, snomed, unii, display_name])).upper()
         entry = self.allergen_lookup.get(key)
         if entry is None:
             ien = self._allocate("_allergen_counter")
@@ -1771,10 +1800,20 @@ class VistaReferenceRegistry:
                 "name": display_name,
                 "rxnorm": rxnorm or "",
                 "unii": unii or "",
+                "snomed": snomed or "",
+                "risk": (risk_level or "").lower(),
             }
             return ien
         if name and not entry.get("name"):
             entry["name"] = name
+        if rxnorm and not entry.get("rxnorm"):
+            entry["rxnorm"] = rxnorm
+        if unii and not entry.get("unii"):
+            entry["unii"] = unii
+        if snomed and not entry.get("snomed"):
+            entry["snomed"] = snomed
+        if risk_level and not entry.get("risk"):
+            entry["risk"] = risk_level.lower()
         return entry["ien"]
 
     def get_immunization_ien(
@@ -1841,8 +1880,11 @@ class VistaReferenceRegistry:
         for entry in self.allergen_lookup.values():
             ien = entry["ien"]
             name = sanitize(entry.get("name", "")) or f"ALLERGEN {ien}"
-            metadata = entry.get("rxnorm") or entry.get("unii") or ""
-            node_value = f"{name}^{metadata}"
+            rxnorm = entry.get("rxnorm", "")
+            snomed = entry.get("snomed", "")
+            unii = entry.get("unii", "")
+            risk = entry.get("risk", "")
+            node_value = f"{name}^{rxnorm}^{snomed}^{unii}^{risk}"
             globals_dict[f"^GMR(120.82,{ien},0)"] = node_value
             globals_dict[f'^GMR(120.82,"B","{name}",{ien})'] = ""
         for entry in self.immunization_lookup.values():
@@ -2575,6 +2617,8 @@ class VistaFormatter:
                     allergy.get('substance'),
                     allergy.get('rxnorm_code'),
                     allergy.get('unii_code'),
+                    allergy.get('snomed_code'),
+                    allergy.get('risk_level'),
                 )
                 recorded_date = (
                     allergy.get('recorded_date')
@@ -2583,8 +2627,18 @@ class VistaFormatter:
                     or current_date_iso
                 )
                 allergy_date = VistaFormatter.fileman_date_format(recorded_date)
-                reaction_text = VistaFormatter.sanitize_mumps_string(allergy.get('reaction', ''))
-                severity_text = VistaFormatter.sanitize_mumps_string(allergy.get('severity', '')).upper()
+                reaction_text_raw = allergy.get('reaction', '') or ''
+                reaction_text = VistaFormatter.sanitize_mumps_string(reaction_text_raw)
+                reaction_code = allergy.get('reaction_code')
+                if reaction_code:
+                    suffix = f" ({reaction_code})" if reaction_text else reaction_code
+                    reaction_text = VistaFormatter.sanitize_mumps_string(f"{reaction_text}{suffix}")
+                severity_text_raw = allergy.get('severity', '') or ''
+                severity_text = VistaFormatter.sanitize_mumps_string(severity_text_raw).upper()
+                severity_code = allergy.get('severity_code')
+                if severity_code:
+                    severity_text = f"{severity_text}|{severity_code}" if severity_text else severity_code
+                risk_level = allergy.get('risk_level')
                 segments = [
                     str(vista_ien or ""),
                     str(allergen_ien or ""),
@@ -2600,6 +2654,8 @@ class VistaFormatter:
                     all_globals[f"^GMR(120.8,{allergy_ien},1)"] = reaction_text
                 if severity_text:
                     all_globals[f"^GMR(120.8,{allergy_ien},3)"] = severity_text
+                if risk_level:
+                    all_globals[f"^GMR(120.8,{allergy_ien},13)"] = VistaFormatter.sanitize_mumps_string(str(risk_level))
 
             for immunization in immunization_map.get(patient.patient_id, []):
                 imm_key = (

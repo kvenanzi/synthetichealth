@@ -165,3 +165,44 @@ def test_medication_statement_includes_umls_extensions():
     assert coding["code"] == "12345"
     extension_urls = [ext.get("url") for ext in coding.get("extension", [])]
     assert "http://example.org/fhir/StructureDefinition/umls-concept" in extension_urls
+
+
+def test_allergy_resource_includes_risk_extension():
+    rxnorm_entry = TerminologyEntry(
+        code="12345",
+        display="Peanut Product",
+        metadata={},
+    )
+    lookup = build_terminology_lookup({"rxnorm": [rxnorm_entry]})
+    formatter = FHIRFormatter(lookup)
+
+    allergy = {
+        "allergy_id": "all-1",
+        "substance": "Peanut",
+        "rxnorm_code": "12345",
+        "snomed_code": "256349002",
+        "category": "food",
+        "reaction": "Anaphylaxis",
+        "reaction_code": "39579001",
+        "severity": "severe",
+        "severity_code": "24484000",
+        "severity_system": "http://snomed.info/sct",
+        "risk_level": "high",
+        "registry_source": "curated",
+        "recorded_date": "2025-01-01",
+        "followup_summary": "medications:epinephrine_autoinjector",
+    }
+
+    resource = formatter.create_allergy_intolerance_resource("patient-1", allergy)
+    assert resource["type"] == "allergy"
+    extensions = {ext["url"]: ext for ext in resource.get("extension", [])}
+    risk_ext = extensions.get("http://synthetichealth.org/fhir/StructureDefinition/allergy-risk-level")
+    assert risk_ext and risk_ext["valueCode"] == "high"
+    registry_ext = extensions.get("http://synthetichealth.org/fhir/StructureDefinition/allergy-registry-source")
+    assert registry_ext and registry_ext["valueString"] == "curated"
+    reaction = resource["reaction"][0]
+    coding = reaction["manifestation"][0]["coding"][0]
+    assert coding["code"] == "39579001"
+    assert reaction["severity"] == "severe"
+    assert reaction.get("onset") == "2025-01-01"
+    assert resource.get("note") and "epinephrine_autoinjector" in resource["note"][0]["text"]

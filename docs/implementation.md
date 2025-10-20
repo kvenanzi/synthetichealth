@@ -100,9 +100,9 @@ Implementation Steps
    - Pull a curated set of reaction terms from SNOMED CT; expose via loader API.
 2. ✅ Replace `ALLERGENS` and `ALLERGY_REACTIONS` seeds with dynamic catalogs built at startup (configurable cap for cohort realism vs. performance) and curated fallbacks for high-signal substances.
 3. ✅ Update `generate_allergies`/`plan_allergy_followups` to sample from the expanded catalogs, apply severity weighting, and emit downstream labs/procedures/meds tied to substance risk.
-4. 🔄 Wire new catalogs to exporters:
-   - FHIR: enrich AllergyIntolerance + associated resources (MedicationRequest, ServiceRequest/Procedure, Observation) with correct codes.
-   - VistA: ensure `^PSDRUG`, `^LAB(60)`, and `^GMR(120.82)` contain pointer targets for every generated entry.
+4. ✅ Wire new catalogs to exporters:
+   - FHIR: enrich AllergyIntolerance + associated resources (MedicationRequest, ServiceRequest/Procedure, Observation) with correct codes, risk metadata, and follow-up notes.
+   - VistA: ensure `^PSDRUG`, `^LAB(60)`, and `^GMR(120.82)` contain pointer targets for every generated entry, including reaction/severity codings.
 5. ✅ Validation:
    - Regression tests cover allergen minimums, Penicillin-specific follow-ups, and severity-driven IgE panels; suite passes `tests/test_clinical_generation.py` and `tests/test_allergen_loader.py`.
    - Monte Carlo check: distribution of allergens, reactions, and severities across cohorts looks plausible.

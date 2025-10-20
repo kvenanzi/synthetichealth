@@ -123,6 +123,15 @@ def test_fileman_internal_generates_numeric_pointers(tmp_path):
 
     allergy_zero = next(line for line in content if re.match(r'S \^GMR\(120\.8,\d+,0\)=', line))
     assert re.search(r'"1001\^\d+\^\^o\^', allergy_zero)
+    reaction_line = next(line for line in content if re.match(r'S \^GMR\(120\.8,\d+,1\)=', line))
+    assert "39579001" in reaction_line
+    severity_line = next(line for line in content if re.match(r'S \^GMR\(120\.8,\d+,3\)=', line))
+    assert "24484000" in severity_line
+
+    allergen_dict_line = next(line for line in content if re.match(r'S \^GMR\(120\.82,\d+,0\)=', line))
+    assert allergen_dict_line.count("^") >= 5
+    assert "PEANUTS" in allergen_dict_line.upper()
+    assert "12345" in allergen_dict_line
 
     drug_pointer = next(line for line in content if re.match(r'S \^PSDRUG\(\d+,0\)=', line))
     assert 'LISINOPRIL' in drug_pointer.upper() or '617314' in drug_pointer

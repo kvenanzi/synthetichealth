@@ -5290,6 +5290,7 @@ def generate_allergies(patient, min_all=0, max_all=2):
             "risk_level": profile.risk_level,
             "registry_source": profile.source,
             "recorded_date": recorded_date,
+            "followup_summary": f"risk: {profile.risk_level} | severity: {severity_entry['display'].lower()}",
         })
 
     return allergies
@@ -5458,6 +5459,19 @@ def plan_allergy_followups(
             _apply_followup_action(patient, encounters, test_action, followups, added_actions)
         for procedure_action in action_sets["procedures"]:
             _apply_followup_action(patient, encounters, procedure_action, followups, added_actions)
+
+        summary_parts: List[str] = []
+        if action_sets["medications"]:
+            summary_parts.append("medications:" + ",".join(sorted(action_sets["medications"])))
+        if action_sets["tests"]:
+            summary_parts.append("tests:" + ",".join(sorted(action_sets["tests"])))
+        if action_sets["procedures"]:
+            summary_parts.append("procedures:" + ",".join(sorted(action_sets["procedures"])))
+        if summary_parts:
+            base_summary = allergy.get("followup_summary")
+            if base_summary:
+                summary_parts.insert(0, base_summary)
+            allergy["followup_summary"] = " | ".join(summary_parts)
 
     return followups
 
