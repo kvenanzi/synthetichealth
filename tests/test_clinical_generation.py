@@ -600,9 +600,6 @@ def test_parse_distribution_accepts_mapping():
     assert parsed == distribution
 
 
-def test_generate_immunizations_schedule():
-
-
 def test_allergen_catalog_expanded_with_categories():
     entries = list(clinical.ALLERGEN_ENTRIES)
     assert len(entries) >= 60
