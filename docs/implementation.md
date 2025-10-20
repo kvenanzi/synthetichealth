@@ -140,9 +140,9 @@ Exporter Consistency
 - HL7 v2: continue ADT/ORU; consider ORM for orders when enabled.
 
 Implementation Steps
-1. Add `medications_loader` that builds a therapeutic catalog from RxNorm with class tags; add configuration to cap breadth (e.g., top N per class) for performance.
-2. Replace static medication picks with catalog sampling constrained by condition class rules and contraindications; emit dose form metadata and durations where feasible.
-3. Extend lab panel registry with additional LOINC tests; add age/sex‑aware reference ranges and disease‑biased distributions; wire order logic from condition/meds.
+1. ✅ Add `medications_loader` hydration for curated therapeutics with class tags, default dosing, and RxNorm metadata; expose profiles for downstream use.
+2. ✅ Replace static medication picks with catalog-driven profiles that emit dose/route/frequency, apply therapeutic-class defaults, and attach monitoring panels.
+3. Extend lab panel registry with additional LOINC tests; add age/sex-aware reference ranges and disease-biased distributions; wire order logic from condition/meds.
 4. Update VistA registries if needed (e.g., support dose text nodes later) and verify pointer integrity for all new entries.
 5. Tests: unit tests for (a) med variety per 100 pts, (b) class coverage by condition, (c) lab breadth and LOINC/unit integrity, (d) VistA pointer/xref correctness; Monte Carlo checks for plausible distributions.
 

@@ -39,6 +39,7 @@ from ...terminology.loaders import (
     load_medication_entries,
     load_snomed_conditions,
     load_snomed_icd10_crosswalk,
+    THERAPEUTIC_CLASS_DEFAULTS,
 )
 
 
@@ -1600,6 +1601,14 @@ def _load_medication_catalog() -> Dict[str, Dict[str, Any]]:
                 "ndc_example": metadata.get("ndc_example") or metadata.get("ndc"),
                 "therapeutic_class": metadata.get("therapeutic_class", ""),
                 "rxnorm_name": metadata.get("rxnorm_name", entry.display),
+                "default_dose": metadata.get("default_dose"),
+                "dose_unit": metadata.get("dose_unit"),
+                "route": metadata.get("route"),
+                "frequency": metadata.get("frequency"),
+                "duration_days": metadata.get("duration_days"),
+                "monitoring_panels": metadata.get("monitoring_panels", []),
+                "aliases": metadata.get("aliases", []),
+                "metadata": metadata,
             }
             catalog[entry.display] = med_record
             alias = entry.display.replace(" ", "_")
@@ -1616,6 +1625,14 @@ def _load_medication_catalog() -> Dict[str, Dict[str, Any]]:
                 "ndc": item.get("ndc"),
                 "ndc_example": item.get("ndc"),
                 "therapeutic_class": item.get("therapeutic_class", ""),
+                "default_dose": None,
+                "dose_unit": "",
+                "route": "oral",
+                "frequency": "once daily",
+                "duration_days": None,
+                "monitoring_panels": [],
+                "aliases": [display.replace(" ", "_")],
+                "metadata": {},
             }
             catalog[display] = med_record
             catalog.setdefault(display.replace(" ", "_"), med_record)
@@ -1630,9 +1647,31 @@ def _load_medication_catalog() -> Dict[str, Dict[str, Any]]:
                 "ndc": item.get("ndc"),
                 "ndc_example": item.get("ndc"),
                 "therapeutic_class": item.get("therapeutic_class", ""),
+                "default_dose": None,
+                "dose_unit": "",
+                "route": "oral",
+                "frequency": "once daily",
+                "duration_days": None,
+                "monitoring_panels": [],
+                "aliases": [display.replace(" ", "_")],
+                "metadata": {},
             }
             catalog[display] = med_record
             catalog.setdefault(display.replace(" ", "_"), med_record)
+
+    for record in catalog.values():
+        therapeutic_class = record.get("therapeutic_class", "")
+        defaults = THERAPEUTIC_CLASS_DEFAULTS.get(therapeutic_class, {})
+        for key, value in defaults.items():
+            if record.get(key) is None and value is not None:
+                record[key] = value
+        record.setdefault("aliases", [])
+        record.setdefault("monitoring_panels", [])
+        record.setdefault("metadata", {})
+        record["metadata"].setdefault("therapeutic_class", therapeutic_class)
+        for key in ("default_dose", "dose_unit", "route", "frequency", "duration_days", "monitoring_panels"):
+            if key in record and record[key] is not None:
+                record["metadata"].setdefault(key, record[key])
 
     return catalog
 
@@ -1750,6 +1789,86 @@ MEDICATION_MONITORING_MAP = {
     "long_acting_anticholinergic": ["Pulmonary_Function"],
     "antiviral": ["Inflammatory_Markers"],
 }
+
+
+@dataclass(frozen=True)
+class MedicationProfile:
+    display: str
+    therapeutic_class: str
+    rxnorm_code: str
+    ndc_code: Optional[str]
+    default_dose: Optional[float]
+    dose_unit: str
+    route: str
+    frequency: str
+    duration_days: Optional[int]
+    monitoring_panels: Tuple[str, ...]
+    aliases: Tuple[str, ...]
+
+
+@lru_cache(maxsize=1)
+def _build_medication_profiles() -> Dict[str, MedicationProfile]:
+    catalog = _load_medication_catalog()
+    profiles: Dict[str, MedicationProfile] = {}
+    processed: Set[str] = set()
+
+    for record in catalog.values():
+        display = record.get("display") or ""
+        if not display:
+            continue
+        normalized_display = display.lower()
+        if normalized_display in processed:
+            continue
+        processed.add(normalized_display)
+
+        therapeutic_class = record.get("therapeutic_class", "")
+        defaults = THERAPEUTIC_CLASS_DEFAULTS.get(therapeutic_class, {})
+
+        raw_dose = record.get("default_dose", defaults.get("default_dose"))
+        try:
+            default_dose = float(raw_dose) if raw_dose not in (None, "", "NA") else None
+        except (TypeError, ValueError):
+            default_dose = None
+
+        raw_duration = record.get("duration_days", defaults.get("duration_days"))
+        try:
+            duration_days = int(raw_duration) if raw_duration not in (None, "", "NA") else None
+        except (TypeError, ValueError):
+            duration_days = None
+
+        monitoring_panels = set(record.get("monitoring_panels", []))
+        monitoring_panels.update(MEDICATION_MONITORING_MAP.get(therapeutic_class, []))
+
+        aliases = tuple({*(record.get("aliases", []) or []), display.replace(" ", "_").lower()})
+
+        profile = MedicationProfile(
+            display=display,
+            therapeutic_class=therapeutic_class,
+            rxnorm_code=str(record.get("rxnorm_code", "") or ""),
+            ndc_code=record.get("ndc") or record.get("ndc_example"),
+            default_dose=default_dose,
+            dose_unit=record.get("dose_unit") or defaults.get("dose_unit", ""),
+            route=record.get("route") or defaults.get("route", "oral"),
+            frequency=record.get("frequency") or defaults.get("frequency", ""),
+            duration_days=duration_days,
+            monitoring_panels=tuple(sorted(panel for panel in monitoring_panels if panel)),
+            aliases=tuple(alias for alias in aliases if alias),
+        )
+
+        profiles[normalized_display] = profile
+        for alias in profile.aliases:
+            profiles.setdefault(alias.lower(), profile)
+
+    return profiles
+
+
+MEDICATION_PROFILES = LazyMapping(_build_medication_profiles)
+
+
+def get_medication_profile(name: Optional[str]) -> Optional[MedicationProfile]:
+    if not name:
+        return None
+    return MEDICATION_PROFILES.get(name.lower())
 # PHASE 2: Comprehensive laboratory panels with clinical accuracy
 COMPREHENSIVE_LAB_PANELS = {
     "Basic_Metabolic_Panel": {
@@ -5203,26 +5322,40 @@ def create_medication_record(patient, condition, encounters, medication_name, th
         start_date_obj = today
     start_date_iso = start_date_obj.isoformat()
     
-    # Chronic medications typically don't have end dates
-    chronic_conditions = ["Hypertension", "Diabetes", "Heart Disease", "Depression", "Anxiety"]
-    if condition["name"] in chronic_conditions:
-        end_date = None
-    else:
-        # Acute medications have limited duration
-        if random.random() < 0.8:  # 80% have end date
-            end_date_date = fake.date_between(start_date=start_date_obj, end_date=today)
-            end_date = end_date_date.isoformat()
-        else:
-            end_date = None
-
     resolved_name, med_entry = resolve_medication_entry(medication_name)
-    therapeutic_class = med_entry.get("therapeutic_class") if med_entry else ""
-    route = THERAPEUTIC_CLASS_ROUTE_MAP.get(therapeutic_class, "oral")
-    if therapeutic_class in {"chemotherapy", "targeted_therapy"}:
-        route = "intravenous"
-    monitoring_panels = MEDICATION_MONITORING_MAP.get(therapeutic_class, [])
+    profile = get_medication_profile(resolved_name)
+    if profile is None and med_entry:
+        profile = get_medication_profile(med_entry.get("display"))
 
-    return {
+    therapeutic_class = med_entry.get("therapeutic_class") if med_entry else ""
+    if profile and not therapeutic_class:
+        therapeutic_class = profile.therapeutic_class
+
+    default_dose = profile.default_dose if profile else None
+    dose_unit = profile.dose_unit if profile else ""
+    route = profile.route if profile else THERAPEUTIC_CLASS_ROUTE_MAP.get(therapeutic_class, "oral")
+    frequency = profile.frequency if profile else ""
+    duration_days = profile.duration_days if profile else None
+
+    monitoring_panels: Set[str] = set(profile.monitoring_panels if profile else [])
+    monitoring_panels.update(MEDICATION_MONITORING_MAP.get(therapeutic_class, []))
+
+    end_date: Optional[str] = None
+    if duration_days and duration_days > 0:
+        end_dt = start_date_obj + timedelta(days=duration_days)
+        if end_dt > today:
+            end_dt = today
+        end_date = end_dt.isoformat()
+    else:
+        chronic_conditions = ["Hypertension", "Diabetes", "Heart Disease", "Depression", "Anxiety"]
+        if condition["name"] in chronic_conditions:
+            end_date = None
+        else:
+            if random.random() < 0.8:
+                end_date_date = fake.date_between(start_date=start_date_obj, end_date=today)
+                end_date = end_date_date.isoformat()
+
+    record = {
         "medication_id": str(uuid.uuid4()),
         "patient_id": patient["patient_id"],
         "encounter_id": enc["encounter_id"] if enc else None,
@@ -5235,9 +5368,20 @@ def create_medication_record(patient, condition, encounters, medication_name, th
         "ndc_code": med_entry.get("ndc") if med_entry else med_entry.get("ndc_code") if med_entry else None,
         "therapeutic_class": therapeutic_class,
         "route": route,
-        "monitoring_panels": monitoring_panels,
+        "monitoring_panels": sorted(monitoring_panels),
         "status": "active" if not end_date else "completed",
     }
+
+    if default_dose is not None:
+        record["dose"] = default_dose
+    if dose_unit:
+        record["dose_unit"] = dose_unit
+    if frequency:
+        record["frequency"] = frequency
+    if duration_days is not None:
+        record["duration_days"] = duration_days
+
+    return record
 
 def _sample_allergy_severity(weights: Tuple[float, float, float]) -> Dict[str, Any]:
     try:

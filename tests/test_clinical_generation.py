@@ -727,6 +727,53 @@ def test_prescribe_medication_handles_condition_alias():
     assert med_names & expected
 
 
+def test_medication_profile_defaults():
+    profile = clinical.get_medication_profile("Lisinopril")
+    assert profile is not None
+    assert profile.default_dose and profile.default_dose > 0
+    assert profile.dose_unit == "mg"
+    assert profile.route == "oral"
+    assert "Renal_Function_Panel" in profile.monitoring_panels
+
+
+def test_create_medication_record_uses_profile():
+    seed_random(205)
+    patient = base_patient()
+    patient["patient_id"] = "patient-med"
+    encounters = [{"encounter_id": "enc-med", "date": "2025-01-15"}]
+    condition = {"name": "Hypertension"}
+    record = clinical.create_medication_record(
+        patient,
+        condition,
+        encounters,
+        "Lisinopril",
+        "first_line",
+    )
+    assert record["dose"] == clinical.get_medication_profile("Lisinopril").default_dose
+    assert record["dose_unit"] == "mg"
+    assert record["route"] == "oral"
+    assert record["frequency"]
+    assert "Renal_Function_Panel" in record["monitoring_panels"]
+
+
+def test_medication_record_sets_duration_for_antivirals():
+    seed_random(207)
+    patient = base_patient()
+    patient["patient_id"] = "patient-antiviral"
+    encounters = [{"encounter_id": "enc-antiviral", "date": "2025-02-01"}]
+    condition = {"name": "Influenza"}
+    record = clinical.create_medication_record(
+        patient,
+        condition,
+        encounters,
+        "Oseltamivir",
+        "supportive",
+    )
+    assert record.get("duration_days") == clinical.get_medication_profile("Oseltamivir").duration_days
+    if record.get("duration_days"):
+        assert record.get("end_date") is not None
+
+
 def test_lab_loinc_breadth_meets_threshold():
     unique_loinc = set()
     for idx in range(30):
