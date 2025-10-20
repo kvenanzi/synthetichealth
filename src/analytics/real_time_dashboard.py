@@ -145,6 +145,8 @@ class AlertManager:
         if alert_id in self.active_alerts:
             alert = self.active_alerts[alert_id]
             alert.resolved = True
+            alert.resolution_notes = resolution_notes
+            alert.resolved_at = datetime.now()
             
             # Notify subscribers
             self._notify_subscribers("alert_resolved", {
@@ -153,7 +155,6 @@ class AlertManager:
                 "timestamp": datetime.now().isoformat()
             })
             
-            del self.active_alerts[alert_id]
             logger.info(f"Alert resolved: {alert_id} - {resolution_notes}")
     
     def get_alerts_by_severity(self, severity: AlertSeverity) -> List[QualityAlert]:

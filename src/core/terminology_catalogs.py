@@ -410,6 +410,7 @@ ALLERGENS = [
     {"display": "Oseltamivir", "category": "drug", "rxnorm": "362666", "unii": "", "snomed": ""},
     {"display": "Zanamivir", "category": "drug", "rxnorm": "316268", "unii": "", "snomed": ""},
     {"display": "Peanut", "category": "food", "rxnorm": "4025294", "unii": "R16CO5Y76E", "snomed": "256349002"},
+    {"display": "Peanut Oil", "category": "food", "rxnorm": "", "unii": "", "snomed": ""},
     {"display": "Shellfish", "category": "food", "rxnorm": "", "unii": "", "snomed": ""},
     {"display": "Shrimp", "category": "food", "rxnorm": "", "unii": "", "snomed": "300913006"},
     {"display": "Crab", "category": "food", "rxnorm": "", "unii": "", "snomed": "300911008"},

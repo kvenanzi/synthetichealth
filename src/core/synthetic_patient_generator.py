@@ -2820,12 +2820,31 @@ class VistaFormatter:
         medications: List[Dict],
         observations: List[Dict],
         allergies: List[Dict],
-        immunizations: List[Dict],
-        family_history: List[Dict],
-        deaths: List[Dict],
-        output_file: str,
+        immunizations: Optional[List[Dict]] = None,
+        family_history: Optional[List[Dict]] = None,
+        deaths: Optional[List[Dict]] = None,
+        output_file: Optional[str] = None,
         export_mode: str = FILEMAN_INTERNAL_MODE,
     ) -> Dict[str, int]:
+        # Backwards compatibility for earlier call signatures where optional
+        # collections were omitted and ``output_file`` was passed positionally.
+        if output_file is None and isinstance(immunizations, (str, os.PathLike)):
+            output_file = str(immunizations)
+            immunizations = None
+        if output_file is None and isinstance(family_history, (str, os.PathLike)):
+            output_file = str(family_history)
+            family_history = None
+        if output_file is None and isinstance(deaths, (str, os.PathLike)):
+            output_file = str(deaths)
+            deaths = None
+
+        if output_file is None:
+            raise ValueError("output_file must be provided for VistA export")
+
+        immunizations = immunizations or []
+        family_history = family_history or []
+        deaths = deaths or []
+
         mode = (export_mode or VistaFormatter.FILEMAN_INTERNAL_MODE).lower()
         if mode == VistaFormatter.LEGACY_MODE:
             return VistaFormatter._export_legacy(patients, encounters, conditions, output_file)

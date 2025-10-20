@@ -156,6 +156,8 @@ class QualityAlert:
     substage: str
     requires_intervention: bool = False
     resolved: bool = False
+    resolution_notes: str = ""
+    resolved_at: Optional[datetime] = None
 
 class HealthcareDataQualityScorer:
     """Healthcare-specific data quality scoring framework"""

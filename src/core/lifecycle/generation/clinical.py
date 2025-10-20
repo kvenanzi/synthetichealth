@@ -3971,6 +3971,85 @@ CONDITION_MEDICATIONS = {
     }
 }
 
+CONDITION_TREATMENT_ALIASES = {
+    "type 2 diabetes": "Diabetes",
+    "type ii diabetes": "Diabetes",
+    "diabetes mellitus": "Diabetes",
+    "diabetic": "Diabetes",
+    "hypertension": "Hypertension",
+    "hypertensive": "Hypertension",
+    "heart failure": "Heart Disease",
+    "heart disease": "Heart Disease",
+    "ischemic heart": "Heart Disease",
+    "cardiomyopathy": "Heart Disease",
+    "hyperlipidemia": "Heart Disease",
+    "stroke": "Stroke",
+    "cerebrovascular": "Stroke",
+    "obesity": "Obesity",
+    "copd": "COPD",
+    "chronic obstructive": "COPD",
+    "asthma": "Asthma",
+    "depress": "Depression",
+    "anxiety": "Anxiety",
+    "panic": "Anxiety",
+    "allerg": "Allergy",
+    "migraine": "Migraine",
+    "arthritis": "Arthritis",
+    "osteoarthritis": "Arthritis",
+    "rheumatoid": "Arthritis",
+    "cancer": "Cancer",
+}
+
+CATEGORY_TREATMENT_FALLBACK = {
+    "cardiometabolic": "Hypertension",
+    "cardiovascular": "Heart Disease",
+    "endocrine": "Diabetes",
+    "respiratory": "COPD",
+    "mental_health": "Depression",
+    "neurology": "Migraine",
+    "oncology": "Cancer",
+    "hematologic": "Cancer",
+    "musculoskeletal": "Arthritis",
+    "infectious_disease": "Flu",
+    "dermatology": "Allergy",
+    "genitourinary": "Hypertension",
+}
+
+CONDITION_LAB_PANEL_RULES = {
+    "diabet": {"Diabetes_Monitoring", "Basic_Metabolic_Panel", "Lipid_Panel"},
+    "hyperglyc": {"Diabetes_Monitoring", "Basic_Metabolic_Panel"},
+    "hypertension": {"Lipid_Panel", "Cardiac_Markers", "Cardiology_Followup", "Renal_Function_Panel"},
+    "heart failure": {"Cardiac_Markers", "Cardiology_Followup", "Basic_Metabolic_Panel"},
+    "heart disease": {"Cardiac_Markers", "Cardiology_Followup", "Lipid_Panel"},
+    "hyperlipidemia": {"Lipid_Panel"},
+    "stroke": {"Cardiac_Markers", "Coagulation_Panel"},
+    "copd": {"Pulmonary_Function"},
+    "asthma": {"Pulmonary_Function"},
+    "obesity": {"Basic_Metabolic_Panel", "Lipid_Panel"},
+    "depress": {"Behavioral_Health_Assessments"},
+    "anxiety": {"Behavioral_Health_Assessments"},
+    "panic": {"Behavioral_Health_Assessments"},
+    "thyroid": {"Thyroid_Function"},
+    "cancer": {"Oncology_Tumor_Markers", "Complete_Blood_Count", "Liver_Function_Panel"},
+    "arthritis": {"Inflammatory_Markers"},
+    "rheumatoid": {"Inflammatory_Markers"},
+}
+
+CATEGORY_PANEL_DEFAULTS = {
+    "cardiometabolic": {"Basic_Metabolic_Panel", "Lipid_Panel"},
+    "cardiovascular": {"Cardiac_Markers", "Cardiology_Followup"},
+    "endocrine": {"Diabetes_Monitoring", "Basic_Metabolic_Panel"},
+    "respiratory": {"Pulmonary_Function"},
+    "mental_health": {"Behavioral_Health_Assessments"},
+    "neurology": {"Cardiac_Markers"},
+    "oncology": {"Oncology_Tumor_Markers", "Complete_Blood_Count"},
+    "hematologic": {"Complete_Blood_Count"},
+    "musculoskeletal": {"Inflammatory_Markers"},
+    "infectious_disease": {"Inflammatory_Markers"},
+    "gastroenterology": {"Liver_Function_Panel"},
+    "genitourinary": {"Renal_Function_Panel"},
+}
+
 # Basic contraindications to prevent dangerous prescribing
 MEDICATION_CONTRAINDICATIONS = {
     "Metformin": ["eGFR_less_than_30", "Severe_heart_failure", "Metabolic_acidosis"],
@@ -4355,10 +4434,22 @@ def generate_encounters(
 
     soft_cap = max(max_enc, min(len(planned_blueprints), max_enc + max(0, len(assigned_conditions) // 2)))
     essential = {"wellness", "primary_care"}
+    blueprint_counts = Counter(planned_blueprints)
+    required_specialties: Set[str] = set()
+    for category, condition_names in category_condition_map.items():
+        if not condition_names:
+            continue
+        contributions = CONDITION_CATEGORY_VISIT_CONTRIBUTIONS.get(category, {})
+        for blueprint_key in contributions:
+            if blueprint_key not in essential:
+                required_specialties.add(blueprint_key)
     while len(planned_blueprints) > soft_cap:
         removed = False
         for idx, key in enumerate(planned_blueprints):
             if key not in essential:
+                if key in required_specialties and blueprint_counts.get(key, 0) <= 1:
+                    continue
+                blueprint_counts[key] -= 1
                 planned_blueprints.pop(idx)
                 removed = True
                 break
@@ -4537,6 +4628,29 @@ def generate_conditions(
     return condition_records
 
 # PHASE 1: Evidence-based medication generation with contraindication checking
+def _resolve_treatment_guideline(condition: Dict[str, Any]) -> Optional[str]:
+    """Map raw condition names/categories to medication guideline keys."""
+    name = condition.get("name") or condition.get("condition") or ""
+    normalized = _normalize_condition_display(name)
+    lowered = normalized.lower()
+    for key in CONDITION_MEDICATIONS.keys():
+        if lowered == key.lower():
+            return key
+    for alias, canonical in CONDITION_TREATMENT_ALIASES.items():
+        if alias in lowered:
+            return canonical
+    for key in CONDITION_MEDICATIONS.keys():
+        if key.lower() in lowered or lowered in key.lower():
+            return key
+    category = (condition.get("condition_category") or condition.get("category") or "").lower()
+    if category:
+        fallback = CATEGORY_TREATMENT_FALLBACK.get(category)
+        if fallback:
+            return fallback
+    return None
+
+
+# PHASE 1: Evidence-based medication generation with contraindication checking
 def generate_medications(patient, encounters, conditions=None, min_med=0, max_med=4):
     medications = []
     patient_contraindications = get_patient_contraindications(patient)
@@ -4601,67 +4715,129 @@ def get_patient_contraindications(patient):
 def prescribe_evidence_based_medication(patient, condition, encounters, contraindications):
     """Generate clinically appropriate medication prescriptions"""
     age = patient.get("age", 0)
-    condition_name = condition["name"]
-    treatment_guidelines = CONDITION_MEDICATIONS.get(condition_name, {})
-    
+    condition_name = condition.get("name") or ""
+    guideline_key = _resolve_treatment_guideline(condition)
+    if not guideline_key:
+        return []
+    treatment_guidelines = CONDITION_MEDICATIONS.get(guideline_key, {})
     if not treatment_guidelines:
         return []
     
     medications = []
     
     # Select appropriate medication category based on condition
-    if condition_name in ["Hypertension", "Heart Disease", "Stroke"]:
-        # Prioritize first-line therapy
-        if "first_line" in treatment_guidelines:
-            selected_med = select_safe_medication(treatment_guidelines["first_line"], contraindications)
+    def _append_medication(med_name: str, category_label: str) -> None:
+        if not med_name:
+            return
+        med_record = create_medication_record(patient, condition, encounters, med_name, category_label)
+        existing = {med["name"] for med in medications}
+        if med_record["name"] in existing:
+            return
+        medications.append(med_record)
+
+    if guideline_key == "Hypertension":
+        for category_label in ("first_line", "second_line", "combinations"):
+            med_list = treatment_guidelines.get(category_label, [])
+            if not med_list:
+                continue
+            selected_med = select_safe_medication(med_list, contraindications)
             if selected_med:
-                medications.append(create_medication_record(patient, condition, encounters, selected_med, "first_line"))
+                _append_medication(selected_med, category_label)
+            if len(medications) >= 3:
+                break
+        return medications
+
+    if guideline_key == "Heart Disease":
+        for category_label in ("statins", "antiplatelet", "ace_inhibitors"):
+            med_list = treatment_guidelines.get(category_label, [])
+            if not med_list:
+                continue
+            selected_med = select_safe_medication(med_list, contraindications)
+            if selected_med:
+                _append_medication(selected_med, category_label)
+        return medications
+
+    if guideline_key == "Stroke":
+        for category_label in ("antiplatelet", "anticoagulants", "statins"):
+            med_list = treatment_guidelines.get(category_label, [])
+            if not med_list:
+                continue
+            selected_med = select_safe_medication(med_list, contraindications)
+            if selected_med:
+                _append_medication(selected_med, category_label)
+        return medications
     
-    elif condition_name == "Diabetes":
+    if guideline_key == "Diabetes":
         # Always start with Metformin if no contraindications
         metformin_safe = not any(contra in contraindications for contra in MEDICATION_CONTRAINDICATIONS.get("Metformin", []))
         if metformin_safe:
-            medications.append(create_medication_record(patient, condition, encounters, "Metformin", "first_line"))
+            _append_medication("Metformin", "first_line")
         else:
             # Use second-line if Metformin contraindicated
             selected_med = select_safe_medication(treatment_guidelines["second_line"], contraindications)
             if selected_med:
-                medications.append(create_medication_record(patient, condition, encounters, selected_med, "second_line"))
+                _append_medication(selected_med, "second_line")
+        for category_label in ("second_line", "insulin"):
+            med_list = treatment_guidelines.get(category_label, [])
+            if not med_list:
+                continue
+            selected_med = select_safe_medication(med_list, contraindications)
+            if selected_med:
+                _append_medication(selected_med, category_label)
+        return medications
     
-    elif condition_name in ["Depression", "Anxiety"]:
+    if guideline_key == "Depression":
+        for category_label in ("ssri", "snri", "atypical"):
+            med_list = treatment_guidelines.get(category_label, [])
+            if not med_list:
+                continue
+            selected_med = select_safe_medication(med_list, contraindications)
+            if selected_med:
+                _append_medication(selected_med, category_label)
+        return medications
+
+    if guideline_key == "Anxiety":
         # Start with SSRI (safer than benzodiazepines)
         if "ssri" in treatment_guidelines:
             selected_med = select_safe_medication(treatment_guidelines["ssri"], contraindications)
             if selected_med:
-                medications.append(create_medication_record(patient, condition, encounters, selected_med, "ssri"))
+                _append_medication(selected_med, "ssri")
+        for category_label in ("benzodiazepines", "other"):
+            med_list = treatment_guidelines.get(category_label, [])
+            if not med_list:
+                continue
+            selected_med = select_safe_medication(med_list, contraindications)
+            if selected_med:
+                _append_medication(selected_med, category_label)
+        return medications
     
-    elif condition_name in ["Flu", "COVID-19"]:
+    if guideline_key in {"Flu", "COVID-19"}:
         # Only prescribe antivirals if within appropriate timeframe, otherwise supportive care
         if random.random() < 0.3:  # 30% get antivirals (early presentation)
             if "antivirals" in treatment_guidelines:
                 selected_med = select_safe_medication(treatment_guidelines["antivirals"], contraindications)
                 if selected_med:
-                    medications.append(create_medication_record(patient, condition, encounters, selected_med, "antiviral"))
+                    _append_medication(selected_med, "antiviral")
         
         # Add supportive care
         if "supportive" in treatment_guidelines:
             selected_med = select_safe_medication(treatment_guidelines["supportive"], contraindications)
             if selected_med:
-                medications.append(create_medication_record(patient, condition, encounters, selected_med, "supportive"))
+                _append_medication(selected_med, "supportive")
+        return medications
     
-    else:
-        # For other conditions, allow multiple categories (primary + supportive)
-        for category, med_list in treatment_guidelines.items():
-            if not med_list:
-                continue
-            selected_med = select_safe_medication(med_list, contraindications)
-            if not selected_med:
-                continue
-            medications.append(create_medication_record(patient, condition, encounters, selected_med, category))
-            if category in {"supportive", "emergency"}:
-                continue
-            if len(medications) >= 2:
-                break
+    # For other conditions, allow multiple categories (primary + supportive)
+    for category, med_list in treatment_guidelines.items():
+        if not med_list:
+            continue
+        selected_med = select_safe_medication(med_list, contraindications)
+        if not selected_med:
+            continue
+        _append_medication(selected_med, category)
+        if category in {"supportive", "emergency"}:
+            continue
+        if len(medications) >= 3:
+            break
 
     return medications
 
@@ -5196,27 +5372,23 @@ def determine_lab_panels(patient, conditions, medications=None):
     # Condition-based lab panels
     if conditions:
         for condition in conditions:
-            condition_name = condition["name"]
-            complexity_model = CONDITION_COMPLEXITY_MODELS.get(condition_name, {})
-            
-            if condition_name == "Diabetes":
-                panels.add("Diabetes_Monitoring")
-                panels.add("Basic_Metabolic_Panel")
-                panels.add("Lipid_Panel")
-            elif condition_name in ["Heart Disease", "Hypertension"]:
-                panels.add("Lipid_Panel")
-                panels.add("Cardiac_Markers")
-                panels.add("Cardiology_Followup")
-            elif condition_name == "Cancer":
-                panels.add("Complete_Blood_Count")
-                panels.add("Liver_Function_Panel")
-                panels.add("Oncology_Tumor_Markers")
-            elif "Thyroid" in condition_name or random.random() < 0.1:  # 10% get thyroid screening
+            condition_name = condition.get("name") or condition.get("condition") or ""
+            normalized = _normalize_condition_display(condition_name)
+            lowered = normalized.lower()
+
+            if lowered:
+                for needle, panel_set in CONDITION_LAB_PANEL_RULES.items():
+                    if needle in lowered:
+                        panels.update(panel_set)
+
+            category = (condition.get("condition_category") or condition.get("category") or "").lower()
+            if category:
+                panels.update(CATEGORY_PANEL_DEFAULTS.get(category, set()))
+
+            if "thyroid" in lowered:
                 panels.add("Thyroid_Function")
-            if condition_name in ["COPD", "Asthma"]:
-                panels.add("Pulmonary_Function")
-            if condition_name in ["Depression", "Anxiety", "Major_Depressive_Disorder"]:
-                panels.add("Behavioral_Health_Assessments")
+            elif category == "endocrine" and random.random() < 0.1:
+                panels.add("Thyroid_Function")
     
     med_classes = set()
     if medications:
@@ -5250,6 +5422,11 @@ def determine_lab_panels(patient, conditions, medications=None):
     # Random additional panels (simulate clinical judgment)
     if random.random() < 0.3:  # 30% chance of inflammatory markers
         panels.add("Inflammatory_Markers")
+
+    available_panels = [panel for panel in COMPREHENSIVE_LAB_PANELS.keys() if panel not in panels]
+    if available_panels:
+        extra_count = min(len(available_panels), 3)
+        panels.update(random.sample(available_panels, extra_count))
     
     return list(panels)
 

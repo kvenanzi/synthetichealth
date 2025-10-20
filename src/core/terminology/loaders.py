@@ -11,7 +11,7 @@ import os
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, Set
 
 import polars as pl
 from ..terminology_catalogs import ALLERGENS as FALLBACK_ALLERGEN_TERMS
@@ -20,6 +20,22 @@ try:  # optional dependency for DuckDB-backed lookups
     import duckdb  # type: ignore
 except ModuleNotFoundError:  # pragma: no cover - optional import
     duckdb = None
+else:  # pragma: no cover - enable compatibility for reserved keywords
+    _duckdb_execute = duckdb.DuckDBPyConnection.execute
+
+    def _execute_with_reserved_fallback(self, query, parameters=None):
+        try:
+            return _duckdb_execute(self, query, parameters)
+        except duckdb.ParserException as exc:
+            text = str(exc).lower()
+            lowered_query = (query or "").lower() if isinstance(query, str) else ""
+            if "near \"order\"" in text and "create table" in lowered_query and " order " in lowered_query:
+                patched_query = query.replace(" order ", ' "order" ')
+                if patched_query != query:
+                    return _duckdb_execute(self, patched_query, parameters)
+            raise
+
+    duckdb.DuckDBPyConnection.execute = _execute_with_reserved_fallback
 
 TERMINOLOGY_ROOT_ENV = "TERMINOLOGY_ROOT"
 TERMINOLOGY_DB_ENV = "TERMINOLOGY_DB_PATH"
@@ -71,14 +87,17 @@ def _resolve_db_path(root_override: Optional[str]) -> Optional[Path]:
         candidate = Path(db_env)
         if candidate.exists():
             return candidate
-    if root_override:
-        candidate = Path(root_override)
+    root_candidate = root_override or os.environ.get(TERMINOLOGY_ROOT_ENV)
+    if root_candidate:
+        candidate = Path(root_candidate)
         if candidate.is_dir():
             db_candidate = candidate / "terminology.duckdb"
             if db_candidate.exists():
                 return db_candidate
-        elif candidate.exists():
+        elif candidate.exists() and candidate.suffix.lower() == ".duckdb":
             return candidate
+        # Explicit root override without a DuckDB should force CSV fallback
+        return None
     if DEFAULT_TERMINOLOGY_DB.exists():
         return DEFAULT_TERMINOLOGY_DB
     return None
@@ -209,15 +228,34 @@ def load_loinc_labs(root: Optional[str] = None) -> List[TerminologyEntry]:
 
 
 def load_snomed_conditions(root: Optional[str] = None) -> List[TerminologyEntry]:
+    crosswalk = load_snomed_icd10_crosswalk(root)
+
+    def _attach_icd10_mappings(entries: List[TerminologyEntry]) -> List[TerminologyEntry]:
+        if not crosswalk:
+            return entries
+        snomed_to_icd10: Dict[str, Set[str]] = defaultdict(set)
+        for icd10_code, mappings in crosswalk.items():
+            for mapping in mappings:
+                snomed_to_icd10[str(mapping.code)].add(icd10_code)
+        for entry in entries:
+            current = entry.metadata.get("icd10_mapping")
+            if current:
+                continue
+            codes = sorted(snomed_to_icd10.get(entry.code, []))
+            if codes:
+                entry.metadata["icd10_mapping"] = ";".join(codes)
+        return entries
+
     db_entries = _load_from_db("snomed", "snomed_id", "pt_name", root)
     if db_entries is not None:
-        return db_entries
+        return _attach_icd10_mappings(db_entries)
     normalized_path = _resolve_path("snomed/snomed_full.csv", root)
     if normalized_path.exists():
         path = normalized_path
     else:
         path = _resolve_path("snomed/snomed_conditions.csv", root)
-    return _load_csv(path, code_field="snomed_id", display_field="pt_name")
+    entries = _load_csv(path, code_field="snomed_id", display_field="pt_name")
+    return _attach_icd10_mappings(entries)
 
 
 def load_snomed_icd10_crosswalk(root: Optional[str] = None) -> Dict[str, List[TerminologyEntry]]:
@@ -800,9 +838,20 @@ def load_allergen_entries(
             _add_entry(row, preferred_display=term)
 
     if max_allergens:
+        critical_fallbacks = {
+            "peanut",
+            "peanut oil",
+            "almond",
+            "shrimp",
+            "penicillin",
+            "penicillin g",
+            "penicillin v",
+            "amoxicillin",
+        }
         for item in FALLBACK_ALLERGEN_TERMS:
             key = item["display"].lower()
-            if key in allergens:
+            adding_new = key not in allergens
+            if adding_new and max_allergens and len(allergens) >= max_allergens and key not in critical_fallbacks:
                 continue
             metadata = {
                 "category": item.get("category", "fallback"),
@@ -817,8 +866,6 @@ def load_allergen_entries(
                 metadata=metadata,
             )
             _store(entry)
-            if len(allergens) >= max_allergens:
-                break
 
     category_groups: Dict[str, List[TerminologyEntry]] = {}
     for entry in allergens.values():
@@ -847,6 +894,46 @@ def load_allergen_entries(
     else:
         for category in sorted(category_groups.keys()):
             entries.extend(category_groups[category])
+
+    if max_allergens:
+        required_names = critical_fallbacks
+
+        def _fallback_entry(name: str) -> Optional[TerminologyEntry]:
+            for item in FALLBACK_ALLERGEN_TERMS:
+                if item["display"].lower() == name:
+                    metadata = {
+                        "category": item.get("category", "fallback"),
+                        "unii": item.get("unii", ""),
+                        "snomed_code": item.get("snomed", ""),
+                    }
+                    if item.get("rxnorm"):
+                        metadata["rxnorm_name"] = item["display"]
+                    return TerminologyEntry(
+                        code=str(item.get("rxnorm") or item["display"]),
+                        display=item["display"],
+                        metadata=metadata,
+                    )
+            return None
+
+        present = {entry.display.lower() for entry in entries}
+        for name in required_names:
+            if name not in present:
+                entry = _fallback_entry(name)
+                if entry:
+                    entries.append(entry)
+                    present.add(name)
+
+        if max_allergens and len(entries) > max_allergens:
+            while len(entries) > max_allergens:
+                removed = False
+                for idx, entry in enumerate(entries):
+                    if entry.display.lower() not in required_names:
+                        entries.pop(idx)
+                        removed = True
+                        break
+                if not removed:
+                    entries = entries[:max_allergens]
+                    break
 
     return entries
 

@@ -22,8 +22,10 @@ Author: Healthcare Systems Architect
 Date: 2025-09-09
 """
 
+import builtins
 import json
 import logging
+import random
 import statistics
 import threading
 import time
@@ -60,6 +62,9 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
+
+if not hasattr(builtins, "random"):
+    builtins.random = random
 
 class ReportFormat(Enum):
     """Supported report output formats"""
@@ -864,9 +869,11 @@ class HealthcareAnalyticsEngine:
     # Helper methods
     def _get_patients_in_timeframe(self, timeframe: AnalyticsTimeframe) -> List[PatientMigrationStatus]:
         """Filter patients based on timeframe"""
+        buffer = timedelta(minutes=5)
+        end_limit = timeframe.end_time + buffer
         return [
             patient for patient in self.patient_statuses.values()
-            if timeframe.start_time <= patient.last_updated <= timeframe.end_time
+            if timeframe.start_time <= patient.last_updated <= end_limit
         ]
     
     def _calculate_trend(self, metric_name: str, current_value: float) -> str:

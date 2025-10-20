@@ -38,6 +38,7 @@ from datetime import datetime, date
 from enum import Enum
 from typing import Dict, List, Optional, Any, Set, Tuple, Union
 import uuid
+from collections import defaultdict
 from pathlib import Path
 
 # Configure logging
@@ -598,13 +599,22 @@ class HL7V2Validator(InteroperabilityValidator):
             "MSH": {
                 "fields": ["Field Separator", "Encoding Characters", "Sending Application", 
                           "Sending Facility", "Receiving Application", "Receiving Facility",
-                          "Date/Time Of Message", "Security", "Message Type", "Message Control ID"],
-                "required_fields": [1, 2, 3, 4, 5, 6, 7, 9, 10]
+                          "Date/Time Of Message", "Security", "Message Type", "Message Control ID",
+                          "Processing ID", "Version ID"],
+                "required_fields": [1, 2, 3, 4, 5, 6, 8, 9, 10, 11]
             },
             "PID": {
                 "fields": ["Set ID", "Patient ID", "Patient Identifier List", "Alternate Patient ID",
                           "Patient Name", "Mother's Maiden Name", "Date/Time of Birth", "Sex"],
                 "required_fields": [3, 5, 7, 8]
+            },
+            "EVN": {
+                "fields": ["Event Type Code", "Recorded Date/Time", "Date/Time Planned Event"],
+                "required_fields": [1, 2]
+            },
+            "PV1": {
+                "fields": ["Set ID", "Patient Class", "Assigned Patient Location", "Admission Type"],
+                "required_fields": [1, 2, 3]
             }
         }
     
@@ -654,15 +664,15 @@ class HL7V2Validator(InteroperabilityValidator):
     
     def _parse_hl7_message(self, message: str) -> List[Dict[str, Any]]:
         """Parse HL7 message into segments"""
-        if not message.strip():
+        stripped = message.strip()
+        if not stripped:
             raise ValueError("Empty HL7 message")
-        
-        lines = message.strip().split('\r')
-        if not lines:
-            lines = message.strip().split('\n')
-        
+
+        normalized = stripped.replace("\r\n", "\n").replace("\r", "\n")
+        lines = [line for line in normalized.split("\n") if line]
+
         segments = []
-        
+
         for line_num, line in enumerate(lines):
             if not line.strip():
                 continue
