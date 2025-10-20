@@ -94,6 +94,138 @@ CONDITIONS = [
         "icd10": "U07.1",
         "snomed": "840539006",
         "category": "infectious_disease"
+    },
+    {
+        "display": "Chronic Kidney Disease",
+        "icd10": "N18.9",
+        "snomed": "709044004",
+        "category": "renal"
+    },
+    {
+        "display": "Hyperlipidemia",
+        "icd10": "E78.5",
+        "snomed": "55822004",
+        "category": "cardiometabolic"
+    },
+    {
+        "display": "Type 1 Diabetes Mellitus",
+        "icd10": "E10.9",
+        "snomed": "46635009",
+        "category": "endocrine"
+    },
+    {
+        "display": "Osteoarthritis of Knee",
+        "icd10": "M17.10",
+        "snomed": "239873007",
+        "category": "musculoskeletal"
+    },
+    {
+        "display": "Rheumatoid Arthritis",
+        "icd10": "M06.9",
+        "snomed": "69896004",
+        "category": "musculoskeletal"
+    },
+    {
+        "display": "Chronic Liver Disease",
+        "icd10": "K76.9",
+        "snomed": "328383001",
+        "category": "gastroenterology"
+    },
+    {
+        "display": "Hepatitis C",
+        "icd10": "B18.2",
+        "snomed": "233604007",
+        "category": "infectious_disease"
+    },
+    {
+        "display": "Chronic Pain Syndrome",
+        "icd10": "G89.4",
+        "snomed": "373621006",
+        "category": "neurology"
+    },
+    {
+        "display": "Bipolar Disorder",
+        "icd10": "F31.9",
+        "snomed": "13746004",
+        "category": "mental_health"
+    },
+    {
+        "display": "Schizophrenia",
+        "icd10": "F20.9",
+        "snomed": "58214004",
+        "category": "mental_health"
+    },
+    {
+        "display": "Substance Use Disorder",
+        "icd10": "F19.20",
+        "snomed": "66214007",
+        "category": "mental_health"
+    },
+    {
+        "display": "Obstructive Sleep Apnea",
+        "icd10": "G47.33",
+        "snomed": "1101000119105",
+        "category": "respiratory"
+    },
+    {
+        "display": "Psoriasis",
+        "icd10": "L40.0",
+        "snomed": "9014002",
+        "category": "dermatology"
+    },
+    {
+        "display": "Crohn Disease",
+        "icd10": "K50.90",
+        "snomed": "34000006",
+        "category": "gastroenterology"
+    },
+    {
+        "display": "Ulcerative Colitis",
+        "icd10": "K51.90",
+        "snomed": "64766004",
+        "category": "gastroenterology"
+    },
+    {
+        "display": "Gastroesophageal Reflux Disease",
+        "icd10": "K21.9",
+        "snomed": "235595009",
+        "category": "gastroenterology"
+    },
+    {
+        "display": "Chronic Migraine",
+        "icd10": "G43.709",
+        "snomed": "370530002",
+        "category": "neurology"
+    },
+    {
+        "display": "Hypothyroidism",
+        "icd10": "E03.9",
+        "snomed": "40930008",
+        "category": "endocrine"
+    },
+    {
+        "display": "Iron Deficiency Anemia",
+        "icd10": "D50.9",
+        "snomed": "87522002",
+        "category": "hematologic"
+    },
+    {
+        "display": "Chronic Kidney Disease Stage 3",
+        "icd10": "N18.30",
+        "snomed": "433144002",
+        "category": "renal"
+    },
+    {
+        "display": "Atrial Fibrillation",
+        "icd10": "I48.91",
+        "snomed": "49436004",
+        "category": "cardiovascular"
+    },
+    {
+        "display": "Peripheral Artery Disease",
+        "icd10": "I73.9",
+        "snomed": "399211009",
+        "category": "cardiovascular"
     }
 ]
 
