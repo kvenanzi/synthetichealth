@@ -305,7 +305,13 @@ def load_rxnorm_medications(root: Optional[str] = None) -> List[TerminologyEntry
 
 
 def _load_rxnorm_frame(root_override: Optional[str] = None) -> Optional[pl.DataFrame]:
-    path = _resolve_path("rxnorm/rxnorm_full.csv", root_override)
+    """Return a Polars DataFrame for RxNorm entries.
+
+    Prefers DuckDB or normalized ``rxnorm_full.csv``. Falls back to the seed
+    ``rxnorm_medications.csv`` when a normalized extract is not present.
+    """
+    # Try DuckDB/normalized path first
+    normalized = _resolve_path("rxnorm/rxnorm_full.csv", root_override)
     required = {
         "rxnorm_cui": "",
         "tty": "",
@@ -315,7 +321,21 @@ def _load_rxnorm_frame(root_override: Optional[str] = None) -> Optional[pl.DataF
         "ndc_example": "",
         "ncbi_url": "",
     }
-    return _read_frame("rxnorm", path, root_override, required)
+    frame = _read_frame("rxnorm", normalized, root_override, required)
+    if frame is not None:
+        return frame
+
+    # Fallback to seed CSV when normalized/DuckDB not available
+    seed_path = _resolve_path("rxnorm/rxnorm_medications.csv", root_override)
+    if not seed_path.exists():
+        return None
+    frame = pl.read_csv(seed_path)
+    # Ensure required columns exist for downstream filters
+    for col, default in required.items():
+        if col not in frame.columns:
+            frame = frame.with_columns(pl.lit(default).alias(col))
+    # Column ordering for consistency
+    return frame.select(list(required.keys()))
 
 
 def _load_snomed_frame(root_override: Optional[str] = None) -> Optional[pl.DataFrame]:

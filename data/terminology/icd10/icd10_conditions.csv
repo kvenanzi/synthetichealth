@@ -1,4 +1,5 @@
 code,description,chapter,ncbi_url
+A00,Cholera,Infectious,https://icd10cmtool.cdc.gov/?fy=2026&code=A00
 E11.9,Type 2 diabetes mellitus without complications,Endocrine,https://www.ncbi.nlm.nih.gov/mesh/D003924
 I10,Essential (primary) hypertension,Circulatory,https://www.ncbi.nlm.nih.gov/mesh/D006973
 J45.909,Unspecified asthma,Respiratory,https://www.ncbi.nlm.nih.gov/mesh/D001249

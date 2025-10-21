@@ -1618,16 +1618,21 @@ def _load_medication_catalog() -> Dict[str, Dict[str, Any]]:
     else:
         for item in FALLBACK_MEDICATION_TERMS:
             display = item.get("display")
+            therapeutic_class = item.get("therapeutic_class", "")
+            defaults = THERAPEUTIC_CLASS_DEFAULTS.get(therapeutic_class, {})
+            inferred_route = defaults.get("route")
+            if not inferred_route:
+                inferred_route = THERAPEUTIC_CLASS_ROUTE_MAP.get(therapeutic_class, "")
             med_record = {
                 "display": display,
                 "rxnorm_code": str(item.get("rxnorm", "")) if item.get("rxnorm") else "",
                 "rxnorm": item.get("rxnorm"),
                 "ndc": item.get("ndc"),
                 "ndc_example": item.get("ndc"),
-                "therapeutic_class": item.get("therapeutic_class", ""),
+                "therapeutic_class": therapeutic_class,
                 "default_dose": None,
                 "dose_unit": "",
-                "route": "oral",
+                "route": inferred_route or "",
                 "frequency": "once daily",
                 "duration_days": None,
                 "monitoring_panels": [],
@@ -1640,16 +1645,19 @@ def _load_medication_catalog() -> Dict[str, Dict[str, Any]]:
     for item in FALLBACK_MEDICATION_TERMS:
         display = item.get("display")
         if display not in catalog:
+            therapeutic_class = item.get("therapeutic_class", "")
+            defaults = THERAPEUTIC_CLASS_DEFAULTS.get(therapeutic_class, {})
+            inferred_route = defaults.get("route") or THERAPEUTIC_CLASS_ROUTE_MAP.get(therapeutic_class, "")
             med_record = {
                 "display": display,
                 "rxnorm_code": str(item.get("rxnorm", "")) if item.get("rxnorm") else "",
                 "rxnorm": item.get("rxnorm"),
                 "ndc": item.get("ndc"),
                 "ndc_example": item.get("ndc"),
-                "therapeutic_class": item.get("therapeutic_class", ""),
+                "therapeutic_class": therapeutic_class,
                 "default_dose": None,
                 "dose_unit": "",
-                "route": "oral",
+                "route": inferred_route or "",
                 "frequency": "once daily",
                 "duration_days": None,
                 "monitoring_panels": [],
@@ -4721,7 +4729,8 @@ def assign_conditions(patient: Dict[str, Any]) -> List[str]:
             genetic_adjustments,
             family_history_adjustments,
         )
-        if probability <= 0.005:
+        # Admit a slightly broader long tail to improve cohort variety
+        if probability <= 0.003:
             continue
         candidates.append((name, probability, entry))
 
