@@ -1,0 +1,30 @@
+# Minimal, copy-and-run example configuration for the simulator.
+# Run: python -m src.core.synthetic_patient_generator --config examples/config.yaml
+
+num_records: 250
+output_dir: output/example
+
+# Choose a built-in scenario (discover with --list-scenarios)
+scenario: chronic_conditions
+
+# Optionally attach one or more clinical modules (discover with --list-modules)
+modules:
+  - copd_v2
+  - hypertension_management
+
+# Output formats: csv, parquet, or both
+output_format: both
+
+# VistA export mode: fileman_internal (default) or legacy
+vista_mode: fileman_internal
+
+# Optional demographic distribution overrides (weights auto-normalize)
+age_dist:
+  "18-34": 0.2
+  "35-49": 0.3
+  "50-64": 0.3
+  "65-79": 0.2
+
+# Example SDOH distributions (uncomment to customize)
+# smoking_dist: { never: 0.6, former: 0.25, current: 0.15 }
+# alcohol_dist: { none: 0.3, moderate: 0.6, heavy: 0.1 }

@@ -49,6 +49,41 @@ python -m src.core.synthetic_patient_generator --num-records 100 --csv --output-
 ```
 Set `TERMINOLOGY_DB_PATH=$(pwd)/data/terminology/terminology.duckdb` for high-volume runs; the generator will fall back to seeds when the database is absent.
 
+## 6.1 Configuration (YAML)
+You can provide a config file with `--config path/to/config.yaml`. CLI flags override config values when both are supplied.
+
+Supported keys:
+- `num_records` (int) – number of patients to generate (default 1000)
+- `output_dir` (str) – output directory (default `.`)
+- `seed` (int) – RNG seed for reproducibility
+- `output_format` (str) – `csv`, `parquet`, or `both` (default `both`)
+- `scenario` (str) – scenario name; see `--list-scenarios`
+- `scenario_file` (str) – path to YAML with scenario overrides
+- `modules` (str | list[str]) – one or more module names; see `--list-modules`
+- `vista_mode` (str) – `fileman_internal` or `legacy`
+- Distributions (dict[label->weight]) – `age_dist`, `gender_dist`, `race_dist`,
+  `smoking_dist`, `alcohol_dist`, `education_dist`, `employment_dist`, `housing_dist`
+
+Example (`examples/config.yaml`):
+```yaml
+num_records: 250
+output_dir: output/example
+scenario: chronic_conditions
+modules: [copd_v2, hypertension_management]
+output_format: both
+vista_mode: fileman_internal
+age_dist: { "18-34": 0.2, "35-49": 0.3, "50-64": 0.3, "65-79": 0.2 }
+```
+
+Run with:
+```bash
+python -m src.core.synthetic_patient_generator --config examples/config.yaml
+```
+
+Environment variables:
+- `TERMINOLOGY_DB_PATH` – path to `terminology.duckdb` to enable fast lookups
+- `TERMINOLOGY_ROOT` – root directory for terminology CSVs/normalized files; used when DuckDB is omitted
+
 ## 7. Outputs & File Layout
 - `output/<run>/patients.csv` (plus encounters, conditions, medications, observations, etc.) – normalized tables keyed by `patient_id`.
 - `output/<run>/fhir_bundle.json` – Bundle containing Patient, Condition, MedicationStatement, Observation resources with VSAC/NCBI/UMLS extensions.
