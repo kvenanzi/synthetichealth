@@ -3776,10 +3776,10 @@ def main():
             total_count = len(validation_results)
             print(f"HL7 Validation: {valid_count}/{total_count} messages valid")
 
-    # Convert PatientRecord objects to dictionaries for DataFrame creation
     print("Converting patient records to dictionaries...")
     patients_dict = [patient.to_dict() for patient in tqdm(patients, desc="Converting patients", unit="patients")]
-    
+
+    # Use the prepared patient dictionaries for legacy exports.
     print("Saving data files...")
     def _sanitize_frame(data: List[Dict[str, Any]]) -> pl.DataFrame:
         if not data:
@@ -3891,7 +3891,7 @@ def main():
             return collections.Counter(lst)
 
         age_bins_dict = {f"{a}-{b}": (a, b) for a, b in AGE_BINS}
-        patients_df = pl.DataFrame(patients)
+        patients_df = pl.DataFrame(patients_dict)
         report_lines = []
         report_lines.append(f"Scenario: {active_scenario_name}")
         report_lines.append(f"Patients: {len(patients)}")
