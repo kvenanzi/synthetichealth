@@ -180,7 +180,18 @@ def test_fileman_internal_generates_numeric_pointers(tmp_path):
     assert ",2800517," in dob_index
 
     procedure_zero = next(line for line in content if re.match(r'S \^AUPNVCPT\(\d+,0\)=', line))
-    assert "93017" in procedure_zero or "CARDIAC" in procedure_zero.upper()
+    proc_match = re.search(r'"1001\^(\d+)\^(\d+)\^', procedure_zero)
+    assert proc_match, "Procedure zero node does not contain expected patient/visit/CPT pointers"
+    visit_pointer = proc_match.group(1)
+    cpt_pointer = proc_match.group(2)
+    assert visit_pointer.isdigit() and cpt_pointer.isdigit()
+    assert any(
+        re.match(fr'S \^AUPNVCPT\("C",{cpt_pointer},\d+\)=', line) for line in content
+    ), "Missing CPT cross-reference for procedure"
+    cpt_stub = next(
+        line for line in content if re.match(fr'S \^ICPT\({cpt_pointer},0\)=', line)
+    )
+    assert "93017" in cpt_stub
 
     measurement_zero = next(line for line in content if re.match(r'S \^AUPNVMSR\(\d+,0\)=', line))
     assert re.search(r'"1001\^\d+\^', measurement_zero)
