@@ -197,7 +197,17 @@ def test_fileman_internal_generates_numeric_pointers(tmp_path):
     assert re.search(r'"1001\^\d+\^', measurement_zero)
 
     health_factor_zero = next(line for line in content if re.match(r'S \^AUPNVHF\(\d+,0\)=', line))
-    assert "HOUSING" in health_factor_zero.upper() or "SMOKER" in health_factor_zero.upper()
+    factor_match = re.search(r'"1001\^(\d+)\^', health_factor_zero)
+    assert factor_match, "Health factor zero node missing patient/dictionary pointer"
+    health_factor_dict = factor_match.group(1)
+    assert health_factor_dict.isdigit()
+    health_factor_stub = next(
+        line for line in content if re.match(fr'S \^AUTTHF\({health_factor_dict},0\)=', line)
+    )
+    assert any(
+        keyword in health_factor_stub.upper()
+        for keyword in ["HOUSING", "SMOKER", "ALCOHOL", "PHQ", "SDOH"]
+    ), "Health factor stub does not contain expected taxonomy keyword"
 
     tiu_zero = next(line for line in content if re.match(r'S \^TIU\(8925,\d+,0\)=', line))
     assert "CARE PLAN" in tiu_zero.upper()
