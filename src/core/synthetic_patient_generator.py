@@ -10,6 +10,7 @@ import json
 import re
 from datetime import date, datetime, timedelta
 import uuid
+import math
 from collections import defaultdict, Counter
 from functools import partial
 from pathlib import Path
@@ -1695,6 +1696,10 @@ class VistaReferenceRegistry:
         self.allergen_lookup: Dict[str, Dict[str, str]] = {}
         self.immunization_lookup: Dict[str, Dict[str, str]] = {}
         self.family_relation_lookup: Dict[str, str] = {}
+        self.cpt_lookup: Dict[str, Dict[str, str]] = {}
+        self.measurement_lookup: Dict[str, Dict[str, str]] = {}
+        self.health_factor_lookup: Dict[str, Dict[str, str]] = {}
+        self.tiu_title_lookup: Dict[str, Dict[str, str]] = {}
         self._icd_counter = 400000
         self._narrative_counter = 500000
         self._location_counter = 600000
@@ -1703,6 +1708,10 @@ class VistaReferenceRegistry:
         self._allergen_counter = 900000
         self._immunization_counter = 950000
         self._relation_counter = 980000
+        self._cpt_counter = 1000000
+        self._measurement_counter = 1100000
+        self._health_factor_counter = 1200000
+        self._tiu_title_counter = 1300000
 
     def _allocate(self, counter_attr: str) -> str:
         value = getattr(self, counter_attr)
@@ -1853,6 +1862,83 @@ class VistaReferenceRegistry:
             self.family_relation_lookup[key] = self._allocate("_relation_counter")
         return self.family_relation_lookup[key]
 
+    def get_cpt_ien(self, code: Optional[str], description: Optional[str] = None) -> str:
+        if not code and not description:
+            return ""
+        normalized = (code or description or "").strip().upper()
+        if not normalized:
+            return ""
+        entry = self.cpt_lookup.get(normalized)
+        if entry is None:
+            ien = self._allocate("_cpt_counter")
+            self.cpt_lookup[normalized] = {
+                "ien": ien,
+                "code": (code or description or "").strip().upper(),
+                "description": description or code or "UNSPECIFIED PROCEDURE",
+            }
+            return ien
+        if code and not entry.get("code"):
+            entry["code"] = code.strip().upper()
+        if description and not entry.get("description"):
+            entry["description"] = description
+        return entry["ien"]
+
+    def get_measurement_type_ien(self, name: Optional[str], abbreviation: Optional[str] = None) -> str:
+        if not name:
+            return ""
+        key = name.strip().upper()
+        if not key:
+            return ""
+        entry = self.measurement_lookup.get(key)
+        if entry is None:
+            ien = self._allocate("_measurement_counter")
+            self.measurement_lookup[key] = {
+                "ien": ien,
+                "name": name.strip(),
+                "abbreviation": (abbreviation or key[:4]).strip().upper(),
+            }
+            return ien
+        if abbreviation and not entry.get("abbreviation"):
+            entry["abbreviation"] = abbreviation.strip().upper()
+        return entry["ien"]
+
+    def get_health_factor_ien(self, name: Optional[str], category: Optional[str] = None) -> str:
+        if not name:
+            return ""
+        key = name.strip()
+        if not key:
+            return ""
+        normalized = key.upper()
+        entry = self.health_factor_lookup.get(normalized)
+        if entry is None:
+            ien = self._allocate("_health_factor_counter")
+            self.health_factor_lookup[normalized] = {
+                "ien": ien,
+                "name": key,
+                "category": (category or "GENERAL").strip(),
+            }
+            return ien
+        if category and not entry.get("category"):
+            entry["category"] = category.strip()
+        return entry["ien"]
+
+    def get_tiu_title_ien(self, title: Optional[str]) -> str:
+        if not title:
+            return ""
+        key = title.strip()
+        if not key:
+            return ""
+        normalized = key.upper()
+        entry = self.tiu_title_lookup.get(normalized)
+        if entry is None:
+            ien = self._allocate("_tiu_title_counter")
+            self.tiu_title_lookup[normalized] = {
+                "ien": ien,
+                "name": key,
+            }
+            return ien
+        return entry["ien"]
+
     def build_reference_globals(self, sanitize: Callable[[str], str]) -> Dict[str, str]:
         globals_dict: Dict[str, str] = {}
         for code, ien in self.icd10_lookup.items():
@@ -1901,6 +1987,29 @@ class VistaReferenceRegistry:
             name = sanitize(relation) or relation or f"RELATION {ien}"
             globals_dict[f"^AUTTRLSH({ien},0)"] = name
             globals_dict[f'^AUTTRLSH("B","{name}",{ien})'] = ""
+        for entry in self.cpt_lookup.values():
+            ien = entry["ien"]
+            code = entry.get("code") or f"CPT{ien}"
+            description = sanitize(entry.get("description", "")) or code
+            globals_dict[f"^ICPT({ien},0)"] = f"{code}^{description}"
+            globals_dict[f'^ICPT("B","{code}",{ien})'] = ""
+        for entry in self.measurement_lookup.values():
+            ien = entry["ien"]
+            name = sanitize(entry.get("name", "")) or f"MEAS {ien}"
+            abbr = sanitize(entry.get("abbreviation", "")) or name[:4].upper()
+            globals_dict[f"^AUTTMSR({ien},0)"] = f"{name}^{abbr}"
+            globals_dict[f'^AUTTMSR("B","{name}",{ien})'] = ""
+        for entry in self.health_factor_lookup.values():
+            ien = entry["ien"]
+            name = sanitize(entry.get("name", "")) or f"HEALTH FACTOR {ien}"
+            category = sanitize(entry.get("category", "")) or "GENERAL"
+            globals_dict[f"^AUTTHF({ien},0)"] = f"{name}^{category}"
+            globals_dict[f'^AUTTHF("B","{name}",{ien})'] = ""
+        for entry in self.tiu_title_lookup.values():
+            ien = entry["ien"]
+            name = sanitize(entry.get("name", "")) or f"TITLE {ien}"
+            globals_dict[f"^TIU(8925.1,{ien},0)"] = name
+            globals_dict[f'^TIU(8925.1,"B","{name}",{ien})'] = ""
         return globals_dict
 
     def header_entries(self, fm_date: str) -> Dict[str, str]:
@@ -1925,6 +2034,14 @@ class VistaReferenceRegistry:
             headers["^AUTTIMM(0)"] = f"IMMUNIZATION^9999999.14^{max(int(entry['ien']) for entry in self.immunization_lookup.values())}^{fm_date}"
         if self.family_relation_lookup:
             headers["^AUTTRLSH(0)"] = f"RELATION^9999999.05^{max(int(ien) for ien in self.family_relation_lookup.values())}^{fm_date}"
+        if self.cpt_lookup:
+            headers["^ICPT(0)"] = f"CPT^81^{max(int(entry['ien']) for entry in self.cpt_lookup.values())}^{fm_date}"
+        if self.measurement_lookup:
+            headers["^AUTTMSR(0)"] = f"MEASUREMENT TYPE^9999999.07^{max(int(entry['ien']) for entry in self.measurement_lookup.values())}^{fm_date}"
+        if self.health_factor_lookup:
+            headers["^AUTTHF(0)"] = f"HEALTH FACTOR^9999999.64^{max(int(entry['ien']) for entry in self.health_factor_lookup.values())}^{fm_date}"
+        if self.tiu_title_lookup:
+            headers["^TIU(8925.1,0)"] = f"TIU DOCUMENT DEFINITION^8925.1^{max(int(entry['ien']) for entry in self.tiu_title_lookup.values())}^{fm_date}"
         return headers
 
 
@@ -1933,6 +2050,125 @@ class VistaFormatter:
 
     LEGACY_MODE = "legacy"
     FILEMAN_INTERNAL_MODE = "fileman_internal"
+    CARE_PLAN_TIU_TITLE = "Care Plan"
+    VITAL_ALIAS_MAP: Dict[str, str] = {
+        "blood pressure": "blood_pressure",
+        "bp": "blood_pressure",
+        "heart rate": "heart_rate",
+        "pulse": "heart_rate",
+        "temperature": "temperature",
+        "temp": "temperature",
+        "height": "height",
+        "weight": "weight",
+        "respiratory rate": "respiratory_rate",
+        "respiration rate": "respiratory_rate",
+        "resp": "respiratory_rate",
+        "spo2": "oxygen_saturation",
+        "oxygen saturation": "oxygen_saturation",
+        "o2 sat": "oxygen_saturation",
+        "body mass index": "bmi",
+        "bmi": "bmi",
+    }
+    VITAL_DEFINITIONS: Dict[str, Dict[str, str]] = {
+        "blood_pressure": {"name": "BLOOD PRESSURE", "abbr": "BP", "units": "mmHg"},
+        "heart_rate": {"name": "PULSE", "abbr": "P", "units": "bpm"},
+        "temperature": {"name": "TEMPERATURE", "abbr": "TEMP", "units": "C"},
+        "height": {"name": "HEIGHT", "abbr": "HT", "units": "cm"},
+        "weight": {"name": "WEIGHT", "abbr": "WT", "units": "kg"},
+        "respiratory_rate": {"name": "RESPIRATION", "abbr": "RESP", "units": "breaths/min"},
+        "oxygen_saturation": {"name": "OXYGEN SATURATION", "abbr": "O2", "units": "%"},
+        "bmi": {"name": "BODY MASS INDEX", "abbr": "BMI", "units": "kg/m2"},
+    }
+    DERIVED_VITAL_DEFAULTS: Dict[str, Tuple[float, float]] = {
+        "respiratory_rate": (12, 18),
+        "oxygen_saturation": (94, 99),
+        "bmi": (20, 32),
+    }
+    HEALTH_FACTOR_DEFINITIONS: Dict[str, Dict[str, str]] = {
+        "housing_instability": {"name": "SDOH - Housing Instability", "category": "SDOH"},
+        "food_insecurity": {"name": "SDOH - Food Insecurity", "category": "SDOH"},
+        "transportation_barrier": {"name": "SDOH - Transportation Barrier", "category": "SDOH"},
+        "phq9_moderate": {"name": "Behavioral Health - PHQ-9 Moderate", "category": "BEHAVIORAL HEALTH"},
+        "phq9_severe": {"name": "Behavioral Health - PHQ-9 Severe", "category": "BEHAVIORAL HEALTH"},
+        "current_smoker": {"name": "Substance Use - Current Smoker", "category": "SUBSTANCE USE"},
+        "former_smoker": {"name": "Substance Use - Former Smoker", "category": "SUBSTANCE USE"},
+        "heavy_alcohol_use": {"name": "Substance Use - Heavy Alcohol Use", "category": "SUBSTANCE USE"},
+        "sdoh_generic": {"name": "SDOH - {label}", "category": "SDOH"},
+    }
+
+    @classmethod
+    def _normalize_vital_type(cls, raw: Optional[str]) -> Optional[str]:
+        if not raw:
+            return None
+        key = raw.strip().lower()
+        return cls.VITAL_ALIAS_MAP.get(key)
+
+    @classmethod
+    def _vital_definition(cls, normalized: str) -> Optional[Dict[str, str]]:
+        return cls.VITAL_DEFINITIONS.get(normalized)
+
+    @classmethod
+    def _default_vital_value(cls, normalized: str) -> float:
+        low, high = cls.DERIVED_VITAL_DEFAULTS.get(normalized, (0, 0))
+        if low == high == 0:
+            return 0.0
+        return round(random.uniform(low, high), 1)
+
+    @classmethod
+    def _collect_health_factors(cls, patient: PatientRecord) -> List[Tuple[str, str]]:
+        factors: List[Tuple[str, str]] = []
+        metadata = getattr(patient, "metadata", {}) or {}
+
+        # SDOH factors from metadata
+        for factor in metadata.get("sdoh_risk_factors", []) or []:
+            label = str(factor).strip()
+            if not label:
+                continue
+            normalized = label.lower()
+            if "housing" in normalized:
+                definition = cls.HEALTH_FACTOR_DEFINITIONS["housing_instability"]
+            elif "food" in normalized:
+                definition = cls.HEALTH_FACTOR_DEFINITIONS["food_insecurity"]
+            elif "transport" in normalized:
+                definition = cls.HEALTH_FACTOR_DEFINITIONS["transportation_barrier"]
+            else:
+                definition = cls.HEALTH_FACTOR_DEFINITIONS["sdoh_generic"]
+            name = definition["name"].format(label=label.title()) if "{label}" in definition["name"] else definition["name"]
+            factors.append((name, definition["category"]))
+
+        smoking_status = (patient.smoking_status or "").lower()
+        if smoking_status.startswith("current"):
+            definition = cls.HEALTH_FACTOR_DEFINITIONS["current_smoker"]
+            factors.append((definition["name"], definition["category"]))
+        elif smoking_status.startswith("former"):
+            definition = cls.HEALTH_FACTOR_DEFINITIONS["former_smoker"]
+            factors.append((definition["name"], definition["category"]))
+
+        alcohol_use = (patient.alcohol_use or "").lower()
+        if alcohol_use == "heavy":
+            definition = cls.HEALTH_FACTOR_DEFINITIONS["heavy_alcohol_use"]
+            factors.append((definition["name"], definition["category"]))
+
+        # Behavioral health factors may be encoded via metadata metrics
+        phq_score = metadata.get("phq9_score")
+        if isinstance(phq_score, (int, float)):
+            if phq_score >= 20:
+                definition = cls.HEALTH_FACTOR_DEFINITIONS["phq9_severe"]
+                factors.append((definition["name"], definition["category"]))
+            elif phq_score >= 10:
+                definition = cls.HEALTH_FACTOR_DEFINITIONS["phq9_moderate"]
+                factors.append((definition["name"], definition["category"]))
+
+        return factors
+
+    @classmethod
+    def _care_plan_status_to_tiu(cls, status: Optional[str]) -> str:
+        normalized = (status or "").lower()
+        if normalized == "completed":
+            return "7"  # Completed/Filed
+        if normalized in {"overdue", "in-progress"}:
+            return "6"  # Completed/Unsigned / Active
+        return "5"  # Unverified/Draft
 
     ICD_FALLBACKS: Dict[str, str] = {
         "Stroke": "I63.9",
@@ -2304,11 +2540,13 @@ class VistaFormatter:
         patients: List[PatientRecord],
         encounters: List[Dict],
         conditions: List[Dict],
+        procedures: List[Dict],
         medications: List[Dict],
         observations: List[Dict],
         allergies: List[Dict],
         immunizations: List[Dict],
         family_history: List[Dict],
+        care_plans: List[Dict],
         deaths: List[Dict],
         output_file: str,
     ) -> Dict[str, int]:
@@ -2322,21 +2560,33 @@ class VistaFormatter:
         problem_iens: Set[int] = set()
         visit_map: Dict[str, str] = {}
         problem_map: Dict[str, str] = {}
+        procedure_iens: Set[int] = set()
         medication_iens: Set[int] = set()
         lab_iens: Set[int] = set()
         allergy_iens: Set[int] = set()
         immunization_iens: Set[int] = set()
         family_history_iens: Set[int] = set()
+        measurement_iens: Set[int] = set()
+        health_factor_iens: Set[int] = set()
+        tiu_document_iens: Set[int] = set()
+        procedure_map: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
         medication_map: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
         observation_map: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
         allergy_map: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
         immunization_map: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
         family_history_map: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+        care_plan_map: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+        patient_visits: Dict[str, List[str]] = defaultdict(list)
+        visit_datetime_lookup: Dict[str, str] = {}
         medication_vista_map: Dict[str, str] = {}
         lab_vista_map: Dict[str, str] = {}
+        measurement_vista_map: Dict[str, str] = {}
+        health_factor_vista_map: Dict[str, str] = {}
+        procedure_vista_map: Dict[str, str] = {}
         allergy_vista_map: Dict[str, str] = {}
         immunization_vista_map: Dict[str, str] = {}
         family_history_vista_map: Dict[str, str] = {}
+        tiu_vista_map: Dict[str, str] = {}
 
         def _ensure_unique_ien(target_set: Set[int]) -> str:
             candidate = VistaFormatter.generate_vista_ien()
@@ -2344,6 +2594,46 @@ class VistaFormatter:
                 candidate = VistaFormatter.generate_vista_ien()
             target_set.add(int(candidate))
             return candidate
+
+        def _write_measurement_record(
+            patient_vista: str,
+            unique_key: str,
+            vital_key: str,
+            value: str,
+            visit_ien: Optional[str],
+            timestamp: Optional[str],
+            units_override: Optional[str] = None,
+        ) -> Optional[str]:
+            definition = VistaFormatter._vital_definition(vital_key)
+            if not definition or not value:
+                return None
+            msr_ien = measurement_vista_map.setdefault(unique_key, _ensure_unique_ien(measurement_iens))
+            measurement_type_ien = registry.get_measurement_type_ien(definition["name"], definition["abbr"])
+            resolved_units = VistaFormatter.sanitize_mumps_string(units_override or definition.get("units", ""))
+            resolved_value = VistaFormatter.sanitize_mumps_string(value)
+            measurement_datetime = timestamp or (visit_datetime_lookup.get(visit_ien, "") if visit_ien else "")
+            if not measurement_datetime:
+                measurement_datetime = VistaFormatter.fileman_datetime_format(current_date_iso)
+            segments = [
+                str(patient_vista or ""),
+                str(measurement_type_ien or ""),
+                str(visit_ien or ""),
+                resolved_value,
+                resolved_units,
+                measurement_datetime,
+            ]
+            all_globals[f"^AUPNVMSR({msr_ien},0)"] = "^".join(segments)
+            all_globals[f'^AUPNVMSR("B",{patient_vista},{msr_ien})'] = ""
+            if visit_ien:
+                all_globals[f'^AUPNVMSR("V",{visit_ien},{msr_ien})'] = ""
+            if measurement_type_ien:
+                all_globals[f'^AUPNVMSR("AE",{measurement_type_ien},{msr_ien})'] = ""
+            return msr_ien
+
+        for procedure in procedures or []:
+            patient_id = procedure.get('patient_id')
+            if patient_id:
+                procedure_map[patient_id].append(procedure)
 
         for medication in medications or []:
             patient_id = medication.get('patient_id')
@@ -2369,6 +2659,11 @@ class VistaFormatter:
             patient_id = entry.get('patient_id')
             if patient_id:
                 family_history_map[patient_id].append(entry)
+
+        for plan in care_plans or []:
+            patient_id = plan.get('patient_id')
+            if patient_id:
+                care_plan_map[patient_id].append(plan)
 
         # Patient structures
         for patient in tqdm(patients, desc="Creating VistA patient globals", unit="patients"):
@@ -2455,6 +2750,8 @@ class VistaFormatter:
             for encounter in patient_encounters:
                 encounter_key = encounter.get('encounter_id') or str(id(encounter))
                 visit_ien = visit_map.setdefault(encounter_key, _ensure_unique_ien(visit_iens))
+                if visit_ien not in patient_visits[patient.patient_id]:
+                    patient_visits[patient.patient_id].append(visit_ien)
 
                 visit_datetime = VistaFormatter.fileman_datetime_format(encounter.get('date', ''), encounter.get('time'))
 
@@ -2484,6 +2781,7 @@ class VistaFormatter:
 
                 zero_node = f"{vista_ien}^{visit_datetime}^{service_category}^{stop_code}^"
                 all_globals[f"^AUPNVSIT({visit_ien},0)"] = zero_node
+                visit_datetime_lookup[visit_ien] = visit_datetime or ""
 
                 location_value = encounter.get('location')
                 if location_value:
@@ -2505,6 +2803,9 @@ class VistaFormatter:
         current_date_iso = date.today().isoformat()
         for patient in tqdm(patients, desc="Creating VistA medication/lab/allergy globals", unit="patients"):
             vista_ien = patient.vista_id or patient.generate_vista_id()
+            vital_tracker: Dict[str, Dict[str, Any]] = {}
+            latest_height_cm: Optional[float] = None
+            latest_weight_kg: Optional[float] = None
 
             for medication in medication_map.get(patient.patient_id, []):
                 med_key = (
@@ -2605,6 +2906,254 @@ class VistaFormatter:
                     all_globals[f'^AUPNVLAB("V",{visit_ien},{lab_ien})'] = ""
                 if test_ien:
                     all_globals[f'^AUPNVLAB("AE",{test_ien},{lab_ien})'] = ""
+
+                vital_key = VistaFormatter._normalize_vital_type(test_name or observation.get('type'))
+                if not vital_key:
+                    vital_key = VistaFormatter._normalize_vital_type(observation.get('type'))
+                if vital_key:
+                    definition = VistaFormatter._vital_definition(vital_key)
+                    measurement_units = units or (definition.get("units") if definition else "")
+                    measurement_key = f"{obs_key}-MSR"
+                    msr_ien = _write_measurement_record(
+                        vista_ien,
+                        measurement_key,
+                        vital_key,
+                        value_str,
+                        visit_ien,
+                        obs_datetime,
+                        measurement_units,
+                    )
+                    if msr_ien:
+                        vital_tracker[vital_key] = {
+                            "msr_ien": msr_ien,
+                            "value": value_str,
+                            "units": measurement_units,
+                            "obs_datetime": obs_datetime,
+                            "visit_ien": visit_ien,
+                        }
+                        if vital_key == "height":
+                            try:
+                                latest_height_cm = float(
+                                    observation.get('value_numeric')
+                                    if observation.get('value_numeric') is not None
+                                    else float(str(raw_value))
+                                )
+                            except (TypeError, ValueError):
+                                pass
+                        elif vital_key == "weight":
+                            try:
+                                latest_weight_kg = float(
+                                    observation.get('value_numeric')
+                                    if observation.get('value_numeric') is not None
+                                    else float(str(raw_value))
+                                )
+                            except (TypeError, ValueError):
+                                pass
+
+            fallback_visits = patient_visits.get(patient.patient_id, [])
+            default_visit = fallback_visits[0] if fallback_visits else ""
+            default_visit_ref = default_visit or None
+            default_timestamp = visit_datetime_lookup.get(default_visit, "")
+            required_vitals = [
+                "blood_pressure",
+                "heart_rate",
+                "respiratory_rate",
+                "temperature",
+                "oxygen_saturation",
+                "height",
+                "weight",
+                "bmi",
+            ]
+
+            for vital_key in required_vitals:
+                if vital_key in vital_tracker:
+                    continue
+                definition = VistaFormatter._vital_definition(vital_key)
+                if not definition:
+                    continue
+                units = definition.get("units", "")
+                value = ""
+                if vital_key == "blood_pressure":
+                    systolic = random.randint(118, 138)
+                    diastolic = random.randint(70, 88)
+                    value = f"{systolic}/{diastolic}"
+                elif vital_key == "heart_rate":
+                    value = str(random.randint(60, 98))
+                elif vital_key == "temperature":
+                    value = f"{round(random.uniform(36.4, 37.3), 1)}"
+                elif vital_key == "height":
+                    if latest_height_cm:
+                        value = f"{round(latest_height_cm, 1)}"
+                    else:
+                        latest_height_cm = round(random.uniform(155, 182), 1)
+                        value = f"{latest_height_cm:.1f}"
+                elif vital_key == "weight":
+                    if latest_weight_kg:
+                        value = f"{round(latest_weight_kg, 1)}"
+                    else:
+                        latest_weight_kg = round(random.uniform(55, 95), 1)
+                        value = f"{latest_weight_kg:.1f}"
+                elif vital_key == "respiratory_rate":
+                    value = str(int(round(VistaFormatter._default_vital_value("respiratory_rate"))))
+                elif vital_key == "oxygen_saturation":
+                    value = str(int(round(VistaFormatter._default_vital_value("oxygen_saturation"))))
+                elif vital_key == "bmi":
+                    bmi_value = None
+                    if latest_height_cm and latest_weight_kg and latest_height_cm > 0:
+                        height_m = latest_height_cm / 100.0
+                        if height_m > 0:
+                            bmi_value = round(latest_weight_kg / (height_m ** 2), 1)
+                    if bmi_value is None:
+                        bmi_value = VistaFormatter._default_vital_value("bmi")
+                    value = f"{bmi_value:.1f}"
+                if not value:
+                    continue
+                measurement_key = f"{patient.patient_id}-{vital_key}-DEFAULT"
+                msr_ien = _write_measurement_record(
+                    vista_ien,
+                    measurement_key,
+                    vital_key,
+                    value,
+                    default_visit_ref,
+                    default_timestamp,
+                    units,
+                )
+                if msr_ien:
+                    vital_tracker[vital_key] = {
+                        "msr_ien": msr_ien,
+                        "value": value,
+                        "units": units,
+                        "obs_datetime": default_timestamp,
+                        "visit_ien": default_visit_ref,
+                    }
+                    if vital_key == "height" and not latest_height_cm:
+                        try:
+                            latest_height_cm = float(value)
+                        except ValueError:
+                            pass
+                    if vital_key == "weight" and not latest_weight_kg:
+                        try:
+                            latest_weight_kg = float(value)
+                        except ValueError:
+                            pass
+
+            for procedure in procedure_map.get(patient.patient_id, []):
+                proc_key = (
+                    procedure.get('procedure_id')
+                    or procedure.get('id')
+                    or f"{procedure.get('name', '')}-{procedure.get('date', '')}"
+                )
+                proc_ien = procedure_vista_map.setdefault(proc_key, _ensure_unique_ien(procedure_iens))
+                encounter_ref = procedure.get('encounter_id')
+                visit_ien = visit_map.get(encounter_ref, "") if encounter_ref else (default_visit_ref or "")
+                visit_ref = visit_ien or default_visit_ref
+                cpt_code = procedure.get('cpt_code') or procedure.get('cpt') or ""
+                cpt_ien = registry.get_cpt_ien(cpt_code, procedure.get('name'))
+                procedure_date = procedure.get('date') or current_date_iso
+                proc_datetime = VistaFormatter.fileman_datetime_format(procedure_date)
+                quantity = str(procedure.get('quantity') or 1)
+                segments = [
+                    str(vista_ien or ""),
+                    str(visit_ref or ""),
+                    str(cpt_ien or ""),
+                    proc_datetime,
+                    quantity,
+                    "",
+                    "",
+                    "",
+                ]
+                all_globals[f"^AUPNVCPT({proc_ien},0)"] = "^".join(segments)
+                all_globals[f'^AUPNVCPT("B",{vista_ien},{proc_ien})'] = ""
+                if visit_ref:
+                    all_globals[f'^AUPNVCPT("V",{visit_ref},{proc_ien})'] = ""
+                if cpt_ien:
+                    all_globals[f'^AUPNVCPT("C",{cpt_ien},{proc_ien})'] = ""
+                description = procedure.get('name')
+                if description:
+                    all_globals[f"^AUPNVCPT({proc_ien},811)"] = VistaFormatter.sanitize_mumps_string(description)
+
+            for factor_name, factor_category in VistaFormatter._collect_health_factors(patient):
+                factor_key = f"{patient.patient_id}-{factor_name}"
+                hf_ien = health_factor_vista_map.setdefault(factor_key, _ensure_unique_ien(health_factor_iens))
+                dict_ien = registry.get_health_factor_ien(factor_name, factor_category)
+                factor_datetime = default_timestamp or VistaFormatter.fileman_datetime_format(current_date_iso)
+                segments = [
+                    str(vista_ien or ""),
+                    str(dict_ien or ""),
+                    str(default_visit_ref or ""),
+                    factor_datetime,
+                    "",
+                    "",
+                ]
+                all_globals[f"^AUPNVHF({hf_ien},0)"] = "^".join(segments)
+                all_globals[f'^AUPNVHF("B",{vista_ien},{hf_ien})'] = ""
+                if default_visit_ref:
+                    all_globals[f'^AUPNVHF("V",{default_visit_ref},{hf_ien})'] = ""
+                if dict_ien:
+                    all_globals[f'^AUPNVHF("C",{dict_ien},{hf_ien})'] = ""
+
+            for plan in care_plan_map.get(patient.patient_id, []):
+                plan_key = plan.get('care_plan_id') or plan.get('id') or f"{plan.get('condition', '')}-{plan.get('pathway_stage', '')}"
+                doc_ien = tiu_vista_map.setdefault(plan_key, _ensure_unique_ien(tiu_document_iens))
+                title_ien = registry.get_tiu_title_ien(VistaFormatter.CARE_PLAN_TIU_TITLE)
+                encounter_refs = plan.get('linked_encounters') or []
+                visit_ien = ""
+                for encounter_id in encounter_refs:
+                    visit_ien = visit_map.get(encounter_id, "")
+                    if visit_ien:
+                        break
+                if not visit_ien:
+                    visit_ien = default_visit_ref or ""
+                document_date = (
+                    plan.get('actual_date')
+                    or plan.get('due_date')
+                    or plan.get('scheduled_date')
+                    or current_date_iso
+                )
+                document_datetime = VistaFormatter.fileman_datetime_format(document_date)
+                status_code = VistaFormatter._care_plan_status_to_tiu(plan.get('status'))
+                zero_segments = [
+                    str(vista_ien or ""),
+                    str(visit_ien or ""),
+                    str(title_ien or ""),
+                    status_code,
+                    document_datetime,
+                    "",
+                    "",
+                    "",
+                ]
+                all_globals[f"^TIU(8925,{doc_ien},0)"] = "^".join(zero_segments)
+                all_globals[f'^TIU(8925,"B",{vista_ien},{doc_ien})'] = ""
+                if visit_ien:
+                    all_globals[f'^TIU(8925,"V",{visit_ien},{doc_ien})'] = ""
+                if title_ien:
+                    all_globals[f'^TIU(8925,"C",{title_ien},{doc_ien})'] = ""
+
+                text_lines = [
+                    f"Care plan stage: {plan.get('pathway_stage', 'Unknown')}",
+                    f"Status: {str(plan.get('status', 'scheduled')).title()} (progress {int(round((plan.get('progress') or 0) * 100))}%)",
+                    f"Scheduled: {plan.get('scheduled_date')}, Due: {plan.get('due_date')}",
+                ]
+                notes = plan.get('notes')
+                if notes:
+                    text_lines.append(f"Notes: {notes}")
+                outstanding = [
+                    activity
+                    for activity in plan.get('activities', []) or []
+                    if str(activity.get('status', '')).lower() != "completed"
+                ]
+                for activity in outstanding[:5]:
+                    activity_name = activity.get('display') or activity.get('name') or activity.get('type')
+                    planned_date = activity.get('planned') or ""
+                    text_lines.append(
+                        f"Pending {activity.get('type','activity')}: {activity_name} (planned {planned_date})"
+                    )
+
+                wp_timestamp = VistaFormatter.fileman_date_format(current_date_iso)
+                line_count = len(text_lines)
+                all_globals[f'^TIU(8925,{doc_ien},"TEXT",0)'] = f"^^{line_count}^{line_count}^{wp_timestamp}"
+                for idx, line in enumerate(text_lines, start=1):
+                    all_globals[f'^TIU(8925,{doc_ien},"TEXT",{idx},0)'] = VistaFormatter.sanitize_mumps_string(line)
 
             for allergy in allergy_map.get(patient.patient_id, []):
                 allergy_key = (
@@ -2800,6 +3349,8 @@ class VistaFormatter:
             all_globals["^AUPNVSIT(0)"] = f"VISIT^9000010^{max(visit_iens)}^{fileman_date_today}"
         if problem_iens:
             all_globals["^AUPNPROB(0)"] = f"PROBLEM^9000011^{max(problem_iens)}^{fileman_date_today}"
+        if procedure_iens:
+            all_globals["^AUPNVCPT(0)"] = f"V CPT^9000010.18^{max(procedure_iens)}^{fileman_date_today}"
         if medication_iens:
             all_globals["^AUPNVMED(0)"] = f"V MEDICATION^9000010.14^{max(medication_iens)}^{fileman_date_today}"
         if lab_iens:
@@ -2810,6 +3361,12 @@ class VistaFormatter:
             all_globals["^AUPNVIMM(0)"] = f"V IMMUNIZATION^9000010.11^{max(immunization_iens)}^{fileman_date_today}"
         if family_history_iens:
             all_globals["^AUPNFH(0)"] = f"FAMILY HISTORY^9000034^{max(family_history_iens)}^{fileman_date_today}"
+        if measurement_iens:
+            all_globals["^AUPNVMSR(0)"] = f"V MEASUREMENT^9000010.01^{max(measurement_iens)}^{fileman_date_today}"
+        if health_factor_iens:
+            all_globals["^AUPNVHF(0)"] = f"V HEALTH FACTOR^9000010.23^{max(health_factor_iens)}^{fileman_date_today}"
+        if tiu_document_iens:
+            all_globals["^TIU(8925,0)"] = f"DOCUMENT^8925^{max(tiu_document_iens)}^{fileman_date_today}"
         all_globals.update(registry.header_entries(fileman_date_today))
 
         with open(output_file, 'w') as handle:
@@ -2836,6 +3393,10 @@ class VistaFormatter:
         allergy_record_pattern = re.compile(r"^\^GMR\(120\.8,\d+,0\)$")
         immunization_record_pattern = re.compile(r"^\^AUPNVIMM\(\d+,0\)$")
         family_history_record_pattern = re.compile(r"^\^AUPNFH\(\d+,0\)$")
+        procedure_record_pattern = re.compile(r"^\^AUPNVCPT\(\d+,0\)$")
+        measurement_record_pattern = re.compile(r"^\^AUPNVMSR\(\d+,0\)$")
+        health_factor_record_pattern = re.compile(r"^\^AUPNVHF\(\d+,0\)$")
+        care_plan_record_pattern = re.compile(r"^\^TIU\(8925,\d+,0\)$")
 
         dpt_count = sum(1 for k in all_globals if patient_record_pattern.match(k))
         visit_count = sum(1 for k in all_globals if visit_record_pattern.match(k))
@@ -2845,6 +3406,10 @@ class VistaFormatter:
         allergy_count = sum(1 for k in all_globals if allergy_record_pattern.match(k))
         immunization_count = sum(1 for k in all_globals if immunization_record_pattern.match(k))
         family_history_count = sum(1 for k in all_globals if family_history_record_pattern.match(k))
+        procedure_count = sum(1 for k in all_globals if procedure_record_pattern.match(k))
+        measurement_count = sum(1 for k in all_globals if measurement_record_pattern.match(k))
+        health_factor_count = sum(1 for k in all_globals if health_factor_record_pattern.match(k))
+        care_plan_count = sum(1 for k in all_globals if care_plan_record_pattern.match(k))
         cross_reference_nodes = len(all_globals) - (
             dpt_count
             + visit_count
@@ -2854,6 +3419,10 @@ class VistaFormatter:
             + allergy_count
             + immunization_count
             + family_history_count
+            + procedure_count
+            + measurement_count
+            + health_factor_count
+            + care_plan_count
         )
         return {
             "total_globals": len(all_globals),
@@ -2865,6 +3434,10 @@ class VistaFormatter:
             "allergy_records": allergy_count,
             "immunization_records": immunization_count,
             "family_history_records": family_history_count,
+            "procedure_records": procedure_count,
+            "measurement_records": measurement_count,
+            "health_factor_records": health_factor_count,
+            "care_plan_records": care_plan_count,
             "cross_references": cross_reference_nodes,
         }
 
@@ -2873,23 +3446,40 @@ class VistaFormatter:
         patients: List[PatientRecord],
         encounters: List[Dict],
         conditions: List[Dict],
-        medications: List[Dict],
-        observations: List[Dict],
-        allergies: List[Dict],
+        procedures: Optional[List[Dict]] = None,
+        medications: Optional[List[Dict]] = None,
+        observations: Optional[List[Dict]] = None,
+        allergies: Optional[List[Dict]] = None,
         immunizations: Optional[List[Dict]] = None,
         family_history: Optional[List[Dict]] = None,
+        care_plans: Optional[List[Dict]] = None,
         deaths: Optional[List[Dict]] = None,
         output_file: Optional[str] = None,
         export_mode: str = FILEMAN_INTERNAL_MODE,
     ) -> Dict[str, int]:
         # Backwards compatibility for earlier call signatures where optional
         # collections were omitted and ``output_file`` was passed positionally.
+        if output_file is None and isinstance(procedures, (str, os.PathLike)):
+            output_file = str(procedures)
+            procedures = None
+        if output_file is None and isinstance(medications, (str, os.PathLike)):
+            output_file = str(medications)
+            medications = None
+        if output_file is None and isinstance(observations, (str, os.PathLike)):
+            output_file = str(observations)
+            observations = None
+        if output_file is None and isinstance(allergies, (str, os.PathLike)):
+            output_file = str(allergies)
+            allergies = None
         if output_file is None and isinstance(immunizations, (str, os.PathLike)):
             output_file = str(immunizations)
             immunizations = None
         if output_file is None and isinstance(family_history, (str, os.PathLike)):
             output_file = str(family_history)
             family_history = None
+        if output_file is None and isinstance(care_plans, (str, os.PathLike)):
+            output_file = str(care_plans)
+            care_plans = None
         if output_file is None and isinstance(deaths, (str, os.PathLike)):
             output_file = str(deaths)
             deaths = None
@@ -2897,8 +3487,13 @@ class VistaFormatter:
         if output_file is None:
             raise ValueError("output_file must be provided for VistA export")
 
+        procedures = procedures or []
+        medications = medications or []
+        observations = observations or []
+        allergies = allergies or []
         immunizations = immunizations or []
         family_history = family_history or []
+        care_plans = care_plans or []
         deaths = deaths or []
 
         mode = (export_mode or VistaFormatter.FILEMAN_INTERNAL_MODE).lower()
@@ -2909,11 +3504,13 @@ class VistaFormatter:
                 patients,
                 encounters,
                 conditions,
+                procedures,
                 medications,
                 observations,
                 allergies,
                 immunizations,
                 family_history,
+                care_plans,
                 deaths,
                 output_file,
             )
@@ -3863,11 +4460,13 @@ def main():
             patients,
             all_encounters,
             all_conditions,
+            all_procedures,
             all_medications,
             all_observations,
             all_allergies,
             all_immunizations,
             all_family_history,
+            all_care_plans,
             all_deaths,
             vista_output_file,
             export_mode=vista_mode,
@@ -3949,6 +4548,10 @@ def main():
             report_lines.append(f"  Allergy records (^GMR(120.8,)): {vista_stats.get('allergy_records', 0)}")
             report_lines.append(f"  Immunization records (^AUPNVIMM): {vista_stats.get('immunization_records', 0)}")
             report_lines.append(f"  Family history records (^AUPNFH): {vista_stats.get('family_history_records', 0)}")
+            report_lines.append(f"  Procedure records (^AUPNVCPT): {vista_stats.get('procedure_records', 0)}")
+            report_lines.append(f"  Measurement records (^AUPNVMSR): {vista_stats.get('measurement_records', 0)}")
+            report_lines.append(f"  Health factor records (^AUPNVHF): {vista_stats.get('health_factor_records', 0)}")
+            report_lines.append(f"  Care plan TIU notes (^TIU(8925,)): {vista_stats.get('care_plan_records', 0)}")
             report_lines.append(f"  Cross-references: {vista_stats['cross_references']}")
     
         report = "\n".join(report_lines)

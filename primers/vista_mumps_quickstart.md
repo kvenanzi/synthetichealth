@@ -16,6 +16,10 @@
   - `^AUPNVMED` (V Medication #9000010.14) ties patients to `^PSDRUG` entries and encounters, storing FileMan start/stop dates and standard `"B"/"V"/"AA"` xrefs.
   - `^AUPNVLAB` (V Laboratory #9000010.09) records lab values with `^LAB(60)` pointers, FileMan datetimes, units, and reference ranges along `"B"/"V"/"AE"` indexes.
   - `^GMR(120.8)` (Patient Allergies) references `^GMR(120.82)` allergen definitions and captures reaction/severity text with internal IENs only.
+  - `^AUPNVCPT` (V CPT) stores CPT-coded procedures linked to visits and `^ICPT` stubs with `"B"/"V"/"C"` indices.
+  - `^AUPNVMSR` (V Measurement) captures vitals (BP, pulse, resp, temp, SpO₂, height, weight, BMI) via `^AUTTMSR` measurement types.
+  - `^AUPNVHF` (V Health Factor) records SDOH/behavioral/substance factors referencing `^AUTTHF`.
+  - `^TIU(8925)` produces care-plan notes under the “Care Plan” title with visit linkage; title definitions land in `^TIU(8925.1)`.
 
 ## Minimal File Layout
 - **Patients (`^DPT`)** – demographics, address (.11), phone (.13), with `"B"`, `"SSN"`, `"DOB"` cross-references.
@@ -24,6 +28,10 @@
 - **Medications (`^AUPNVMED`)** – `DFN^DrugIEN^VisitIEN^FMStart^Status` (optional stop date at node `5101`, indication at `13`) with `"B"` (patient), `"V"` (visit), and `"AA"` (drug) cross-references; minimal drug entries are emitted under `^PSDRUG(IEN,0)=<NAME>^<RxNorm>` with `"B"` index.
 - **Labs (`^AUPNVLAB`)** – `DFN^TestIEN^VisitIEN^Value^Units^Status^FMDatetime` plus node `11` (reference range) and `12` (panel). Pointer stubs live at `^LAB(60,IEN,0)=<NAME>^<LOINC>` with `"B"` xrefs.
 - **Allergies (`^GMR(120.8)`)** – `DFN^AllergenIEN^^o^FMRecorded` plus reaction node `1` and severity node `3`, with `"B"` (patient) and `"C"` (allergen) indices; supporting dictionary entries are added to `^GMR(120.82)`.
+- **Procedures (`^AUPNVCPT`)** – `DFN^VisitIEN^CPT_IEN^FMDate^Quantity` with `"B"` (patient), `"V"` (visit), and `"C"` (CPT) cross-references; CPT stubs populate `^ICPT(IEN,0)=<CODE>^<DESC>`.
+- **Measurements (`^AUPNVMSR`)** – `DFN^TypeIEN^VisitIEN^Value^Units^FMDatetime`; measurement types appear under `^AUTTMSR` (e.g., BLOOD PRESSURE, PULSE, RESPIRATION, HEIGHT, WEIGHT, BMI, OXYGEN SATURATION).
+- **Health Factors (`^AUPNVHF`)** – `DFN^HF_IEN^VisitIEN^FMDatetime` for SDOH/behavioral risk entries. Dictionary stubs (`^AUTTHF`) include SDOH (Housing Instability, Food Insecurity, Transportation) and behavioral flags (PHQ-9 Moderate/Severe, Current/Former Smoker, Heavy Alcohol Use).
+- **Care Plans (`^TIU(8925)`)** – TIU notes titled “Care Plan” summarizing pathway stage/status and outstanding activities. Note text is stored in the `"TEXT"` multiple and pointer definitions live at `^TIU(8925.1)`.
 
 ## Date Conversion Helpers
 ```python

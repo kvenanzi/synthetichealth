@@ -35,6 +35,10 @@ def _build_patient() -> PatientRecord:
 
 def test_fileman_internal_generates_numeric_pointers(tmp_path):
     patient = _build_patient()
+    patient.smoking_status = "Current"
+    patient.alcohol_use = "Heavy"
+    patient.metadata["sdoh_risk_factors"] = ["Housing instability"]
+    patient.metadata["phq9_score"] = 15
     encounter = {
         "patient_id": patient.patient_id,
         "encounter_id": "enc-1",
@@ -84,15 +88,43 @@ def test_fileman_internal_generates_numeric_pointers(tmp_path):
         "category": "food",
         "recorded_date": "2023-11-01",
     }
+    procedure = {
+        "patient_id": patient.patient_id,
+        "procedure_id": "proc-1",
+        "encounter_id": "enc-1",
+        "name": "Cardiac Stress Test",
+        "cpt_code": "93017",
+        "date": "2023-11-29",
+    }
+    care_plan = {
+        "care_plan_id": "cp-1",
+        "patient_id": patient.patient_id,
+        "condition": "Hypertension",
+        "pathway_stage": "Lifestyle Coaching",
+        "scheduled_date": "2023-11-15",
+        "due_date": "2023-12-15",
+        "status": "in-progress",
+        "progress": 0.5,
+        "notes": "Working on salt reduction.",
+        "activities": [
+            {"type": "observation", "name": "BP Check", "status": "pending", "planned": "2023-12-10"}
+        ],
+        "linked_encounters": ["enc-1"],
+    }
 
     output_file = tmp_path / "vista_globals.mumps"
     stats = VistaFormatter.export_vista_globals(
         [patient],
         [encounter],
         [condition],
+        [procedure],
         [medication],
         [observation],
         [allergy],
+        [],
+        [],
+        [care_plan],
+        [],
         str(output_file),
         export_mode=VistaFormatter.FILEMAN_INTERNAL_MODE,
     )
@@ -103,6 +135,10 @@ def test_fileman_internal_generates_numeric_pointers(tmp_path):
     assert stats["medication_records"] == 1
     assert stats["lab_records"] == 1
     assert stats["allergy_records"] == 1
+    assert stats["procedure_records"] == 1
+    assert stats["care_plan_records"] == 1
+    assert stats["measurement_records"] >= 1
+    assert stats["health_factor_records"] >= 1
 
     content = output_file.read_text().splitlines()
     header_line = next(line for line in content if line.startswith("S ^DPT(0)="))
@@ -143,6 +179,20 @@ def test_fileman_internal_generates_numeric_pointers(tmp_path):
     # FileMan date for 1980-05-17 -> years since 1700 = 280
     assert ",2800517," in dob_index
 
+    procedure_zero = next(line for line in content if re.match(r'S \^AUPNVCPT\(\d+,0\)=', line))
+    assert "93017" in procedure_zero or "CARDIAC" in procedure_zero.upper()
+
+    measurement_zero = next(line for line in content if re.match(r'S \^AUPNVMSR\(\d+,0\)=', line))
+    assert re.search(r'"1001\^\d+\^', measurement_zero)
+
+    health_factor_zero = next(line for line in content if re.match(r'S \^AUPNVHF\(\d+,0\)=', line))
+    assert "HOUSING" in health_factor_zero.upper() or "SMOKER" in health_factor_zero.upper()
+
+    tiu_zero = next(line for line in content if re.match(r'S \^TIU\(8925,\d+,0\)=', line))
+    assert "CARE PLAN" in tiu_zero.upper()
+    tiu_title_stub = next(line for line in content if re.match(r'S \^TIU\(8925\.1,\d+,0\)=', line))
+    assert "CARE PLAN" in tiu_title_stub.upper()
+
 
 def test_legacy_mode_preserves_string_fields(tmp_path):
     patient = _build_patient()
@@ -166,6 +216,11 @@ def test_legacy_mode_preserves_string_fields(tmp_path):
         [patient],
         [encounter],
         [condition],
+        [],
+        [],
+        [],
+        [],
+        [],
         [],
         [],
         [],

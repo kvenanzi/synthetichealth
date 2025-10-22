@@ -399,45 +399,27 @@ Acceptance Criteria
 Note on Care Plans
 - Care plans are represented in FHIR (CarePlan resources) and CSV but are not mapped to a canonical VistA file by default. If needed, consider emitting TIU documents or a site‑specific file and add a pointer registry for that target.
 
-### VistA Export – Planned Extensions (Pending)
+### VistA Export – Planned Extensions (Completed)
 Objective: round out “full‑scope” VistA exports for migration realism by adding procedures, vitals, health factors, and narrative care plans.
 
-Targets and Mapping
-- Procedures (visit‑tied)
-  - File: `^AUPNVCPT` (V CPT, #9000010.18); dictionary: `^ICPT` (#81).
-  - Nodes: `^AUPNVCPT(IEN,0)=DFN^VISIT_IEN^CPT_IEN^FM_DATE^…`; xrefs: `"B"` (DFN), `"V"` (visit).
-  - Headers: `^AUPNVCPT(0)="V CPT^9000010.18^<lastIEN>^<FMdate>"`; pointer headers for `^ICPT` when stubbing new codes.
+Highlights
+- Added `^AUPNVCPT`, `^AUPNVMSR`, `^AUPNVHF`, and `^TIU(8925)` exports with synchronized `"B"`/`"V"`/code cross-references and FileMan headers. Pointer registries now cover `^ICPT`, `^AUTTMSR`, `^AUTTHF`, and `^TIU(8925.1)` alongside the existing drug/allergen/lab dictionaries.
+- Default vital measurement suite (blood pressure, pulse, respiratory rate, temperature, SpO₂, height, weight, BMI) is emitted per patient, drawing from observations when available and synthesizing plausible fallbacks tied to visit context.
+- Health factor entries derive from SDOH risk factors, smoking/alcohol status, and PHQ-9 scores, emitting `^AUPNVHF` records with minimal dictionary stubs.
+- Care plan milestones surface as TIU notes titled “Care Plan,” summarizing stage/status/activities with word-processing text and visit linkage.
 
-- Vitals/Measurements (visit‑tied)
-  - File: `^AUPNVMSR` (V MEASUREMENT, #9000010.01); dictionary: `^AUTTMSR` (Measurement Type, #9999999.07).
-  - Nodes: `^AUPNVMSR(IEN,0)=DFN^TYPE_IEN^VISIT_IEN^VALUE^UNITS^FM_DATETIME^…`; xrefs: `"B"`, `"V"`.
-  - Headers: `^AUPNVMSR(0)=…`; pointer headers for `^AUTTMSR` as needed (e.g., BP, PULSE, RESP, TEMP, HT, WT, BMI, SpO2).
+Decisions Captured
+- TIU document title: **“Care Plan”**.
+- Vital measurement types: BP, Pulse, Respiration, Temperature, SpO₂, Height, Weight, BMI (with BMI derived when height/weight exist).
+- Health-factor taxonomy: housing instability, food insecurity, transportation barriers, PHQ-9 moderate/severe, current/former smoker, heavy alcohol use, plus scenario-specific SDOH fallbacks.
+- Pointer dictionaries remain lightweight stubs generated only for referenced codes/types.
 
-- Health Factors (visit‑tied; SDOH/screeners/risk flags)
-  - File: `^AUPNVHF` (V HEALTH FACTOR, #9000010.23); dictionary: `^AUTTHF` (HEALTH FACTOR, #9999999.64).
-  - Nodes: `^AUPNVHF(IEN,0)=DFN^HF_IEN^VISIT_IEN^FM_DATETIME^…`; xrefs: `"B"`, `"V"`.
-  - Headers: `^AUPNVHF(0)=…`; pointer headers for `^AUTTHF` when stubbing new factors (e.g., SDOH—Housing Instability, Food Insecurity, PHQ‑9 Moderate/Severe).
+Validation & Tests
+- `tests/test_vista_formatter.py` now asserts headers/xrefs for the new V-files, ensures dictionary stubs exist, and verifies TIU note output.
+- Manual smoke via the VistA exporter summary confirms non-zero counts for CPT/measurement/health-factor/TIU nodes and pointer parity.
 
-- Care Plans (narrative)
-  - File: `^TIU(8925)` (TIU DOCUMENT FILE); titles: `^TIU(8925.1)` (Document Definition).
-  - Nodes: minimal 0‑node (patient, visit, title, status, dates) and WORD‑PROCESSING TEXT multiple; link to provider/location when available.
-  - Headers: rely on TIU’s standard top nodes; pointer headers for `^TIU(8925.1)` when introducing a “Care Plan” title.
-
-Decisions to Confirm (Action Required)
-- TIU titles to use (e.g., “Care Plan”, “Chronic Care Management Plan”, “Behavioral Health Care Plan”).
-- Vital types to include by default (BP, Pulse, Resp, Temp, SpO2, Height, Weight, BMI).
-- Health Factor taxonomy to seed (SDOH factors, PHQ‑9 levels, Smoking Status confirmations, Education level, etc.).
-- Whether to pre‑seed full `^ICPT`/`^AUTTMSR`/`^AUTTHF` dictionaries or generate minimal stubs strictly for referenced codes.
-
-Validation & Tests (Planned)
-- Unit: assert headers/xrefs for `^AUPNVCPT`, `^AUPNVMSR`, `^AUPNVHF`, and TIU creation of document 0‑node + TEXT multiples.
-- Integration smoke: verify non‑zero counts for the new files, and that visit/patient pointers are consistent; check that CSV/FHIR/HL7 parity remains unaffected.
-
-Acceptance Criteria (Planned)
-- Procedures, vitals, and health factors appear under the correct visit and patient with internal pointers and FM dates/times.
-- Care plan narratives available as TIU notes with appropriate titles and linkage.
-- Pointer dictionaries present (or stubs) with headers and “B” indexes.
-- All tests pass and exporter summary includes the new V‑file counts.
+Acceptance Criteria
+- Procedures, vitals, and health factors land under the correct patient/visit with internal pointers and FM timestamps, and TIU notes capture care-plan state. Export summary reports the new V-file counts.
 
 ## Immediate Next Steps
 1. ✅ **Allergy realism expansion** — loaders, catalog swap, downstream orders, and exporter/tests completed.

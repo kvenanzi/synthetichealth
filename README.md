@@ -218,7 +218,7 @@ synthetichealth/
 - **VistA MUMPS**: Production-accurate VA FileMan global structures
 
 #### VistA export modes
-- Default (`--vista-mode fileman_internal`) emits FileMan-internal pointers and supporting dictionary stubs for medications, labs, and allergies.
+- Default (`--vista-mode fileman_internal`) emits FileMan-internal pointers and supporting dictionary stubs for medications, labs, allergies, CPT-coded procedures, vital measurements, health factors, immunizations, family history, and care-plan TIU notes.
 - Legacy (`--vista-mode legacy`) preserves earlier text-oriented encoding (not pointer-clean). Use only to reproduce historical artifacts.
 
 Example:
@@ -233,6 +233,7 @@ python -m src.core.synthetic_patient_generator \
 - Primer with parsing and date helpers: `primers/vista_mumps_quickstart.md`
 - FileMan dates use YYYMMDD with YYY = year−1700; visits use `YYYMMDD.HHMMSS`.
 - Globals are written as `S ^GLOBAL(...)=<value>`; strip the leading `S` and surrounding quotes when parsing.
+- Care-plan notes export under the TIU title “Care Plan.” Vital measurements default to BP, pulse, respiration, temperature, SpO₂, height, weight, and BMI per patient.
 
 ### Analytics formats
 - **CSV/Parquet**: Normalized relational tables for research and analytics workflows
@@ -247,6 +248,7 @@ All formats maintain referential integrity via `patient_id` linkage:
 - `procedures`: CPT coded medical procedures
 - `immunizations`: CVX coded vaccination records
 - `observations`: LOINC coded vitals and lab results
+- `care_plans`: Guideline milestones, status, and activities (also emitted to TIU in VistA mode)
 - `deaths`: Mortality data with cause mapping
 - `family_history`: Genetic predisposition modeling
 
