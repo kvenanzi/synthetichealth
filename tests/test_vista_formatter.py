@@ -210,7 +210,16 @@ def test_fileman_internal_generates_numeric_pointers(tmp_path):
     ), "Health factor stub does not contain expected taxonomy keyword"
 
     tiu_zero = next(line for line in content if re.match(r'S \^TIU\(8925,\d+,0\)=', line))
-    assert "CARE PLAN" in tiu_zero.upper()
+    tiu_match = re.search(r'"1001\^[^\\^]*\^(\d+)\^', tiu_zero)
+    assert tiu_match, "TIU zero node missing title pointer"
+    tiu_title_ptr = tiu_match.group(1)
+    title_stub = next(
+        line for line in content if re.match(fr'S \^TIU\(8925\.1,{tiu_title_ptr},0\)=', line)
+    )
+    assert "CARE PLAN" in title_stub.upper()
+    assert any(
+        re.match(r'S \^TIU\(8925,\d+,"TEXT",\d+,0\)=', line) for line in content
+    ), "TIU note missing TEXT multiple"
     tiu_title_stub = next(line for line in content if re.match(r'S \^TIU\(8925\.1,\d+,0\)=', line))
     assert "CARE PLAN" in tiu_title_stub.upper()
 
