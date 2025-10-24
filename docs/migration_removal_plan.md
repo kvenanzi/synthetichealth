@@ -21,7 +21,7 @@ This plan removes all migration-focused code paths while protecting the syntheti
 - ✅ **Scenario loaders**: Hardened `src/core/lifecycle/loader.py` to raise clear errors when overrides include deprecated migration flags and added regression coverage in `tests/test_scenario_loader.py`.
 - **CLI and smoke coverage**: Capture current CLI usage (`python -m src.core.synthetic_patient_generator ...`) plus scenario overrides and add a regression in `tests/test_patient_generation.py` or a new `tests/test_cli_arguments.py` to lock argument parsing.
 - **Dependency + build hygiene**: Confirm `matplotlib`, `seaborn`, `websockets`, and other dashboard-era packages are unused, then stage their removal from `requirements.txt` and `package-lock.json`. Validate `pip install -r requirements.txt` still succeeds post-removal.
-- **Automation updates**: Re-create CI to target the patient pipeline (GitHub Actions workflow that runs `pytest` and the CLI smoke command). Document necessary secrets/inputs before deleting migration jobs.
+- ✅ **Automation updates**: Added `.github/workflows/patient-ci.yml` to run `pytest` and a CLI smoke command on pushes/PRs; no legacy migration workflows remain.
 
 ## Phase 1. Inventory and Analysis
 - [x] Catalog migration modules and call sites:
@@ -103,8 +103,8 @@ This plan removes all migration-focused code paths while protecting the syntheti
 ## Phase 6. Tests and Validation Cleanup
 - [x] Remove migration-specific tests (`tests/test_enhanced_migration.py`, `tests/test_migration_simulator.py`, `tests/test_migration_analytics.py`) only after equivalent patient coverage exists.
 - [x] Trim fixtures, factories, and helpers that only serve migration paths.
-- [ ] Update CI workflows to drop migration jobs; ensure patient suite remains green.
-  - Create `.github/workflows/patient-ci.yml` (or equivalent) that runs `pytest` plus a minimal CLI smoke command; delete historic migration workflows in the same PR.
+- [x] Update CI workflows to drop migration jobs; ensure patient suite remains green.
+  - Created `.github/workflows/patient-ci.yml` to run `pytest` plus a CLI smoke command; no historic migration workflows remain.
 - Validation gate:
   - [ ] Full test run: `pytest`.
   - [ ] Verify CI configuration updates locally (e.g., `tox`, GitHub Actions dry-run).
