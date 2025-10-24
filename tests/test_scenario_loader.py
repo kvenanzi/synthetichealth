@@ -2,7 +2,9 @@ import sys
 import tempfile
 from pathlib import Path
 
+import pytest
 
+# Ensure repository root is available for in-module imports during direct execution.
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 root_str = str(PROJECT_ROOT)
 if root_str not in sys.path:
@@ -55,3 +57,20 @@ def test_unknown_override_file():
         except FileNotFoundError:
             return
         raise AssertionError("Expected FileNotFoundError for missing override file")
+
+
+def test_override_with_deprecated_migration_key_errors():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        override_path = Path(tmpdir) / "override.yaml"
+        override_path.write_text(
+            """
+simulate_migration: true
+""",
+            encoding="utf-8",
+        )
+
+        with pytest.raises(ValueError) as excinfo:
+            load_scenario_config("general", override_path.as_posix())
+
+        assert "simulate_migration" in str(excinfo.value)
+        assert "deprecated migration key" in str(excinfo.value)

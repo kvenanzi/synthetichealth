@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 import yaml
 
@@ -17,6 +17,31 @@ from ..terminology import (
     load_umls_concepts,
     load_vsac_value_sets,
 )
+
+DEPRECATED_SCENARIO_KEYS = {
+    "simulate_migration",
+    "migration_strategy",
+    "migration_settings",
+    "migration_report",
+}
+
+
+def _ensure_no_deprecated_keys(payload: Any, *, context: str, path: str = "") -> None:
+    """Raise a ValueError if migration-era keys still appear in scenario data."""
+
+    if isinstance(payload, dict):
+        for key, value in payload.items():
+            current_path = f"{path}.{key}" if path else key
+            if key in DEPRECATED_SCENARIO_KEYS:
+                raise ValueError(
+                    f"{context} includes deprecated migration key '{current_path}'. "
+                    "Remove migration settings before loading the scenario."
+                )
+            _ensure_no_deprecated_keys(value, context=context, path=current_path)
+    elif isinstance(payload, list):
+        for index, item in enumerate(payload):
+            current_path = f"{path}[{index}]" if path else f"[{index}]"
+            _ensure_no_deprecated_keys(item, context=context, path=current_path)
 
 
 def _attach_terminology_payload(scenario: Dict[str, object]) -> Dict[str, object]:
@@ -82,6 +107,10 @@ def load_scenario_config(
             scenario = get_scenario(scenario_name)
         except KeyError as exc:
             raise ValueError(f"Scenario '{scenario_name}' is not defined") from exc
+        _ensure_no_deprecated_keys(
+            scenario,
+            context=f"Scenario '{scenario_name}' definition",
+        )
 
     if overrides_path:
         override_path = Path(overrides_path)
@@ -89,8 +118,16 @@ def load_scenario_config(
             raise FileNotFoundError(f"Scenario override file not found: {overrides_path}")
         with override_path.open("r", encoding="utf-8") as handle:
             overrides = yaml.safe_load(handle) or {}
+        _ensure_no_deprecated_keys(
+            overrides,
+            context=f"Scenario override '{overrides_path}'",
+        )
         merged = deepcopy(scenario)
         merged.update(overrides)
+        _ensure_no_deprecated_keys(
+            merged,
+            context="Merged scenario configuration",
+        )
         return _attach_terminology_payload(merged)
 
     return _attach_terminology_payload(scenario)

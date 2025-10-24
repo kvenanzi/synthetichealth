@@ -18,7 +18,7 @@ This plan removes all migration-focused code paths while protecting the syntheti
 
 ## Active Workstreams
 - ✅ **Lifecycle metadata cleanup**: Removed the temporary `metadata["migration_status"]` alias in `src/core/lifecycle/records.py` and added coverage in `tests/test_patient_generation.py` for the `generation_status` default.
-- **Scenario loaders**: Teach `src/core/lifecycle/loader.py` to ignore or warn on deprecated migration flags (`simulate_migration`, `migration_strategy`) so existing YAML overrides fail fast with a clear message. Extend `tests/test_scenario_loader.py` to cover the warning pathway.
+- ✅ **Scenario loaders**: Hardened `src/core/lifecycle/loader.py` to raise clear errors when overrides include deprecated migration flags and added regression coverage in `tests/test_scenario_loader.py`.
 - **CLI and smoke coverage**: Capture current CLI usage (`python -m src.core.synthetic_patient_generator ...`) plus scenario overrides and add a regression in `tests/test_patient_generation.py` or a new `tests/test_cli_arguments.py` to lock argument parsing.
 - **Dependency + build hygiene**: Confirm `matplotlib`, `seaborn`, `websockets`, and other dashboard-era packages are unused, then stage their removal from `requirements.txt` and `package-lock.json`. Validate `pip install -r requirements.txt` still succeeds post-removal.
 - **Automation updates**: Re-create CI to target the patient pipeline (GitHub Actions workflow that runs `pytest` and the CLI smoke command). Document necessary secrets/inputs before deleting migration jobs.
@@ -76,10 +76,9 @@ This plan removes all migration-focused code paths while protecting the syntheti
 - [x] Strip migration settings from:
   - ✅ Removed migration blocks from `config/config.yaml` and deleted `config/phase5_enhanced_config.yaml`.
   - ✅ Removed migration-specific configuration managers under `src/config/`.
-- [ ] Update default scenarios to exclude migration toggles; ensure YAML loaders ignore old keys gracefully (with helpful error message if necessary).
-  - Ensure `src/core/lifecycle/scenarios.py` templates no longer carry `migration_*` hints and prune any stale references in `docs/scenario_recipes.md`.
-  - Add a defensive branch in `src/core/lifecycle/loader.py` to raise `ValueError` when overrides include deprecated migration keys; cover with a fixture in `tests/test_scenario_loader.py`.
-  - TODO: audit scenario YAML and loaders for `simulate_migration` / `migration_strategy` fallbacks and provide helpful error messaging.
+- [x] Update default scenarios to exclude migration toggles; ensure YAML loaders ignore old keys gracefully (with helpful error message if necessary).
+  - Confirmed `src/core/lifecycle/scenarios.py` templates remain migration-free and captured the constraint in `docs/scenario_recipes.md` backlog notes.
+  - Added a defensive branch in `src/core/lifecycle/loader.py` that raises a clear `ValueError` when overrides include deprecated migration keys, with regression coverage in `tests/test_scenario_loader.py`.
 - [x] Provide migration-agnostic defaults and examples for patient generation.
 - Validation gate:
   - [ ] `pytest tests/test_parameters_loader.py tests/test_scenario_loader.py`.
