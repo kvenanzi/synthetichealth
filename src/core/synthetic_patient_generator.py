@@ -76,7 +76,6 @@ from .terminology import (
     load_rxnorm_medications,
 )
 from .lifecycle.modules import ModuleEngine, ModuleExecutionResult
-from .migration_simulator import run_migration_phase
 
 # Local faker instance for legacy generator utilities
 fake = Faker()

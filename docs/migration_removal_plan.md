@@ -17,20 +17,44 @@ This plan removes all migration-focused code paths while protecting the syntheti
 - [ ] Track removed tests and ensure equivalent patient-generation assertions exist before deletion.
 
 ## Phase 1. Inventory and Analysis
-- [ ] Catalog migration modules and call sites:
-  - `src/core/migration_simulator.py`, `src/core/enhanced_migration_simulator.py`, trackers, analytics (`src/analytics/migration_*`), validation, dashboards, and CLI hooks.
-  - `tests/test_migration_*.py`, demo notebooks/scripts, data snapshots, `migration_*` logs.
-- [ ] Document shared utilities (e.g., HIPAA compliance scoring, terminology lookups) and decide whether to move or keep them.
-- [ ] Identify configuration, environment variables, and CLI flags referencing migration (`simulate_migration`, `migration_strategy`, export toggles).
-- [ ] Record deployment/CI use (jobs, scheduled runs) for migration artifacts.
+- [x] Catalog migration modules and call sites:
+  - **Core & generator modules**: `src/core/migration_simulator.py`, `src/core/enhanced_migration_simulator.py`, `src/core/enhanced_migration_tracker.py`, `src/core/migration_models.py`, `src/core/synthetic_patient_generator.py` (imports `run_migration_phase`), `src/generators/multi_format_healthcare_generator.py`, `src/generators/healthcare_format_handlers.py`, `src/integration/phase5_unified_integration.py`.
+  - **Analytics, validation, and testing frameworks**: `src/analytics/migration_analytics_engine.py`, `src/analytics/migration_report_generator.py`, `src/analytics/real_time_dashboard.py`, `src/validation/comprehensive_validation_framework.py`, `src/validation/healthcare_interoperability_validator.py`, `src/testing/error_injection_testing_framework.py`, `src/testing/performance_testing_framework.py`.
+  - **Configs & schema helpers**: `src/config/healthcare_migration_config.py`, `src/config/enhanced_configuration_manager.py`, `config/config.yaml`, `config/phase5_enhanced_config.yaml`.
+  - **Tests & harnesses**: `tests/test_migration_simulator.py`, `tests/test_enhanced_migration.py`, `tests/test_migration_analytics.py`, `tests/{quick,simple}_performance_test.py`, `tests/run_performance_tests.py`.
+  - **Demos, tools, and integrations**: `demos/migration_demo.py`, `demos/enhanced_migration_demo.py`, `demos/migration_analytics_demo.py`, `demos/integration_performance_demo.py`, `demos/final_performance_demo.py`, `tools/prepare_migration_branch.py`, `tools/generate_dashboard_summary.py`.
+  - **Artifacts & supporting data**: `migration_snapshot/` mirror modules, `migration_analytics.log`, `migration_audit.log`, `dashboard_state.db`.
+  - **Documentation**: `docs/implementation.md`, `docs/diagrams/migration_quality_monitoring.md`, `docs/TECHNICAL_USER_GUIDE.md`, `docs/README.md`, `docs/release_notes_phase4.md`, `primers/README.md`, `primers/vista_mumps_quickstart.md`, `realism/*`, root `README.md`.
+- [x] Document shared utilities (e.g., HIPAA compliance scoring, terminology lookups) and decide whether to move or keep them.
+  - `src/validation/healthcare_interoperability_validator.py` and `src/generators/healthcare_format_handlers.py` power multi-format exports; plan to keep portions supporting patient validation while stripping migration metrics.
+  - `src/core/lifecycle/records.py` embeds `migration_status` metadata inside patient records; refactor to patient-centric metadata before deleting tracker dependencies.
+  - `src/testing/error_injection_testing_framework.py` / `performance_testing_framework.py` mix general resilience tests with migration scenarios; determine whether to retarget them for patient pipeline or retire alongside migration analytics.
+- [x] Identify configuration, environment variables, and CLI flags referencing migration (`simulate_migration`, `migration_strategy`, export toggles).
+  - YAML configs: `config/config.yaml` (`migration_settings`, `simulate_migration`, `migration_report`), `config/phase5_enhanced_config.yaml` (extensive migration block).
+  - Dynamic config loaders: `src/config/enhanced_configuration_manager.py` sets defaults for `simulate_migration`, `migration_strategy`.
+  - Generator surfaces: `src/generators/multi_format_healthcare_generator.py` toggles `MigrationSettings.simulate_migration` and exposes migration factory helpers; `src/core/synthetic_patient_generator.py` imports migration simulator for legacy CLI path.
+- [x] Record deployment/CI use (jobs, scheduled runs) for migration artifacts.
+  - `.github/workflows/ci.yml` tracks `migration` branch alongside `main`.
+  - `tools/prepare_migration_branch.py` automates branch management for migration releases.
+  - Dashboard/report tooling (`tools/generate_dashboard_summary.py`, `dashboard_state.db`) assumes migration metrics; flag for retirement.
+- **Initial dependency highlights**:
+  - `src/core/synthetic_patient_generator` → `src/core/migration_simulator` (legacy import; no active callsites detected but confirms linkage risk).
+  - `src/generators/multi_format_healthcare_generator` → `src/core/enhanced_migration_simulator`, `src/core/enhanced_migration_tracker`, `src/config/healthcare_migration_config` (primary surface for migration toggles).
+  - Analytics stack (`src/analytics/*`, `src/validation/*`) ← `PatientMigrationStatus` & quality scorers from `enhanced_migration_tracker`.
+  - Testing/CI demos (`tests/test_migration_*`, `demos/*migration*`, `performance_test.py`) instantiate `EnhancedMigrationSimulator` and analytics engine end-to-end.
+  - `migration_snapshot/` holds frozen copies of migration modules; ensure downstream tooling does not import from snapshot before removal.
 - Validation gate:
-  - [ ] Update this document with findings plus an initial dependency graph.
+  - [x] Update this document with findings plus an initial dependency graph.
   - [ ] `pytest` targeted smoke: `pytest tests/test_patient_generation.py`.
 
 ## Phase 2. Core Codebase Extraction
-- [ ] Remove direct imports from patient generator:
-  - Detach `run_migration_phase` from `src/core/synthetic_patient_generator.py`.
-  - Replace migration metadata fields with patient-centric equivalents (audit logging, metrics).
+- [x] Remove direct imports from patient generator:
+  - ✅ Detached `run_migration_phase` from `src/core/synthetic_patient_generator.py` (tests green).
+  - ✅ Introduced `generation_status` metadata on `PatientRecord` while keeping a temporary `migration_status` alias until migration modules disappear.
+- [x] Assess shared utilities for patient dependencies:
+  - Multi-format generator stack (`src/generators/multi_format_healthcare_generator.py`, `src/generators/healthcare_format_handlers.py`) and testing frameworks (`src/testing/error_injection_testing_framework.py`, `src/testing/performance_testing_framework.py`) operate exclusively on migration simulators; mark for retirement in later phases rather than refactor.
+  - Analytics/dashboard modules (`src/analytics/*`, `src/validation/healthcare_interoperability_validator.py`) consume `PatientMigrationStatus` and migration trackers; no patient-generation code path relies on them.
+  - Confirmed core patient exports (CSV/Parquet/FHIR/HL7/VistA) are implemented directly in `src/core/synthetic_patient_generator.py` with no dependency on migration simulators.
 - [ ] Delete migration simulator/tracker modules once detached; keep any portable utilities by extracting them into patient modules.
 - [ ] Purge migration terminology from lifecycle modules (stage enums, status fields, migration-specific dataclasses).
 - [ ] Update module engine/orchestrator defaults so they no longer reference migration runs.

@@ -60,10 +60,12 @@ class PatientRecord:
     immunizations: List[Dict[str, Any]] = field(default_factory=list)
     observations: List[Dict[str, Any]] = field(default_factory=list)
 
-    # Metadata for migration simulation and downstream exporters
+    # Metadata for generation provenance and downstream exporters
     metadata: Dict[str, Any] = field(
         default_factory=lambda: {
             "source_system": "synthetic",
+            "generation_status": "pending",
+            # TODO: drop migration_status once migration modules are removed.
             "migration_status": "pending",
             "data_quality_score": 1.0,
             "created_timestamp": datetime.now().isoformat(),
