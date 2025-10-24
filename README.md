@@ -11,12 +11,10 @@ A lifecycle-focused synthetic healthcare simulator that produces richly coded pa
 - **Module-driven clinical workflows** – Scenario-specific YAML modules (e.g., `cardiometabolic_intensive`) model encounters, labs, and medications using a state-machine interpreter for high-fidelity cohorts.
 - **Parallel performance** – generation uses `concurrent.futures` and Polars pipelines to scale to tens of thousands of synthetic patients.
 - **Referential integrity** – patient identifiers stay consistent across every export format.
-- **Optional migration toolchain** – legacy migration simulators, analytics, and demos remain available for teams rehearsing data conversions but are no longer the primary focus of the project.
 
 ## Documentation
 
 - Project docs live under `docs/` – start with `docs/README.md` for an index and `docs/implementation.md` for the active roadmap.
-- Migration demos and utilities remain in this branch; extended ETL rehearsal assets may live on a separate `migration` branch when used.
 
 ## Quick Start
 
@@ -28,7 +26,7 @@ cd synthetichealth
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r data/requirements.txt  # core generator dependencies (Polars, Faker, terminology loaders)
-pip install -r requirements.txt       # optional analytics, migration, and integration extras
+pip install -r requirements.txt       # additional exporters, reporting, and CLI utilities
 ```
 
 ### Terminology setup
@@ -185,19 +183,15 @@ age_dist: { "0-17": 0.1, "18-34": 0.2, "35-49": 0.25, "50-64": 0.25, "65-79": 0.
 ```
 synthetichealth/
 ├── src/
-│   ├── core/
-│   │   ├── lifecycle/                 # Lifecycle engine, scenarios, orchestrator
-│   │   ├── terminology/               # Terminology loaders, DuckDB adapters, environment helpers
-│   │   ├── synthetic_patient_generator.py  # Main lifecycle-aware generator CLI
-│   │   └── migration_simulator.py     # Optional migration rehearsal utilities
-│   ├── analytics/                     # Generation and migration analytics utilities
-│   ├── validation/                    # Data validation modules
-│   └── integration/                   # System integration components
+│   └── core/
+│       ├── lifecycle/                 # Lifecycle engine, scenarios, orchestrator
+│       ├── terminology/               # Terminology loaders, DuckDB adapters, environment helpers
+│       └── synthetic_patient_generator.py  # Main lifecycle-aware generator CLI
 ├── tools/                             # Import scripts, DuckDB builder, utilities
 ├── data/
 │   └── terminology/                   # ICD-10, LOINC, SNOMED, RxNorm seeds + DuckDB output
-├── demos/                             # Demonstration scripts (generation, performance, optional migration)
-├── tests/                             # Pytest suites for lifecycle, terminology, analytics, migration
+├── modules/                           # Optional YAML-driven clinical workflow modules
+├── tests/                             # Pytest suites for lifecycle, terminology, and exporters
 ├── config/                            # Configuration files (baseline + scenario overrides)
 └── docs/                              # Additional documentation
 ```
@@ -258,9 +252,6 @@ All formats maintain referential integrity via `patient_id` linkage:
 - Loader utilities in `src/core/terminology/` expose filtering/search helpers and respect `TERMINOLOGY_ROOT` and `TERMINOLOGY_DB_PATH`.
 - `load_scenario_config` resolves curated code lists into terminology bundles for the generator and exporters.
 
-## Optional migration tooling
-Migration simulation capabilities remain for organizations rehearsing Extract-Transform-Validate-Load (ETVL) pipelines. Demos under `demos/migration_*.py`, analytics helpers in `src/analytics/`, and configuration profiles in `config/phase5_enhanced_config.yaml` illustrate how to adapt the synthetic records for migration rehearsals without changing the core generation workflow. Some teams also maintain a separate `migration` branch for extended ETL rehearsal assets.
-
 ## Development
 
 ### Running tests
@@ -269,22 +260,9 @@ Migration simulation capabilities remain for organizations rehearsing Extract-Tr
 # Lifecycle and terminology coverage
 pytest tests/test_patient_generation.py tests/test_clinical_generation.py tests/test_terminology_loaders.py
 
-# Optional migration simulations and analytics
-pytest tests/test_migration_simulator.py tests/test_enhanced_migration.py
+# Module engine and validation helpers
+pytest tests/test_module_engine.py tests/test_module_kpi_validator.py tests/test_module_linter.py
 
 # Full suite
 pytest
-```
-
-### Demo scripts
-
-```bash
-# Generation and performance benchmarking
-python3 demos/final_performance_demo.py
-python3 demos/integration_performance_demo.py
-
-# Optional migration demonstrations
-python3 demos/migration_demo.py
-python3 demos/enhanced_migration_demo.py
-python3 demos/migration_analytics_demo.py
 ```

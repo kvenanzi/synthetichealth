@@ -55,43 +55,45 @@ This plan removes all migration-focused code paths while protecting the syntheti
   - Multi-format generator stack (`src/generators/multi_format_healthcare_generator.py`, `src/generators/healthcare_format_handlers.py`) and testing frameworks (`src/testing/error_injection_testing_framework.py`, `src/testing/performance_testing_framework.py`) operate exclusively on migration simulators; mark for retirement in later phases rather than refactor.
   - Analytics/dashboard modules (`src/analytics/*`, `src/validation/healthcare_interoperability_validator.py`) consume `PatientMigrationStatus` and migration trackers; no patient-generation code path relies on them.
   - Confirmed core patient exports (CSV/Parquet/FHIR/HL7/VistA) are implemented directly in `src/core/synthetic_patient_generator.py` with no dependency on migration simulators.
-- [ ] Delete migration simulator/tracker modules once detached; keep any portable utilities by extracting them into patient modules.
+- [x] Delete migration simulator/tracker modules once detached; keep any portable utilities by extracting them into patient modules.
 - [ ] Purge migration terminology from lifecycle modules (stage enums, status fields, migration-specific dataclasses).
-- [ ] Update module engine/orchestrator defaults so they no longer reference migration runs.
+  - TODO: remove the legacy `migration_status` metadata alias once downstream data migrations are confirmed deprecated.
+- [x] Update module engine/orchestrator defaults so they no longer reference migration runs (no residual references detected).
 - Validation gate (per PR or logical chunk):
   - [ ] `pytest tests/test_patient_generation.py tests/test_lifecycle_orchestrator.py`.
   - [ ] `pytest tests/test_clinical_generation.py tests/test_module_engine.py`.
   - [ ] If CLI touched: run sample generation command and diff outputs.
 
 ## Phase 3. Configuration and Defaults
-- [ ] Strip migration settings from:
-  - `config/config.yaml`, phase configs, demo configs, `.env` templates.
-  - CLI arguments (argparse definitions) and environment variable docs.
+- [x] Strip migration settings from:
+  - ✅ Removed migration blocks from `config/config.yaml` and deleted `config/phase5_enhanced_config.yaml`.
+  - ✅ Removed migration-specific configuration managers under `src/config/`.
 - [ ] Update default scenarios to exclude migration toggles; ensure YAML loaders ignore old keys gracefully (with helpful error message if necessary).
-- [ ] Provide migration-agnostic defaults and examples for patient generation.
+  - TODO: audit scenario YAML and loaders for `simulate_migration` / `migration_strategy` fallbacks and provide helpful error messaging.
+- [x] Provide migration-agnostic defaults and examples for patient generation.
 - Validation gate:
   - [ ] `pytest tests/test_parameters_loader.py tests/test_scenario_loader.py`.
   - [ ] Manual CLI smoke: run patient generator with default config.
 
 ## Phase 4. Tooling and Scripts
-- [ ] Remove or rewrite scripts in `tools/` and `demos/` that only support migration dashboards, analytics, or report generation.
-- [ ] Retain dashboard/report helpers that analyze patient outputs; relocate them if needed.
-- [ ] Delete `migration_snapshot/` artifacts after confirming they are unused elsewhere.
+- [x] Remove or rewrite scripts in `tools/` and `demos/` that only support migration dashboards, analytics, or report generation.
+- [x] Retain dashboard/report helpers that analyze patient outputs; relocate them if needed.
+- [x] Delete `migration_snapshot/` artifacts after confirming they are unused elsewhere.
 - Validation gate:
   - [ ] Run any retained tooling scripts in dry-run mode.
   - [ ] `pytest` any associated unit tests (e.g., `tests/tools`).
 
 ## Phase 5. Documentation and Educational Materials
-- [ ] Update README, guides, primers, and realism docs to focus on synthetic patient generation.
-- [ ] Convert migration walkthrough demos into patient-generation showcases or remove them.
+- [x] Update README, guides, primers, and realism docs to focus on synthetic patient generation.
+- [x] Convert migration walkthrough demos into patient-generation showcases or remove them.
 - [ ] Audit release notes/roadmaps for migration references.
 - Validation gate:
   - [ ] Documentation review checklist.
   - [ ] Ensure samples/notebooks execute without migration modules.
 
 ## Phase 6. Tests and Validation Cleanup
-- [ ] Remove migration-specific tests (`tests/test_enhanced_migration.py`, `tests/test_migration_simulator.py`, `tests/test_migration_analytics.py`) only after equivalent patient coverage exists.
-- [ ] Trim fixtures, factories, and helpers that only serve migration paths.
+- [x] Remove migration-specific tests (`tests/test_enhanced_migration.py`, `tests/test_migration_simulator.py`, `tests/test_migration_analytics.py`) only after equivalent patient coverage exists.
+- [x] Trim fixtures, factories, and helpers that only serve migration paths.
 - [ ] Update CI workflows to drop migration jobs; ensure patient suite remains green.
 - Validation gate:
   - [ ] Full test run: `pytest`.

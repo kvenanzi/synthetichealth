@@ -10,10 +10,10 @@ This document captures the current state and near-term priorities for the simula
 
 ## Phase Roadmap
 
-### Phase 0 – Migration Branch Finalization
-- ✅ Run `python tools/prepare_migration_branch.py migration_snapshot` to stage migration modules.
-- ✅ Create and push the long-lived `migration` branch containing the staged files and legacy docs.
-- ✅ Remove migration flags/messages from `main` after downstream transition.
+### Phase 0 – Migration Functionality Retirement
+- ✅ Archived migration simulators, trackers, analytics, and demos to the historical `migration` branch so the mainline can focus on patient generation.
+- ✅ Removed migration flags/messages and tooling from `main` after downstream transition.
+- ✅ Captured the removal checklist in `docs/migration_removal_plan.md` and continue auditing for residual references.
 
 ### Phase 1 – Lifecycle Engine Enhancements
 - ✅ Refactor remaining generator helpers (`generate_*`) into lifecycle-focused components under `src/core/lifecycle/`.

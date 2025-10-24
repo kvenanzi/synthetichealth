@@ -1,7 +1,7 @@
 # Technical User Guide – Synthetic Patient Simulator
 
 ## 1. Overview
-The synthetic patient simulator produces clinically coherent records for analytics, interoperability testing, and migration rehearsals. It combines curated lifecycle logic with normalized terminology services so that every Patient, Condition, Medication, and Observation can be exported in FHIR R4, HL7 v2, CSV/Parquet, and VistA-friendly formats.
+The synthetic patient simulator produces clinically coherent records for analytics and interoperability testing. It combines curated lifecycle logic with normalized terminology services so that every Patient, Condition, Medication, and Observation can be exported in FHIR R4, HL7 v2, CSV/Parquet, and VistA-friendly formats.
 
 ## 2. Environment & Prerequisites
 ```bash

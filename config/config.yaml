@@ -43,22 +43,8 @@ housing_dist:
   Temporary: 0.1
   Assisted Living: 0.05
 
-# Migration simulation settings
-migration_settings:
-  source_system: "vista"
-  target_system: "oracle_health"
-  migration_strategy: "staged"
-  success_rates:
-    extract: 0.98
-    transform: 0.95
-    validate: 0.92
-    load: 0.90
-  network_failure_rate: 0.05
-  system_overload_rate: 0.03
-  data_corruption_rate: 0.01
-
-# Migration simulation flags
-simulate_migration: true
-batch_size: 50
-migration_strategy: "staged"
-migration_report: "migration_report.txt"
+# Patient generation defaults
+skip_fhir: false
+skip_hl7: false
+skip_vista: false
+skip_report: false

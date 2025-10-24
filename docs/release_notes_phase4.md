@@ -1,5 +1,7 @@
 # Phase 4 Release Notes
 
+> **Note:** Migration-focused components described in these notes were retired from the main branch in 2025 and now live only on the archived `migration` branch.
+
 ## Highlights
 - Replaced the migration-focused dashboard with analytics emphasizing clinical quality and SDOH equity trends.
 - Added SDOH context generation to Phase 4 demos so analytics surface transportation, language, and care-gap insights.

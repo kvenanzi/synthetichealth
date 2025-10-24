@@ -2045,7 +2045,7 @@ class VistaReferenceRegistry:
 
 
 class VistaFormatter:
-    """VistA MUMPS global formatter for Phase 3 - Production accurate VA migration simulation"""
+    """VistA MUMPS global formatter for Phase 3 patient export parity"""
 
     LEGACY_MODE = "legacy"
     FILEMAN_INTERNAL_MODE = "fileman_internal"
@@ -4448,7 +4448,7 @@ def main():
         print("Creating HL7 v2 messages...")
         save_hl7_messages(lifecycle_patients, all_encounters, all_observations, "hl7_messages")
     
-    # Export VistA MUMPS globals (Phase 3: VA migration simulation)
+    # Export VistA MUMPS globals (Phase 3: VA export parity)
     if args.skip_vista:
         print("Skipping VistA MUMPS export (--skip-vista).")
         vista_stats = {}
