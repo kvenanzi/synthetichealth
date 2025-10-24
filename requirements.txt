@@ -8,3 +8,4 @@ websockets>=10.0
 matplotlib>=3.5
 seaborn>=0.12
 duckdb>=0.10
+rich>=13.0

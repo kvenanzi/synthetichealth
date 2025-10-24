@@ -20,13 +20,14 @@ Author: Healthcare Data Quality Engineer
 Date: 2025-09-09
 """
 
+import copy
 import json
 import logging
 import random
 import statistics
 import threading
 import time
-from collections import defaultdict, deque
+from collections import Counter, defaultdict, deque
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any, Set, Tuple, Union
@@ -224,10 +225,12 @@ class EnhancedMigrationSimulator:
         
         # Metrics and monitoring
         self.metrics = EnhancedMigrationMetrics()
-        self.real_time_dashboard_data: Dict[str, Any] = {}
-        
-        # Initialize dashboard with default data
-        self._update_dashboard_data()
+        self._dimension_rollups: Dict[str, deque] = defaultdict(lambda: deque(maxlen=100))
+        self._sdoh_history: List[Dict[str, Any]] = []
+        self.analytics_snapshot: Dict[str, Any] = self._build_empty_analytics_snapshot()
+
+        # Initialize analytics snapshot
+        self._update_analytics_snapshot()
         
         logger.info("Enhanced Healthcare Migration Simulator initialized")
     
@@ -245,8 +248,66 @@ class EnhancedMigrationSimulator:
             network_failure_rate: float = 0.05
             system_overload_rate: float = 0.03
             quality_degradation_per_failure: float = 0.15
-        
+
         return DefaultConfig()
+
+    def _build_empty_analytics_snapshot(self) -> Dict[str, Any]:
+        """Return a placeholder analytics snapshot until batches are processed."""
+        now = datetime.now()
+        return {
+            "timestamp": now,
+            "clinical_quality": {
+                "average_quality_score": 0.0,
+                "dimension_averages": {},
+                "quality_distribution": {},
+                "critical_data_integrity_rate": 0.0,
+                "alert_density_per_batch": 0.0,
+            },
+            "sdoh_equity": {
+                "average_sdoh_risk": 0.0,
+                "average_deprivation_index": 0.0,
+                "average_access_score": 0.0,
+                "average_social_support": 0.0,
+                "transportation_access_distribution": {},
+                "language_access_distribution": {},
+                "care_gap_counts": {},
+                "top_care_gaps": [],
+            },
+            "alerting": {
+                "total_alerts": 0,
+                "critical_alerts": 0,
+                "unresolved_alerts": 0,
+                "active_alerts": {severity.value: 0 for severity in AlertSeverity},
+            },
+            "quality_status": {
+                "system_status": "OK",
+                "total_active_alerts": 0,
+                "alerts_requiring_intervention": 0,
+            },
+            "hipaa_compliance": {
+                "compliance_rate": 1.0,
+                "phi_incidents": 0,
+                "status": "COMPLIANT",
+            },
+            "active_alerts": {severity.value: 0 for severity in AlertSeverity},
+            "operational": {
+                "total_patients": 0,
+                "total_batches": 0,
+                "success_rate": 0.0,
+                "hipaa_compliance_rate": 0.0,
+            },
+            "migration_summary": {
+                "total_patients": 0,
+                "total_batches": 0,
+                "success_rate": 0.0,
+                "average_quality": 0.0,
+                "hipaa_compliance_rate": 0.0,
+            },
+            "trend_window": {
+                "quality_trend": [],
+                "alert_trend": [],
+            },
+        }
     
     def simulate_patient_migration(self, patient: 'PatientRecord', 
                                   batch_id: str) -> PatientMigrationStatus:
@@ -578,6 +639,111 @@ class EnhancedMigrationSimulator:
             "observations": getattr(patient, 'observations', []),
             "encounters": getattr(patient, 'encounters', [])
         }
+
+    def _extract_sdoh_profile(self, patient: 'PatientRecord') -> Dict[str, Any]:
+        """Extract SDOH profile information from a patient record."""
+
+        def to_float(value: Any) -> float:
+            try:
+                return float(value)
+            except (TypeError, ValueError):
+                return 0.0
+
+        candidate_dicts: List[Dict[str, Any]] = []
+        sdoh_attr = getattr(patient, 'sdoh_profile', None)
+        if isinstance(sdoh_attr, dict):
+            candidate_dicts.append(sdoh_attr)
+        sdoh_struct = getattr(patient, 'sdoh', None)
+        if isinstance(sdoh_struct, dict):
+            candidate_dicts.append(sdoh_struct)
+        metadata = getattr(patient, 'metadata', None)
+        if isinstance(metadata, dict):
+            candidate_dicts.append(metadata)
+
+        def fetch(key: str, default: Any = None) -> Any:
+            for source in candidate_dicts:
+                if key in source:
+                    return source[key]
+            return getattr(patient, key, default)
+
+        care_gaps_raw = fetch('sdoh_care_gaps', []) or fetch('care_gaps', [])
+        if isinstance(care_gaps_raw, str):
+            try:
+                care_gaps = json.loads(care_gaps_raw)
+            except json.JSONDecodeError:
+                care_gaps = [care_gaps_raw]
+        elif isinstance(care_gaps_raw, list):
+            care_gaps = care_gaps_raw
+        else:
+            care_gaps = []
+
+        return {
+            'sdoh_risk_score': to_float(fetch('sdoh_risk_score', 0.0)),
+            'community_deprivation_index': to_float(fetch('community_deprivation_index', 0.0)),
+            'access_to_care_score': to_float(fetch('access_to_care_score', 0.0)),
+            'social_support_score': to_float(fetch('social_support_score', 0.0)),
+            'transportation_access': fetch('transportation_access'),
+            'preferred_language': fetch('preferred_language'),
+            'care_gaps': care_gaps,
+        }
+
+    def _summarize_sdoh_profiles(self, patients: List['PatientRecord']) -> Dict[str, Any]:
+        """Summarize SDOH metrics for a batch of patients."""
+
+        if not patients:
+            return {
+                "average_sdoh_risk": 0.0,
+                "average_deprivation_index": 0.0,
+                "average_access_score": 0.0,
+                "average_social_support": 0.0,
+                "transportation_access_distribution": {},
+                "language_access_distribution": {},
+                "care_gap_counts": {},
+                "top_care_gaps": [],
+            }
+
+        sdoh_risk_scores: List[float] = []
+        deprivation_scores: List[float] = []
+        access_scores: List[float] = []
+        support_scores: List[float] = []
+        transportation_counter: Counter[str] = Counter()
+        language_counter: Counter[str] = Counter()
+        care_gap_counter: Counter[str] = Counter()
+
+        for patient in patients:
+            profile = self._extract_sdoh_profile(patient)
+            sdoh_risk_scores.append(profile['sdoh_risk_score'])
+            deprivation_scores.append(profile['community_deprivation_index'])
+            access_scores.append(profile['access_to_care_score'])
+            support_scores.append(profile['social_support_score'])
+
+            if profile['transportation_access']:
+                transportation_counter[str(profile['transportation_access'])] += 1
+            if profile['preferred_language']:
+                language_counter[str(profile['preferred_language'])] += 1
+            for gap in profile['care_gaps']:
+                care_gap_counter[str(gap)] += 1
+
+        total_patients = len(patients) or 1
+
+        sdoh_summary = {
+            "average_sdoh_risk": statistics.mean(sdoh_risk_scores) if sdoh_risk_scores else 0.0,
+            "average_deprivation_index": statistics.mean(deprivation_scores) if deprivation_scores else 0.0,
+            "average_access_score": statistics.mean(access_scores) if access_scores else 0.0,
+            "average_social_support": statistics.mean(support_scores) if support_scores else 0.0,
+            "transportation_access_distribution": {
+                mode: round(count / total_patients, 3)
+                for mode, count in transportation_counter.items()
+            },
+            "language_access_distribution": {
+                language: round(count / total_patients, 3)
+                for language, count in language_counter.items()
+            },
+            "care_gap_counts": dict(care_gap_counter),
+            "top_care_gaps": care_gap_counter.most_common(5),
+        }
+
+        return sdoh_summary
     
     def simulate_batch_migration(self, patients: List['PatientRecord'],
                                batch_id: Optional[str] = None) -> Dict[str, Any]:
@@ -634,9 +800,14 @@ class EnhancedMigrationSimulator:
         
         # Update overall metrics
         self._update_migration_metrics(batch_results)
-        
-        # Update real-time dashboard
-        self._update_dashboard_data()
+        sdoh_equity = batch_results.get("sdoh_equity")
+        if sdoh_equity:
+            self._sdoh_history.append(sdoh_equity)
+            if len(self._sdoh_history) > 100:
+                self._sdoh_history = self._sdoh_history[-100:]
+
+        # Update analytics snapshot
+        self._update_analytics_snapshot()
         
         logger.info(f"Completed batch migration {batch_id} in {batch_duration:.2f} seconds")
         
@@ -687,7 +858,9 @@ class EnhancedMigrationSimulator:
                 "success_rate": 1 - (sum(stage_errors) / total_patients) if total_patients > 0 else 0.0,
                 "total_errors": sum(stage_errors)
             }
-        
+
+        sdoh_summary = self._summarize_sdoh_profiles(patients)
+
         return {
             "batch_id": batch_id,
             "timestamp": datetime.now(),
@@ -727,6 +900,7 @@ class EnhancedMigrationSimulator:
                 )
             },
             "stage_performance": stage_performance,
+            "sdoh_equity": sdoh_summary,
             "patient_details": {
                 patient_id: {
                     "quality_score": status.current_quality_score,
@@ -790,7 +964,15 @@ class EnhancedMigrationSimulator:
             self.metrics.average_quality_score = (
                 (current_avg * (total_batches - 1) + summary["average_quality_score"]) / total_batches
             )
-            
+            for bucket, count in quality.get("quality_score_distribution", {}).items():
+                self.metrics.quality_score_distribution[bucket] = (
+                    self.metrics.quality_score_distribution.get(bucket, 0) + count
+                )
+            for dimension, score in quality.get("dimension_averages", {}).items():
+                rollup = self._dimension_rollups[dimension]
+                rollup.append(score)
+                self.metrics.dimension_quality_scores[dimension] = sum(rollup) / len(rollup)
+
             # Update alert metrics
             self.metrics.total_alerts += alerts["total_alerts"]
             self.metrics.critical_alerts += alerts["critical_alerts"]
@@ -813,36 +995,119 @@ class EnhancedMigrationSimulator:
             if len(self.metrics.alert_trend_data) > 100:
                 self.metrics.alert_trend_data = self.metrics.alert_trend_data[-100:]
     
-    def _update_dashboard_data(self) -> None:
-        """Update real-time dashboard data"""
+    def _aggregate_sdoh_history(self) -> Dict[str, Any]:
+        """Aggregate SDOH metrics across processed batches."""
+        if not self._sdoh_history:
+            return self._build_empty_analytics_snapshot()["sdoh_equity"]
+
+        history_len = len(self._sdoh_history)
+
+        def avg(key: str) -> float:
+            values = [entry.get(key, 0.0) for entry in self._sdoh_history if entry.get(key) is not None]
+            return statistics.mean(values) if values else 0.0
+
+        transportation_counter: Counter[str] = Counter()
+        language_counter: Counter[str] = Counter()
+        care_gap_counter: Counter[str] = Counter()
+
+        for entry in self._sdoh_history:
+            for mode, ratio in entry.get("transportation_access_distribution", {}).items():
+                transportation_counter[mode] += ratio
+            for language, ratio in entry.get("language_access_distribution", {}).items():
+                language_counter[language] += ratio
+            gap_counts = entry.get("care_gap_counts") or dict(entry.get("top_care_gaps", []))
+            care_gap_counter.update(gap_counts)
+
+        transport_distribution = {
+            mode: round(value / history_len, 3)
+            for mode, value in transportation_counter.items()
+        }
+        language_distribution = {
+            language: round(value / history_len, 3)
+            for language, value in language_counter.items()
+        }
+
+        return {
+            "average_sdoh_risk": round(avg("average_sdoh_risk"), 3),
+            "average_deprivation_index": round(avg("average_deprivation_index"), 3),
+            "average_access_score": round(avg("average_access_score"), 3),
+            "average_social_support": round(avg("average_social_support"), 3),
+            "transportation_access_distribution": transport_distribution,
+            "language_access_distribution": language_distribution,
+            "top_care_gaps": care_gap_counter.most_common(5),
+            "care_gap_counts": dict(care_gap_counter),
+        }
+
+    def _update_analytics_snapshot(self) -> None:
+        """Refresh the clinical and SDOH analytics snapshot."""
         with self._lock:
-            self.real_time_dashboard_data = {
+            sdoh_rollup = self._aggregate_sdoh_history()
+            total_patients = self.metrics.total_patients or 0
+            total_batches = self.metrics.total_batches or 0
+
+            alert_counts = {
+                severity.value: len(self.quality_monitor.get_active_alerts(severity))
+                for severity in AlertSeverity
+            }
+            quality_status = self.quality_monitor.get_quality_dashboard_data()
+            hipaa_status = {
+                "compliance_rate": round(self.metrics.hipaa_compliance_rate, 3),
+                "phi_incidents": self.metrics.phi_exposure_incidents,
+                "status": "COMPLIANT" if self.metrics.hipaa_compliance_rate >= 0.95 else "NON_COMPLIANT",
+            }
+
+            self.analytics_snapshot = {
                 "timestamp": datetime.now(),
-                "migration_summary": {
-                    "total_patients": self.metrics.total_patients,
-                    "total_batches": self.metrics.total_batches,
-                    "success_rate": (
-                        self.metrics.successful_migrations / self.metrics.total_patients 
-                        if self.metrics.total_patients > 0 else 0.0
+                "clinical_quality": {
+                    "average_quality_score": round(self.metrics.average_quality_score, 3),
+                    "dimension_averages": {
+                        dimension: round(score, 3)
+                        for dimension, score in self.metrics.dimension_quality_scores.items()
+                    },
+                    "quality_distribution": dict(self.metrics.quality_score_distribution),
+                    "critical_data_integrity_rate": round(
+                        1 - (self.metrics.unresolved_alerts / total_patients)
+                        if total_patients else 0.0,
+                        3,
                     ),
-                    "average_quality": self.metrics.average_quality_score
+                    "alert_density_per_batch": round(
+                        self.metrics.total_alerts / total_batches if total_batches else 0.0,
+                        3,
+                    ),
                 },
-                "quality_status": self.quality_monitor.get_quality_dashboard_data(),
-                "hipaa_compliance": {
-                    "compliance_rate": self.metrics.hipaa_compliance_rate,
-                    "phi_incidents": self.metrics.phi_exposure_incidents,
-                    "status": "COMPLIANT" if self.metrics.hipaa_compliance_rate >= 0.95 else "NON_COMPLIANT"
+                "sdoh_equity": sdoh_rollup,
+                "alerting": {
+                    "total_alerts": self.metrics.total_alerts,
+                    "critical_alerts": self.metrics.critical_alerts,
+                    "unresolved_alerts": self.metrics.unresolved_alerts,
+                    "active_alerts": alert_counts,
                 },
-                "active_alerts": {
-                    "critical": len(self.quality_monitor.get_active_alerts(AlertSeverity.CRITICAL)),
-                    "high": len(self.quality_monitor.get_active_alerts(AlertSeverity.HIGH)),
-                    "medium": len(self.quality_monitor.get_active_alerts(AlertSeverity.MEDIUM)),
-                    "low": len(self.quality_monitor.get_active_alerts(AlertSeverity.LOW))
+                "quality_status": quality_status,
+                "hipaa_compliance": hipaa_status,
+                "active_alerts": alert_counts,
+                "operational": {
+                    "total_patients": total_patients,
+                    "total_batches": total_batches,
+                    "success_rate": (
+                        self.metrics.successful_migrations / total_patients
+                        if total_patients else 0.0
+                    ),
+                    "hipaa_compliance_rate": round(self.metrics.hipaa_compliance_rate, 3),
                 },
-                "trends": {
-                    "quality_trend": self.metrics.quality_trend_data[-10:],  # Last 10 points
-                    "alert_trend": self.metrics.alert_trend_data[-10:]
-                }
+                "migration_summary": {
+                    "total_patients": total_patients,
+                    "total_batches": total_batches,
+                    "success_rate": (
+                        self.metrics.successful_migrations / total_patients
+                        if total_patients else 0.0
+                    ),
+                    "average_quality": round(self.metrics.average_quality_score, 3),
+                    "hipaa_compliance_rate": round(self.metrics.hipaa_compliance_rate, 3),
+                },
+                "trend_window": {
+                    "quality_trend": self.metrics.quality_trend_data[-10:],
+                    "alert_trend": self.metrics.alert_trend_data[-10:],
+                },
             }
     
     def get_patient_migration_status(self, patient_id: str) -> Optional[PatientMigrationStatus]:
@@ -853,10 +1118,14 @@ class EnhancedMigrationSimulator:
         """Get HIPAA compliance status for a specific patient"""
         return self.hipaa_trackers.get(patient_id)
     
-    def get_real_time_dashboard(self) -> Dict[str, Any]:
-        """Get current real-time dashboard data"""
+    def get_clinical_sdoh_analytics(self) -> Dict[str, Any]:
+        """Return the latest clinical and SDOH analytics snapshot."""
         with self._lock:
-            return self.real_time_dashboard_data.copy()
+            return copy.deepcopy(self.analytics_snapshot)
+
+    def get_real_time_dashboard(self) -> Dict[str, Any]:
+        """Backward-compatible alias for legacy dashboard integrations."""
+        return self.get_clinical_sdoh_analytics()
     
     def get_comprehensive_report(self) -> Dict[str, Any]:
         """Generate comprehensive migration report"""
