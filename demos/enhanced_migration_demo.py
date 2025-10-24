@@ -10,7 +10,7 @@ This comprehensive demo showcases the enhanced healthcare data migration capabil
 4. Real-time quality monitoring and alerting systems
 5. HIPAA compliance tracking and audit trails
 6. Clinical data validation metrics and reporting
-7. Production-ready dashboards and monitoring
+7. Equity-focused analytics and monitoring
 
 The demo simulates realistic healthcare migration scenarios with enterprise-grade
 quality management suitable for actual VistA-to-Oracle Health migrations.
@@ -110,7 +110,23 @@ def create_realistic_test_patients(count: int = 25) -> List[PatientRecord]:
         {"condition": "Diabetes Type 2", "icd10_code": "E11.9", "onset_date": "2019-06-20", "status": "active"},
         {"condition": "Asthma", "icd10_code": "J45.9", "onset_date": "2018-03-10", "status": "active"}
     ]
-    
+
+    transportation_modes = [
+        "Personal Vehicle",
+        "Public Transit",
+        "Rideshare",
+        "No Reliable Access",
+    ]
+    language_preferences = ["English", "Spanish", "Mandarin", "Vietnamese", "Arabic"]
+    care_gap_pool = [
+        "Nutrition support",
+        "Housing instability",
+        "Medication adherence",
+        "Transportation coordination",
+        "Financial counseling",
+        "Health literacy coaching",
+    ]
+
     vital_signs_types = [
         {"type": "Blood Pressure", "unit": "mmHg"},
         {"type": "Heart Rate", "unit": "bpm"},
@@ -184,9 +200,36 @@ def create_realistic_test_patients(count: int = 25) -> List[PatientRecord]:
                 "provider": fake.name(),
                 "reason": fake.sentence(nb_words=4)
             })
-        
+
+        # Assign SDOH context used by analytics
+        deprivation_index = round(random.uniform(0.05, 0.85), 2)
+        access_score = round(random.uniform(0.2, 0.95), 2)
+        support_score = round(random.uniform(0.1, 0.9), 2)
+        sdoh_risk = round(
+            min(1.0, deprivation_index * 0.5 + (1 - access_score) * 0.3 + (1 - support_score) * 0.2),
+            2,
+        )
+        care_gaps = random.sample(care_gap_pool, k=random.randint(0, 3))
+        sdoh_profile = {
+            "sdoh_risk_score": sdoh_risk,
+            "community_deprivation_index": deprivation_index,
+            "access_to_care_score": access_score,
+            "social_support_score": support_score,
+            "transportation_access": random.choice(transportation_modes),
+            "preferred_language": random.choice(language_preferences),
+            "sdoh_care_gaps": care_gaps,
+        }
+        patient.sdoh_profile = sdoh_profile
+        patient.sdoh_risk_score = sdoh_risk
+        patient.community_deprivation_index = deprivation_index
+        patient.access_to_care_score = access_score
+        patient.social_support_score = support_score
+        patient.transportation_access = sdoh_profile["transportation_access"]
+        patient.preferred_language = sdoh_profile["preferred_language"]
+        patient.sdoh_care_gaps = care_gaps
+
         patients.append(patient)
-    
+
     return patients
 
 def generate_realistic_vital_sign_value(vital_type: str) -> str:
@@ -448,69 +491,65 @@ def demonstrate_clinical_data_validation():
     
     return simulator
 
-def demonstrate_real_time_dashboard():
-    """Demonstrate real-time migration dashboard capabilities"""
+def demonstrate_clinical_sdoh_analytics():
+    """Demonstrate equity-focused clinical analytics rollups"""
     print("\n" + "="*80)
-    print("DEMONSTRATION 5: Real-Time Migration Dashboard")  
+    print("DEMONSTRATION 5: Clinical & SDOH Analytics")
     print("="*80)
-    
+
     simulator = EnhancedMigrationSimulator()
-    
-    # Process multiple batches to show trend data
-    print("Processing multiple batches to demonstrate dashboard trends...")
-    
+
+    print("Processing multiple cohorts to build analytics trends...")
+
     batch_sizes = [12, 15, 18, 10, 20]
     for i, batch_size in enumerate(batch_sizes, 1):
         patients = create_realistic_test_patients(batch_size)
         print(f"  Processing Batch {i}: {batch_size} patients...")
-        
-        batch_results = simulator.simulate_batch_migration(patients, f"dashboard_demo_batch_{i}")
-        time.sleep(0.1)  # Small delay to show progression
-    
-    # Get comprehensive dashboard data
-    dashboard = simulator.get_real_time_dashboard()
-    
-    print(f"\n📊 REAL-TIME MIGRATION DASHBOARD")
-    print(f"=" * 50)
-    
-    # Migration summary
-    migration_summary = dashboard['migration_summary']
-    print(f"📈 MIGRATION SUMMARY:")
-    print(f"  Total Patients Processed: {migration_summary['total_patients']}")
-    print(f"  Total Batches Completed: {migration_summary['total_batches']}")
-    print(f"  Overall Success Rate: {migration_summary['success_rate']:.1%}")
-    print(f"  Average Quality Score: {migration_summary['average_quality']:.3f}")
-    
-    # Quality status
-    quality_status = dashboard['quality_status']
-    print(f"\n🎯 QUALITY STATUS:")
-    print(f"  System Status: {quality_status['system_status']}")
-    print(f"  Active Alerts: {quality_status['total_active_alerts']}")
-    print(f"  Alerts Requiring Intervention: {quality_status['alerts_requiring_intervention']}")
-    
-    # HIPAA compliance
-    hipaa_status = dashboard['hipaa_compliance']
-    compliance_icon = "✅" if hipaa_status['status'] == "COMPLIANT" else "❌"
-    print(f"\n🔒 HIPAA COMPLIANCE:")
-    print(f"  Status: {hipaa_status['status']} {compliance_icon}")
-    print(f"  Compliance Rate: {hipaa_status['compliance_rate']:.1%}")
-    print(f"  PHI Incidents: {hipaa_status['phi_incidents']}")
-    
-    # Active alerts breakdown
-    active_alerts = dashboard['active_alerts']
-    print(f"\n🚨 ACTIVE ALERTS BREAKDOWN:")
-    for severity, count in active_alerts.items():
-        if count > 0:
-            print(f"  {severity.upper()}: {count} alerts")
-    
-    # Show trends if available
-    if dashboard['trends']['quality_trend']:
-        print(f"\n📊 RECENT QUALITY TRENDS:")
-        quality_trend = dashboard['trends']['quality_trend']
-        for timestamp, quality in quality_trend[-5:]:  # Last 5 points
+
+        simulator.simulate_batch_migration(patients, f"analytics_demo_batch_{i}")
+        time.sleep(0.1)
+
+    analytics = simulator.get_clinical_sdoh_analytics()
+
+    print(f"\n📊 CLINICAL & SDOH ANALYTICS SNAPSHOT")
+    print(f"=" * 55)
+
+    clinical = analytics['clinical_quality']
+    print(f"\n🩺 CLINICAL QUALITY SIGNALS:")
+    print(f"  Average Quality Score: {clinical['average_quality_score']:.3f}")
+    print(f"  Alert Density / Batch: {clinical['alert_density_per_batch']:.3f}")
+    print(f"  Critical Data Integrity Rate: {clinical['critical_data_integrity_rate']:.3f}")
+    print(f"  Dimensions: {json.dumps(clinical['dimension_averages'], indent=2)}")
+
+    sdoh = analytics['sdoh_equity']
+    print(f"\n🌍 SDOH EQUITY SIGNALS:")
+    print(f"  Average SDOH Risk: {sdoh['average_sdoh_risk']:.3f}")
+    print(f"  Average Deprivation Index: {sdoh['average_deprivation_index']:.3f}")
+    print(f"  Average Access Score: {sdoh['average_access_score']:.3f}")
+    print(f"  Transportation Distribution: {json.dumps(sdoh['transportation_access_distribution'], indent=2)}")
+    print(f"  Top Care Gaps: {sdoh['top_care_gaps']}")
+
+    alerting = analytics['alerting']
+    print(f"\n🚨 ACTIVE ALERT OVERVIEW:")
+    print(f"  Total Alerts: {alerting['total_alerts']}")
+    print(f"  Critical Alerts: {alerting['critical_alerts']}")
+    print(f"  Unresolved Alerts: {alerting['unresolved_alerts']}")
+    print(f"  Active Alerts by Severity: {alerting['active_alerts']}")
+
+    operations = analytics['operational']
+    print(f"\n⚙️ OPERATIONAL METRICS:")
+    print(f"  Patients Processed: {operations['total_patients']}")
+    print(f"  Batches Completed: {operations['total_batches']}")
+    print(f"  Success Rate: {operations['success_rate']:.1%}")
+    print(f"  HIPAA Compliance Rate: {operations['hipaa_compliance_rate']:.1%}")
+
+    trends = analytics['trend_window']
+    if trends['quality_trend']:
+        print(f"\n📈 QUALITY TREND (Last {len(trends['quality_trend'])} points):")
+        for timestamp, quality in trends['quality_trend'][-5:]:
             print(f"  {timestamp.strftime('%H:%M:%S')}: {quality:.3f}")
-    
-    return simulator, dashboard
+
+    return simulator, analytics
 
 def generate_comprehensive_migration_report(simulator):
     """Generate and display comprehensive migration report"""
@@ -606,7 +645,7 @@ def main():
     print("• Real-time quality monitoring and alerting systems")
     print("• HIPAA compliance tracking and audit trails")
     print("• Clinical data validation metrics and reporting")
-    print("• Production-ready dashboards and comprehensive reporting")
+    print("• Equity-focused analytics and comprehensive reporting")
     print()
     
     # Set seed for reproducible results
@@ -631,8 +670,8 @@ def main():
         # Demo 4: Clinical data validation
         simulator4 = demonstrate_clinical_data_validation()
         
-        # Demo 5: Real-time dashboard
-        simulator5, dashboard = demonstrate_real_time_dashboard()
+        # Demo 5: Clinical & SDOH analytics
+        simulator5, analytics = demonstrate_clinical_sdoh_analytics()
         
         # Demo 6: Comprehensive reporting
         report_file = generate_comprehensive_migration_report(simulator5)
@@ -656,7 +695,7 @@ def main():
         print(f"   ✅ Real-time quality monitoring & alerts")
         print(f"   ✅ HIPAA compliance tracking & audit trails")
         print(f"   ✅ Clinical data validation metrics")
-        print(f"   ✅ Production-ready dashboards & reporting")
+        print(f"   ✅ Clinical & SDOH analytics insights")
         
         print(f"\n🏆 ENTERPRISE-READY FEATURES:")
         print(f"   • Patient-level audit trails with HIPAA compliance")

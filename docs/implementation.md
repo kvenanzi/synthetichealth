@@ -53,8 +53,8 @@ This document captures the current state and near-term priorities for the simula
 
 ### Phase 4 – Docs, Tooling, and Release Prep
 - ✅ Rewrite README and docs to focus on the simulator; link to the migration branch for legacy usage.
-- Replace migration dashboards with clinical/SDOH analytics summaries and update utility scripts.
-- Update CI pipelines, dependency manifests, and release notes to reflect the new architecture.
+- ✅ Replace migration dashboards with clinical/SDOH analytics summaries and update utility scripts.
+- ✅ Update CI pipelines, dependency manifests, and release notes to reflect the new architecture.
 
 ### Supporting Tasks
 - Audit remaining modules for hard-coded migration references and remove or gate them.
