@@ -16,6 +16,13 @@ This plan removes all migration-focused code paths while protecting the syntheti
   - Add regression tests for analytics/components that remain (e.g., patient quality scoring) so we can delete migration-specific metrics confidently.
 - [ ] Track removed tests and ensure equivalent patient-generation assertions exist before deletion.
 
+## Active Workstreams
+- ✅ **Lifecycle metadata cleanup**: Removed the temporary `metadata["migration_status"]` alias in `src/core/lifecycle/records.py` and added coverage in `tests/test_patient_generation.py` for the `generation_status` default.
+- **Scenario loaders**: Teach `src/core/lifecycle/loader.py` to ignore or warn on deprecated migration flags (`simulate_migration`, `migration_strategy`) so existing YAML overrides fail fast with a clear message. Extend `tests/test_scenario_loader.py` to cover the warning pathway.
+- **CLI and smoke coverage**: Capture current CLI usage (`python -m src.core.synthetic_patient_generator ...`) plus scenario overrides and add a regression in `tests/test_patient_generation.py` or a new `tests/test_cli_arguments.py` to lock argument parsing.
+- **Dependency + build hygiene**: Confirm `matplotlib`, `seaborn`, `websockets`, and other dashboard-era packages are unused, then stage their removal from `requirements.txt` and `package-lock.json`. Validate `pip install -r requirements.txt` still succeeds post-removal.
+- **Automation updates**: Re-create CI to target the patient pipeline (GitHub Actions workflow that runs `pytest` and the CLI smoke command). Document necessary secrets/inputs before deleting migration jobs.
+
 ## Phase 1. Inventory and Analysis
 - [x] Catalog migration modules and call sites:
   - **Core & generator modules**: `src/core/migration_simulator.py`, `src/core/enhanced_migration_simulator.py`, `src/core/enhanced_migration_tracker.py`, `src/core/migration_models.py`, `src/core/synthetic_patient_generator.py` (imports `run_migration_phase`), `src/generators/multi_format_healthcare_generator.py`, `src/generators/healthcare_format_handlers.py`, `src/integration/phase5_unified_integration.py`.
@@ -57,7 +64,8 @@ This plan removes all migration-focused code paths while protecting the syntheti
   - Confirmed core patient exports (CSV/Parquet/FHIR/HL7/VistA) are implemented directly in `src/core/synthetic_patient_generator.py` with no dependency on migration simulators.
 - [x] Delete migration simulator/tracker modules once detached; keep any portable utilities by extracting them into patient modules.
 - [ ] Purge migration terminology from lifecycle modules (stage enums, status fields, migration-specific dataclasses).
-  - TODO: remove the legacy `migration_status` metadata alias once downstream data migrations are confirmed deprecated.
+  - ✅ Updated `src/core/lifecycle/records.py` to seed only `generation_status`; added regression coverage to ensure no `migration_status` alias remains.
+  - Scan for lingering docstrings/comments referencing "migration" in lifecycle models (`src/core/lifecycle/*.py`) and remove or rewrite them.
 - [x] Update module engine/orchestrator defaults so they no longer reference migration runs (no residual references detected).
 - Validation gate (per PR or logical chunk):
   - [ ] `pytest tests/test_patient_generation.py tests/test_lifecycle_orchestrator.py`.
@@ -69,6 +77,8 @@ This plan removes all migration-focused code paths while protecting the syntheti
   - ✅ Removed migration blocks from `config/config.yaml` and deleted `config/phase5_enhanced_config.yaml`.
   - ✅ Removed migration-specific configuration managers under `src/config/`.
 - [ ] Update default scenarios to exclude migration toggles; ensure YAML loaders ignore old keys gracefully (with helpful error message if necessary).
+  - Ensure `src/core/lifecycle/scenarios.py` templates no longer carry `migration_*` hints and prune any stale references in `docs/scenario_recipes.md`.
+  - Add a defensive branch in `src/core/lifecycle/loader.py` to raise `ValueError` when overrides include deprecated migration keys; cover with a fixture in `tests/test_scenario_loader.py`.
   - TODO: audit scenario YAML and loaders for `simulate_migration` / `migration_strategy` fallbacks and provide helpful error messaging.
 - [x] Provide migration-agnostic defaults and examples for patient generation.
 - Validation gate:
@@ -95,12 +105,14 @@ This plan removes all migration-focused code paths while protecting the syntheti
 - [x] Remove migration-specific tests (`tests/test_enhanced_migration.py`, `tests/test_migration_simulator.py`, `tests/test_migration_analytics.py`) only after equivalent patient coverage exists.
 - [x] Trim fixtures, factories, and helpers that only serve migration paths.
 - [ ] Update CI workflows to drop migration jobs; ensure patient suite remains green.
+  - Create `.github/workflows/patient-ci.yml` (or equivalent) that runs `pytest` plus a minimal CLI smoke command; delete historic migration workflows in the same PR.
 - Validation gate:
   - [ ] Full test run: `pytest`.
   - [ ] Verify CI configuration updates locally (e.g., `tox`, GitHub Actions dry-run).
 
 ## Phase 7. Dependency and Build Hygiene
 - [ ] Remove third-party packages used solely by migration features (e.g., dashboard visualization libs).
+  - Current suspects: `matplotlib`, `seaborn`, `websockets`, and any dashboard-oriented npm packages; verify via `rg` before pruning.
 - [ ] Update `requirements.txt`, `package-lock.json`, and re-lock as needed.
 - [ ] Confirm Dockerfiles/build scripts succeed without migration assets.
 - Validation gate:

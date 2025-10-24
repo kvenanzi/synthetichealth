@@ -65,8 +65,6 @@ class PatientRecord:
         default_factory=lambda: {
             "source_system": "synthetic",
             "generation_status": "pending",
-            # TODO: drop migration_status once migration modules are removed.
-            "migration_status": "pending",
             "data_quality_score": 1.0,
             "created_timestamp": datetime.now().isoformat(),
         }

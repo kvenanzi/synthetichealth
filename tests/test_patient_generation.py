@@ -8,6 +8,7 @@ from src.core.lifecycle.generation.patient import (
     generate_patient_demographics,
     generate_patient_profile,
 )
+from src.core.lifecycle.records import PatientRecord
 
 
 def seed(seed_value: int = 2024) -> None:
@@ -82,3 +83,11 @@ def test_build_patient_record_round_trips_profile():
     assert lifecycle_patient.identifiers["mrn"] == "MRN12345"
     assert lifecycle_patient.sdoh["employment_status"] in {"Student", "Student"}
     assert lifecycle_patient.birth_date.isoformat() == profile["birthdate"].isoformat()
+
+
+def test_patient_record_metadata_defaults():
+    patient = PatientRecord()
+
+    assert patient.metadata["source_system"] == "synthetic"
+    assert patient.metadata["generation_status"] == "pending"
+    assert "migration_status" not in patient.metadata
