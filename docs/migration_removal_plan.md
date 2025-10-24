@@ -19,7 +19,7 @@ This plan removes all migration-focused code paths while protecting the syntheti
 ## Active Workstreams
 - ✅ **Lifecycle metadata cleanup**: Removed the temporary `metadata["migration_status"]` alias in `src/core/lifecycle/records.py` and added coverage in `tests/test_patient_generation.py` for the `generation_status` default.
 - ✅ **Scenario loaders**: Hardened `src/core/lifecycle/loader.py` to raise clear errors when overrides include deprecated migration flags and added regression coverage in `tests/test_scenario_loader.py`.
-- **CLI and smoke coverage**: Capture current CLI usage (`python -m src.core.synthetic_patient_generator ...`) plus scenario overrides and add a regression in `tests/test_patient_generation.py` or a new `tests/test_cli_arguments.py` to lock argument parsing.
+- ✅ **CLI and smoke coverage**: Added `tests/test_cli_arguments.py` to lock the `--list-scenarios`/`--list-modules` pathways and validated CLI smoke generation locally. The GitHub Actions workflow now exercises both pytest and a CLI run.
 - **Dependency + build hygiene**: Confirm `matplotlib`, `seaborn`, `websockets`, and other dashboard-era packages are unused, then stage their removal from `requirements.txt` and `package-lock.json`. Validate `pip install -r requirements.txt` still succeeds post-removal.
 - ✅ **Automation updates**: Added `.github/workflows/patient-ci.yml` to run `pytest` and a CLI smoke command on pushes/PRs; no legacy migration workflows remain.
 
