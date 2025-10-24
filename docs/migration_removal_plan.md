@@ -20,7 +20,7 @@ This plan removes all migration-focused code paths while protecting the syntheti
 - ✅ **Lifecycle metadata cleanup**: Removed the temporary `metadata["migration_status"]` alias in `src/core/lifecycle/records.py` and added coverage in `tests/test_patient_generation.py` for the `generation_status` default.
 - ✅ **Scenario loaders**: Hardened `src/core/lifecycle/loader.py` to raise clear errors when overrides include deprecated migration flags and added regression coverage in `tests/test_scenario_loader.py`.
 - ✅ **CLI and smoke coverage**: Added `tests/test_cli_arguments.py` to lock the `--list-scenarios`/`--list-modules` pathways and validated CLI smoke generation locally. The GitHub Actions workflow now exercises both pytest and a CLI run.
-- **Dependency + build hygiene**: Confirm `matplotlib`, `seaborn`, `websockets`, and other dashboard-era packages are unused, then stage their removal from `requirements.txt` and `package-lock.json`. Validate `pip install -r requirements.txt` still succeeds post-removal.
+- ✅ **Dependency + build hygiene**: Removed unused dashboard dependencies (`matplotlib`, `seaborn`, `websockets`, `rich`) from `requirements.txt` and re-ran `pip install -r requirements.txt` for validation.
 - ✅ **Automation updates**: Added `.github/workflows/patient-ci.yml` to run `pytest` and a CLI smoke command on pushes/PRs; no legacy migration workflows remain.
 
 ## Phase 1. Inventory and Analysis
@@ -110,12 +110,12 @@ This plan removes all migration-focused code paths while protecting the syntheti
   - [ ] Verify CI configuration updates locally (e.g., `tox`, GitHub Actions dry-run).
 
 ## Phase 7. Dependency and Build Hygiene
-- [ ] Remove third-party packages used solely by migration features (e.g., dashboard visualization libs).
-  - Current suspects: `matplotlib`, `seaborn`, `websockets`, and any dashboard-oriented npm packages; verify via `rg` before pruning.
+- [x] Remove third-party packages used solely by migration features (e.g., dashboard visualization libs).
+  - Removed `matplotlib`, `seaborn`, `websockets`, and `rich` from `requirements.txt`; no downstream usage detected via `rg`.
 - [ ] Update `requirements.txt`, `package-lock.json`, and re-lock as needed.
 - [ ] Confirm Dockerfiles/build scripts succeed without migration assets.
 - Validation gate:
-  - [ ] `pip install -r requirements.txt` local check (or equivalent lock refresh).
+  - [x] `pip install -r requirements.txt` local check (network-restricted but satisfied via cached wheels).
   - [ ] Smoke test container/build pipeline if applicable.
 
 ## Phase 8. Final Verification and Communication
