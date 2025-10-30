@@ -23,6 +23,7 @@ from ..constants import (
     CONDITION_STATUSES,
     ENCOUNTER_REASONS,
     ENCOUNTER_TYPES,
+    MAX_PATIENT_AGE,
 )
 from ...terminology_catalogs import (
     CONDITIONS as CONDITION_TERMS,
@@ -175,27 +176,29 @@ CATEGORY_BASE_PREVALENCE = {
     "misc": 0.03,
 }
 
+OLDER_ADULT_BIN = AGE_BIN_LABELS[-1]
+
 CATEGORY_AGE_WEIGHTS = {
-    "infectious_disease": {"0-18": 0.25, "19-40": 0.35, "41-65": 0.25, "66-120": 0.15},
-    "oncology": {"0-18": 0.02, "19-40": 0.08, "41-65": 0.3, "66-120": 0.6},
-    "hematologic": {"0-18": 0.08, "19-40": 0.22, "41-65": 0.35, "66-120": 0.35},
-    "endocrine": {"0-18": 0.05, "19-40": 0.35, "41-65": 0.4, "66-120": 0.2},
-    "mental_health": {"0-18": 0.22, "19-40": 0.4, "41-65": 0.25, "66-120": 0.13},
-    "neurology": {"0-18": 0.05, "19-40": 0.15, "41-65": 0.4, "66-120": 0.4},
-    "ophthalmology_otology": {"0-18": 0.05, "19-40": 0.2, "41-65": 0.35, "66-120": 0.4},
-    "cardiovascular": {"0-18": 0.01, "19-40": 0.09, "41-65": 0.35, "66-120": 0.55},
-    "respiratory": {"0-18": 0.25, "19-40": 0.35, "41-65": 0.25, "66-120": 0.15},
-    "gastroenterology": {"0-18": 0.1, "19-40": 0.35, "41-65": 0.35, "66-120": 0.2},
-    "dermatology": {"0-18": 0.2, "19-40": 0.4, "41-65": 0.25, "66-120": 0.15},
-    "musculoskeletal": {"0-18": 0.05, "19-40": 0.25, "41-65": 0.35, "66-120": 0.35},
-    "genitourinary": {"0-18": 0.05, "19-40": 0.35, "41-65": 0.35, "66-120": 0.25},
-    "obstetrics": {"0-18": 0.02, "19-40": 0.9, "41-65": 0.08, "66-120": 0.0},
-    "perinatal": {"0-18": 1.0, "19-40": 0.0, "41-65": 0.0, "66-120": 0.0},
-    "congenital": {"0-18": 0.7, "19-40": 0.2, "41-65": 0.08, "66-120": 0.02},
-    "symptoms": {"0-18": 0.25, "19-40": 0.35, "41-65": 0.25, "66-120": 0.15},
-    "injury": {"0-18": 0.3, "19-40": 0.4, "41-65": 0.2, "66-120": 0.1},
-    "factors_influencing": {"0-18": 0.15, "19-40": 0.35, "41-65": 0.3, "66-120": 0.2},
-    "misc": {"0-18": 0.2, "19-40": 0.35, "41-65": 0.3, "66-120": 0.15},
+    "infectious_disease": {"0-18": 0.25, "19-40": 0.35, "41-65": 0.25, OLDER_ADULT_BIN: 0.15},
+    "oncology": {"0-18": 0.02, "19-40": 0.08, "41-65": 0.3, OLDER_ADULT_BIN: 0.6},
+    "hematologic": {"0-18": 0.08, "19-40": 0.22, "41-65": 0.35, OLDER_ADULT_BIN: 0.35},
+    "endocrine": {"0-18": 0.05, "19-40": 0.35, "41-65": 0.4, OLDER_ADULT_BIN: 0.2},
+    "mental_health": {"0-18": 0.22, "19-40": 0.4, "41-65": 0.25, OLDER_ADULT_BIN: 0.13},
+    "neurology": {"0-18": 0.05, "19-40": 0.15, "41-65": 0.4, OLDER_ADULT_BIN: 0.4},
+    "ophthalmology_otology": {"0-18": 0.05, "19-40": 0.2, "41-65": 0.35, OLDER_ADULT_BIN: 0.4},
+    "cardiovascular": {"0-18": 0.01, "19-40": 0.09, "41-65": 0.35, OLDER_ADULT_BIN: 0.55},
+    "respiratory": {"0-18": 0.25, "19-40": 0.35, "41-65": 0.25, OLDER_ADULT_BIN: 0.15},
+    "gastroenterology": {"0-18": 0.1, "19-40": 0.35, "41-65": 0.35, OLDER_ADULT_BIN: 0.2},
+    "dermatology": {"0-18": 0.2, "19-40": 0.4, "41-65": 0.25, OLDER_ADULT_BIN: 0.15},
+    "musculoskeletal": {"0-18": 0.05, "19-40": 0.25, "41-65": 0.35, OLDER_ADULT_BIN: 0.35},
+    "genitourinary": {"0-18": 0.05, "19-40": 0.35, "41-65": 0.35, OLDER_ADULT_BIN: 0.25},
+    "obstetrics": {"0-18": 0.02, "19-40": 0.9, "41-65": 0.08, OLDER_ADULT_BIN: 0.0},
+    "perinatal": {"0-18": 1.0, "19-40": 0.0, "41-65": 0.0, OLDER_ADULT_BIN: 0.0},
+    "congenital": {"0-18": 0.7, "19-40": 0.2, "41-65": 0.08, OLDER_ADULT_BIN: 0.02},
+    "symptoms": {"0-18": 0.25, "19-40": 0.35, "41-65": 0.25, OLDER_ADULT_BIN: 0.15},
+    "injury": {"0-18": 0.3, "19-40": 0.4, "41-65": 0.2, OLDER_ADULT_BIN: 0.1},
+    "factors_influencing": {"0-18": 0.15, "19-40": 0.35, "41-65": 0.3, OLDER_ADULT_BIN: 0.2},
+    "misc": {"0-18": 0.2, "19-40": 0.35, "41-65": 0.3, OLDER_ADULT_BIN: 0.15},
 }
 
 CATEGORY_SEX_BIASES = {
@@ -4660,11 +4663,12 @@ def _calculate_condition_probability(
         gender_raw = (patient.get("gender") or "").lower()
         if gender_raw.startswith("m"):
             gender_key = "male"
-        elif gender_raw.startswith("f"):
-            gender_key = "female"
         else:
-            gender_key = "other"
-        weight = sex_weights.get(gender_key, sex_weights.get("other", 0.05))
+            gender_key = "female"
+        weight = sex_weights.get(gender_key)
+        if weight is None:
+            fallback_order = ["female", "male"]
+            weight = next((sex_weights.get(key) for key in fallback_order if key in sex_weights), 0.05)
         base *= max(0.3, 0.5 + float(weight))
 
     base = apply_sdoh_adjustments(entry.get("display", ""), base, patient)
@@ -4827,15 +4831,24 @@ def sample_from_dist(dist):
 
 def generate_patient(_):
     """Generate patient using enhanced PatientRecord class"""
-    birthdate = fake.date_of_birth(minimum_age=0, maximum_age=100)
-    age = (datetime.now().date() - birthdate).days // 365
+    birthdate = fake.date_of_birth(minimum_age=0, maximum_age=MAX_PATIENT_AGE)
+    today = datetime.now().date()
+    age = min((today - birthdate).days // 365, MAX_PATIENT_AGE)
     income = random.randint(0, 200000) if age >= 18 else 0
-    
+
+    gender = random.choice(["male", "female"])
+    if gender == "male":
+        first_name = fake.first_name_male()
+        middle_initial = fake.first_name_male()[0].upper()
+    else:
+        first_name = fake.first_name_female()
+        middle_initial = fake.first_name_female()[0].upper()
+
     patient = PatientRecord(
-        first_name=fake.first_name(),
+        first_name=first_name,
         last_name=fake.last_name(),
-        middle_name=fake.first_name()[:1],  # Simple middle initial
-        gender=random.choice(GENDERS),
+        middle_name=middle_initial,  # Simple middle initial
+        gender=gender,
         birthdate=birthdate.isoformat(),
         age=age,
         race=random.choice(RACES),
@@ -4859,11 +4872,11 @@ def generate_patient(_):
         income=income,
         housing_status=random.choice(SDOH_HOUSING),
     )
-    
+
     # Generate healthcare IDs
     patient.generate_vista_id()
     patient.generate_mrn()
-    
+
     return patient
 
 def generate_encounters(

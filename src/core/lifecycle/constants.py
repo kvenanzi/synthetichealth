@@ -52,5 +52,7 @@ SDOH_EDUCATION = ["None", "Primary", "Secondary", "High School", "Associate", "B
 SDOH_EMPLOYMENT = ["Unemployed", "Employed", "Student", "Retired", "Disabled"]
 SDOH_HOUSING = ["Stable", "Homeless", "Temporary", "Assisted Living"]
 
-AGE_BINS = [(0, 18), (19, 40), (41, 65), (66, 120)]
+MAX_PATIENT_AGE = 95
+
+AGE_BINS = [(0, 18), (19, 40), (41, 65), (66, MAX_PATIENT_AGE)]
 AGE_BIN_LABELS = [f"{a}-{b}" for a, b in AGE_BINS]

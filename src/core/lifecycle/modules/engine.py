@@ -12,6 +12,7 @@ import yaml
 
 from .validation import ModuleValidationError, validate_module_definition
 from .reference_utils import ParameterResolutionError, resolve_definition_parameters
+from ..constants import MAX_PATIENT_AGE
 
 
 MODULES_ROOT = Path("modules")
@@ -51,6 +52,107 @@ def _convert_to_days(quantity: Any, unit: str) -> float:
     if unit_lower in {"year", "years"}:
         return value * 365.0
     return value
+
+
+MODULE_GUARDRAIL_OVERRIDES: Dict[str, Dict[str, Any]] = {
+    "adult_primary_care_wellness": {"min_age": 18},
+    "adult_immunization_catchup": {"min_age": 18},
+    "adolescent_depression_screening": {"min_age": 12, "max_age": 21},
+    "pediatric_asthma_management": {"max_age": 18},
+    "pediatric_otitis_media": {"max_age": 12},
+    "pediatric_well_child_care": {"max_age": 17},
+    "prenatal_care_management": {"min_age": 12, "max_age": 50, "allowed_genders": {"female"}},
+    "postpartum_care_management": {"min_age": 12, "max_age": 50, "allowed_genders": {"female"}},
+    "pregnancy_loss_support": {"min_age": 12, "max_age": 50, "allowed_genders": {"female"}},
+    "contraception_family_planning": {"min_age": 12, "max_age": 50, "allowed_genders": {"female"}},
+    "cervical_cancer_screening": {"min_age": 18, "allowed_genders": {"female"}},
+    "breast_cancer_screening": {"min_age": 35, "allowed_genders": {"female"}},
+    "prostate_cancer_screening": {"min_age": 45, "allowed_genders": {"male"}},
+    "colorectal_cancer_screening": {"min_age": 45},
+    "lung_cancer_screening": {"min_age": 50},
+    "oncology_survivorship": {"min_age": 18, "allowed_genders": {"female"}},
+    "geriatric_polypharmacy": {"min_age": 65},
+    "dementia_management": {"min_age": 60},
+    "copd_home_oxygen": {"min_age": 40},
+    "copd_exacerbation_prevention": {"min_age": 35},
+    "cardiometabolic_intensive": {"min_age": 18},
+}
+
+
+def _derive_guardrails(module_name: str) -> Dict[str, Any]:
+    """Infer basic demographic guardrails from module naming conventions."""
+
+    guardrails: Dict[str, Any] = {}
+    lower_name = module_name.lower()
+
+    def set_min_age(limit: int) -> None:
+        current = guardrails.get("min_age")
+        guardrails["min_age"] = max(current or 0, limit)
+
+    def set_max_age(limit: int) -> None:
+        bound = min(limit, MAX_PATIENT_AGE)
+        current = guardrails.get("max_age")
+        guardrails["max_age"] = bound if current is None else min(current, bound)
+
+    def restrict_genders(*values: str) -> None:
+        allowed = guardrails.setdefault("allowed_genders", set())
+        allowed.update(value.lower() for value in values if value)
+
+    if "pediatric" in lower_name or "well_child" in lower_name:
+        set_max_age(18)
+    if "adolescent" in lower_name:
+        set_min_age(12)
+        set_max_age(24)
+    if "adult" in lower_name:
+        set_min_age(18)
+    if "geriatric" in lower_name:
+        set_min_age(65)
+    if any(keyword in lower_name for keyword in ("prenatal", "pregnancy", "postpartum", "obstetric")):
+        set_min_age(12)
+        set_max_age(55)
+        restrict_genders("female")
+    if "contraception" in lower_name:
+        set_min_age(12)
+        set_max_age(55)
+        restrict_genders("female")
+    if "prostate" in lower_name:
+        set_min_age(45)
+        restrict_genders("male")
+    if "breast" in lower_name:
+        set_min_age(30)
+        restrict_genders("female")
+    if "cervical" in lower_name:
+        set_min_age(18)
+        restrict_genders("female")
+    if "colorectal" in lower_name:
+        set_min_age(45)
+    if "lung_cancer_screening" in lower_name:
+        set_min_age(50)
+    if "dementia" in lower_name:
+        set_min_age(60)
+    if "copd" in lower_name:
+        set_min_age(35)
+    if "osteoporosis" in lower_name:
+        set_min_age(40)
+    if "oncology_survivorship" in lower_name:
+        restrict_genders("female")
+        set_min_age(18)
+
+    overrides = MODULE_GUARDRAIL_OVERRIDES.get(module_name)
+    if overrides:
+        for key, value in overrides.items():
+            if key == "allowed_genders":
+                restrict_genders(*value)
+            elif key == "min_age":
+                set_min_age(int(value))
+            elif key == "max_age":
+                set_max_age(int(value))
+
+    allowed = guardrails.get("allowed_genders")
+    if allowed:
+        guardrails["allowed_genders"] = {gender.lower() for gender in allowed}
+
+    return guardrails
 
 
 @dataclass
@@ -202,6 +304,14 @@ class ModuleEngine:
             if issues:
                 raise ModuleValidationError(module_name, issues)
             self.definitions.append(definition)
+        self.guardrails: Dict[str, Dict[str, Any]] = {}
+        for definition in self.definitions:
+            guardrails = _derive_guardrails(definition.name)
+            if not guardrails:
+                continue
+            if "allowed_genders" in guardrails:
+                guardrails["allowed_genders"] = frozenset(guardrails["allowed_genders"])
+            self.guardrails[definition.name] = guardrails
         self.replace_categories: Dict[str, Set[str]] = {}
         for definition in self.definitions:
             replace = {
@@ -225,12 +335,40 @@ class ModuleEngine:
             categories.update(replace)
         return categories
 
+    def _module_is_eligible(self, definition: ModuleDefinition, patient: Dict[str, Any]) -> bool:
+        guardrails = self.guardrails.get(definition.name)
+        if not guardrails:
+            return True
+
+        try:
+            age = int(patient.get("age", 0) or 0)
+        except (TypeError, ValueError):
+            age = 0
+
+        min_age = guardrails.get("min_age")
+        if min_age is not None and age < int(min_age):
+            return False
+
+        max_age = guardrails.get("max_age")
+        if max_age is not None and age > int(max_age):
+            return False
+
+        allowed_genders = guardrails.get("allowed_genders")
+        if allowed_genders:
+            gender = str(patient.get("gender") or "").lower()
+            if gender not in allowed_genders:
+                return False
+
+        return True
+
     def execute(self, patient: Dict[str, Any]) -> ModuleExecutionResult:
         if not self.definitions:
             return ModuleExecutionResult()
 
         result = ModuleExecutionResult()
         for definition in self.definitions:
+            if not self._module_is_eligible(definition, patient):
+                continue
             runner = _ModuleRunner(definition, patient)
             module_result = runner.run()
             module_result.replacements.update(

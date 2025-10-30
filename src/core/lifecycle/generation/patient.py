@@ -8,11 +8,49 @@ from typing import Any, Dict
 
 from faker import Faker
 
-from ..constants import ETHNICITIES, INSURANCES, LANGUAGES, MARITAL_STATUSES
+from ..constants import (
+    ETHNICITIES,
+    INSURANCES,
+    LANGUAGES,
+    MARITAL_STATUSES,
+    MAX_PATIENT_AGE,
+)
 from ..models import Patient as LifecyclePatient
 from .clinical import sample_from_dist
 
 fake = Faker()
+
+
+def _normalize_gender_distribution(gender_dist: Dict[str, Any] | None) -> Dict[str, float]:
+    """Collapse configured gender labels to male/female buckets."""
+
+    cleaned: Dict[str, float] = {"male": 0.0, "female": 0.0}
+    if not gender_dist:
+        cleaned["male"] = cleaned["female"] = 0.5
+        return cleaned
+
+    for raw_label, weight in gender_dist.items():
+        try:
+            weight_value = float(weight)
+        except (TypeError, ValueError):
+            continue
+        label = str(raw_label).strip().lower()
+        if label.startswith("m"):
+            cleaned["male"] += weight_value
+        elif label.startswith("f"):
+            cleaned["female"] += weight_value
+
+    if cleaned["male"] <= 0 and cleaned["female"] <= 0:
+        cleaned["male"] = cleaned["female"] = 0.5
+    return cleaned
+
+
+def _select_binary_gender(gender_dist: Dict[str, Any] | None) -> str:
+    """Sample a gender value constrained to male/female."""
+
+    cleaned = _normalize_gender_distribution(gender_dist)
+    choice = sample_from_dist(cleaned)
+    return "male" if str(choice).lower().startswith("m") else "female"
 
 
 def generate_patient_demographics(
@@ -29,14 +67,25 @@ def generate_patient_demographics(
 
     age_bin_label = sample_from_dist(age_dist)
     a_min, a_max = map(int, age_bin_label.split("-"))
-    age = random.randint(a_min, a_max)
-    birthdate = datetime.now().date() - timedelta(days=age * 365)
+    a_max = min(a_max, MAX_PATIENT_AGE)
+    if a_min > a_max:
+        a_min = max(0, min(a_min, MAX_PATIENT_AGE))
+        a_max = a_min
+
+    today = datetime.now().date()
+    min_days = int(a_min * 365.25)
+    max_days = int((a_max + 1) * 365.25) - 1
+    if max_days < min_days:
+        max_days = min_days
+    age_days = random.randint(min_days, max_days)
+    birthdate = today - timedelta(days=age_days)
+    age = min(int((today - birthdate).days // 365), MAX_PATIENT_AGE)
 
     return {
         "age": age,
         "birthdate": birthdate,
         "income": random.randint(0, 200000) if age >= 18 else 0,
-        "gender": sample_from_dist(gender_dist),
+        "gender": _select_binary_gender(gender_dist),
         "race": sample_from_dist(race_dist),
         "smoking_status": sample_from_dist(smoking_dist),
         "alcohol_use": sample_from_dist(alcohol_dist),
@@ -76,11 +125,21 @@ def generate_patient_profile(
         housing_dist,
     )
 
+    gender_value = str(demographics["gender"]).lower()
+    if gender_value.startswith("m"):
+        gender = "male"
+        first_name = faker.first_name_male()
+        middle_initial = faker.first_name_male()[0].upper()
+    else:
+        gender = "female"
+        first_name = faker.first_name_female()
+        middle_initial = faker.first_name_female()[0].upper()
+
     profile = {
-        "first_name": faker.first_name(),
+        "first_name": first_name,
         "last_name": faker.last_name(),
-        "middle_name": faker.first_name()[:1],
-        "gender": demographics["gender"],
+        "middle_name": middle_initial,
+        "gender": gender,
         "birthdate": demographics["birthdate"],
         "age": demographics["age"],
         "race": demographics["race"],

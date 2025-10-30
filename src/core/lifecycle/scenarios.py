@@ -7,8 +7,8 @@ from typing import Dict, List
 DEFAULT_SCENARIOS: Dict[str, Dict[str, object]] = {
     "general": {
         "metadata": {"description": "Balanced demographic distribution"},
-        "age_dist": {"0-18": 0.22, "19-40": 0.33, "41-65": 0.28, "66-120": 0.17},
-        "gender_dist": {"male": 0.49, "female": 0.49, "other": 0.02},
+        "age_dist": {"0-18": 0.22, "19-40": 0.33, "41-65": 0.28, "66-95": 0.17},
+        "gender_dist": {"male": 0.5, "female": 0.5},
         "race_dist": {
             "White": 0.60,
             "Black": 0.12,
@@ -28,8 +28,8 @@ DEFAULT_SCENARIOS: Dict[str, Dict[str, object]] = {
     },
     "cardiometabolic": {
         "metadata": {"description": "Older population with cardiometabolic burden"},
-        "age_dist": {"0-18": 0.05, "19-40": 0.18, "41-65": 0.42, "66-120": 0.35},
-        "gender_dist": {"male": 0.52, "female": 0.46, "other": 0.02},
+        "age_dist": {"0-18": 0.05, "19-40": 0.18, "41-65": 0.42, "66-95": 0.35},
+        "gender_dist": {"male": 0.53, "female": 0.47},
         "race_dist": {
             "White": 0.55,
             "Black": 0.20,
@@ -50,8 +50,8 @@ DEFAULT_SCENARIOS: Dict[str, Dict[str, object]] = {
     },
     "pediatric_asthma": {
         "metadata": {"description": "Pediatric asthma cohort with immunization catch-up"},
-        "age_dist": {"0-18": 0.9, "19-40": 0.1, "41-65": 0.0, "66-120": 0.0},
-        "gender_dist": {"male": 0.53, "female": 0.46, "other": 0.01},
+        "age_dist": {"0-18": 0.9, "19-40": 0.1, "41-65": 0.0, "66-95": 0.0},
+        "gender_dist": {"male": 0.54, "female": 0.46},
         "race_dist": {
             "White": 0.42,
             "Black": 0.18,
@@ -71,8 +71,8 @@ DEFAULT_SCENARIOS: Dict[str, Dict[str, object]] = {
     },
     "pediatric": {
         "metadata": {"description": "Pediatric asthma cohort with immunization catch-up"},
-        "age_dist": {"0-18": 0.9, "19-40": 0.1, "41-65": 0.0, "66-120": 0.0},
-        "gender_dist": {"male": 0.53, "female": 0.46, "other": 0.01},
+        "age_dist": {"0-18": 0.9, "19-40": 0.1, "41-65": 0.0, "66-95": 0.0},
+        "gender_dist": {"male": 0.54, "female": 0.46},
         "race_dist": {
             "White": 0.42,
             "Black": 0.18,
@@ -92,8 +92,8 @@ DEFAULT_SCENARIOS: Dict[str, Dict[str, object]] = {
     },
     "prenatal_care": {
         "metadata": {"description": "Prenatal cohort with gestational diabetes screening"},
-        "age_dist": {"0-18": 0.02, "19-40": 0.85, "41-65": 0.13, "66-120": 0.0},
-        "gender_dist": {"male": 0.0, "female": 0.99, "other": 0.01},
+        "age_dist": {"0-18": 0.02, "19-40": 0.85, "41-65": 0.13, "66-95": 0.0},
+        "gender_dist": {"female": 1.0},
         "race_dist": {
             "White": 0.46,
             "Black": 0.19,
@@ -113,8 +113,8 @@ DEFAULT_SCENARIOS: Dict[str, Dict[str, object]] = {
     },
     "oncology_survivorship": {
         "metadata": {"description": "Breast cancer survivorship with endocrine therapy"},
-        "age_dist": {"0-18": 0.0, "19-40": 0.25, "41-65": 0.5, "66-120": 0.25},
-        "gender_dist": {"male": 0.02, "female": 0.97, "other": 0.01},
+        "age_dist": {"0-18": 0.0, "19-40": 0.25, "41-65": 0.5, "66-95": 0.25},
+        "gender_dist": {"male": 0.02, "female": 0.98},
         "race_dist": {
             "White": 0.58,
             "Black": 0.18,
@@ -134,8 +134,8 @@ DEFAULT_SCENARIOS: Dict[str, Dict[str, object]] = {
     },
     "ckd_dialysis": {
         "metadata": {"description": "Advanced CKD cohort preparing for dialysis"},
-        "age_dist": {"0-18": 0.0, "19-40": 0.2, "41-65": 0.45, "66-120": 0.35},
-        "gender_dist": {"male": 0.52, "female": 0.47, "other": 0.01},
+        "age_dist": {"0-18": 0.0, "19-40": 0.2, "41-65": 0.45, "66-95": 0.35},
+        "gender_dist": {"male": 0.53, "female": 0.47},
         "race_dist": {
             "White": 0.48,
             "Black": 0.28,
@@ -155,8 +155,8 @@ DEFAULT_SCENARIOS: Dict[str, Dict[str, object]] = {
     },
     "copd_home_oxygen": {
         "metadata": {"description": "Severe COPD with home oxygen therapy"},
-        "age_dist": {"0-18": 0.0, "19-40": 0.1, "41-65": 0.35, "66-120": 0.55},
-        "gender_dist": {"male": 0.52, "female": 0.47, "other": 0.01},
+        "age_dist": {"0-18": 0.0, "19-40": 0.1, "41-65": 0.35, "66-95": 0.55},
+        "gender_dist": {"male": 0.53, "female": 0.47},
         "race_dist": {
             "White": 0.6,
             "Black": 0.18,
@@ -176,8 +176,8 @@ DEFAULT_SCENARIOS: Dict[str, Dict[str, object]] = {
     },
     "mental_health_integrated": {
         "metadata": {"description": "Collaborative mental health care with telehealth"},
-        "age_dist": {"0-18": 0.05, "19-40": 0.45, "41-65": 0.4, "66-120": 0.1},
-        "gender_dist": {"male": 0.45, "female": 0.53, "other": 0.02},
+        "age_dist": {"0-18": 0.05, "19-40": 0.45, "41-65": 0.4, "66-95": 0.1},
+        "gender_dist": {"male": 0.46, "female": 0.54},
         "race_dist": {
             "White": 0.5,
             "Black": 0.2,
@@ -197,8 +197,8 @@ DEFAULT_SCENARIOS: Dict[str, Dict[str, object]] = {
     },
     "geriatric_polypharmacy": {
         "metadata": {"description": "Geriatric multimorbidity cohort with fall risk management"},
-        "age_dist": {"0-18": 0.0, "19-40": 0.05, "41-65": 0.2, "66-120": 0.75},
-        "gender_dist": {"male": 0.35, "female": 0.63, "other": 0.02},
+        "age_dist": {"0-18": 0.0, "19-40": 0.05, "41-65": 0.2, "66-95": 0.75},
+        "gender_dist": {"male": 0.36, "female": 0.64},
         "race_dist": {
             "White": 0.62,
             "Black": 0.2,
@@ -218,8 +218,8 @@ DEFAULT_SCENARIOS: Dict[str, Dict[str, object]] = {
     },
     "sepsis_survivorship": {
         "metadata": {"description": "Post-sepsis survivorship with readmission prevention"},
-        "age_dist": {"0-18": 0.02, "19-40": 0.25, "41-65": 0.4, "66-120": 0.33},
-        "gender_dist": {"male": 0.52, "female": 0.47, "other": 0.01},
+        "age_dist": {"0-18": 0.02, "19-40": 0.25, "41-65": 0.4, "66-95": 0.33},
+        "gender_dist": {"male": 0.53, "female": 0.47},
         "race_dist": {
             "White": 0.54,
             "Black": 0.22,
@@ -239,8 +239,8 @@ DEFAULT_SCENARIOS: Dict[str, Dict[str, object]] = {
     },
     "hiv_prep": {
         "metadata": {"description": "HIV chronic care and PrEP prevention cohorts"},
-        "age_dist": {"0-18": 0.05, "19-40": 0.5, "41-65": 0.4, "66-120": 0.05},
-        "gender_dist": {"male": 0.55, "female": 0.43, "other": 0.02},
+        "age_dist": {"0-18": 0.05, "19-40": 0.5, "41-65": 0.4, "66-95": 0.05},
+        "gender_dist": {"male": 0.56, "female": 0.44},
         "race_dist": {
             "White": 0.42,
             "Black": 0.28,
