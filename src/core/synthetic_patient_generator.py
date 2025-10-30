@@ -3136,9 +3136,16 @@ class VistaFormatter:
                 notes = plan.get('notes')
                 if notes:
                     text_lines.append(f"Notes: {notes}")
+                raw_activities = plan.get('activities', []) or []
+                normalized_activities = []
+                for activity in raw_activities:
+                    if isinstance(activity, dict):
+                        normalized_activities.append(activity)
+                    elif activity:
+                        normalized_activities.append({'display': str(activity), 'status': ''})
                 outstanding = [
                     activity
-                    for activity in plan.get('activities', []) or []
+                    for activity in normalized_activities
                     if str(activity.get('status', '')).lower() != "completed"
                 ]
                 for activity in outstanding[:5]:
