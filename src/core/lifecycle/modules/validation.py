@@ -71,6 +71,11 @@ def validate_module_definition(definition: Any) -> List[str]:
                 issues.append(
                     f"state '{state_name}' points to unknown target '{target}'"
                 )
+        if getattr(state, "type", "") == "call_submodule":
+            module_name = getattr(state, "data", {}).get("module")
+            if not module_name:
+                issues.append(
+                    f"state '{state_name}' call_submodule missing required 'module' reference"
+                )
 
     return issues
-

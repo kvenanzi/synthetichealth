@@ -293,33 +293,50 @@ class ModuleEngine:
         modules_root: Optional[Path] = None,
     ) -> None:
         self.modules_root = _ensure_modules_root(modules_root)
-        self.definitions: List[ModuleDefinition] = []
-        for module_name in module_names:
-            definition = self._load_module(module_name)
-            try:
-                resolve_definition_parameters(definition)
-            except ParameterResolutionError as exc:
-                raise ModuleValidationError(module_name, [str(exc)]) from exc
-            issues = validate_module_definition(definition)
-            if issues:
-                raise ModuleValidationError(module_name, issues)
-            self.definitions.append(definition)
+        self.definition_cache: Dict[str, ModuleDefinition] = {}
         self.guardrails: Dict[str, Dict[str, Any]] = {}
-        for definition in self.definitions:
-            guardrails = _derive_guardrails(definition.name)
-            if not guardrails:
-                continue
-            if "allowed_genders" in guardrails:
-                guardrails["allowed_genders"] = frozenset(guardrails["allowed_genders"])
-            self.guardrails[definition.name] = guardrails
         self.replace_categories: Dict[str, Set[str]] = {}
-        for definition in self.definitions:
-            replace = {
-                category
-                for category, mode in definition.categories.items()
-                if str(mode).lower() == "replace"
-            }
-            self.replace_categories[definition.name] = replace
+        self.primary_definitions: List[ModuleDefinition] = []
+        for module_name in module_names:
+            definition = self._get_or_load_definition(module_name)
+            self.primary_definitions.append(definition)
+
+    def _register_definition(self, definition: ModuleDefinition) -> None:
+        module_name = definition.name
+        self.definition_cache[module_name] = definition
+        guardrails = _derive_guardrails(module_name)
+        if guardrails:
+            allowed = guardrails.get("allowed_genders")
+            if allowed:
+                guardrails["allowed_genders"] = frozenset(allowed)
+            self.guardrails[module_name] = guardrails
+        replace = {
+            category
+            for category, mode in definition.categories.items()
+            if str(mode).lower() == "replace"
+        }
+        if replace:
+            self.replace_categories[module_name] = replace
+        else:
+            self.replace_categories.setdefault(module_name, set())
+
+    def _prepare_definition(self, module_name: str, definition: ModuleDefinition) -> ModuleDefinition:
+        try:
+            resolve_definition_parameters(definition)
+        except ParameterResolutionError as exc:
+            raise ModuleValidationError(module_name, [str(exc)]) from exc
+        issues = validate_module_definition(definition)
+        if issues:
+            raise ModuleValidationError(module_name, issues)
+        self._register_definition(definition)
+        return definition
+
+    def _get_or_load_definition(self, module_name: str) -> ModuleDefinition:
+        cached = self.definition_cache.get(module_name)
+        if cached:
+            return cached
+        definition = self._load_module(module_name)
+        return self._prepare_definition(module_name, definition)
 
     def _load_module(self, module_name: str) -> ModuleDefinition:
         path = self.modules_root / f"{module_name}.yaml"
@@ -362,14 +379,14 @@ class ModuleEngine:
         return True
 
     def execute(self, patient: Dict[str, Any]) -> ModuleExecutionResult:
-        if not self.definitions:
+        if not self.primary_definitions:
             return ModuleExecutionResult()
 
         result = ModuleExecutionResult()
-        for definition in self.definitions:
+        for definition in self.primary_definitions:
             if not self._module_is_eligible(definition, patient):
                 continue
-            runner = _ModuleRunner(definition, patient)
+            runner = _ModuleRunner(self, definition, patient)
             module_result = runner.run()
             module_result.replacements.update(
                 self.replace_categories.get(definition.name, set())
@@ -379,18 +396,37 @@ class ModuleEngine:
 
 
 class _ModuleRunner:
-    def __init__(self, definition: ModuleDefinition, patient: Dict[str, Any]) -> None:
+    def __init__(
+        self,
+        engine: ModuleEngine,
+        definition: ModuleDefinition,
+        patient: Dict[str, Any],
+        *,
+        start_time: Optional[datetime] = None,
+        attributes_store: Optional[Dict[str, Any]] = None,
+        condition_index: Optional[Dict[str, Dict[str, Any]]] = None,
+        medication_index: Optional[Dict[str, Dict[str, Any]]] = None,
+        care_plan_index: Optional[Dict[str, Dict[str, Any]]] = None,
+        encounter_index: Optional[Dict[str, Dict[str, Any]]] = None,
+        last_encounter_id: Optional[str] = None,
+        call_stack: Optional[Sequence[str]] = None,
+    ) -> None:
+        self.engine = engine
         self.definition = definition
         self.patient = patient
         self.output = ModuleExecutionResult()
-        self.current_time = self._initial_timestamp()
-        self.last_encounter_id: Optional[str] = None
+        self.current_time = start_time or self._initial_timestamp()
+        self.last_encounter_id = last_encounter_id
         self.visited = 0
-        self.attributes: Dict[str, Any] = {}
-        self.condition_index: Dict[str, Dict[str, Any]] = {}
-        self.medication_index: Dict[str, Dict[str, Any]] = {}
-        self.care_plan_index: Dict[str, Dict[str, Any]] = {}
-        self.encounter_index: Dict[str, Dict[str, Any]] = {}
+        self.attributes = attributes_store if attributes_store is not None else {}
+        if attributes_store is None:
+            self.attributes = {}
+        self.condition_index = condition_index if condition_index is not None else {}
+        self.medication_index = medication_index if medication_index is not None else {}
+        self.care_plan_index = care_plan_index if care_plan_index is not None else {}
+        self.encounter_index = encounter_index if encounter_index is not None else {}
+        base_stack = tuple(call_stack or ())
+        self.call_stack = base_stack + (self.definition.name,)
 
     def _initial_timestamp(self) -> datetime:
         birthdate = datetime.strptime(self.patient["birthdate"], "%Y-%m-%d")
@@ -691,6 +727,92 @@ class _ModuleRunner:
         }
         self.output.observations.append(entry)
         self._advance_time(state.data.get("advance_days"))
+
+    def _handle_call_submodule(self, state: ModuleState) -> None:
+        module_name = state.data.get("module") or state.data.get("name")
+        if not module_name or not isinstance(module_name, str):
+            return
+        if module_name in self.call_stack:
+            return
+        try:
+            sub_definition = self.engine._get_or_load_definition(module_name)
+        except (FileNotFoundError, ModuleValidationError):
+            return
+        if not self.engine._module_is_eligible(sub_definition, self.patient):
+            return
+
+        share_context = bool(state.data.get("share_context", True))
+        share_conditions = bool(state.data.get("share_conditions", share_context))
+        share_medications = bool(state.data.get("share_medications", share_context))
+        share_care_plans = bool(state.data.get("share_care_plans", share_context))
+        share_encounters = bool(state.data.get("share_encounters", share_context))
+        inherit_attributes = bool(state.data.get("inherit_attributes", True))
+        inherit_last_encounter = bool(
+            state.data.get("inherit_last_encounter", share_encounters)
+        )
+        propagate_time = bool(state.data.get("propagate_time", True))
+        propagate_last_encounter = bool(
+            state.data.get("propagate_last_encounter", inherit_last_encounter)
+        )
+
+        return_attributes = state.data.get("return_attributes")
+        if isinstance(return_attributes, str):
+            return_attributes = [return_attributes]
+        if not isinstance(return_attributes, (list, tuple, set, type(None))):
+            return_attributes = None
+
+        seed_attributes = state.data.get("set_attributes") or {}
+        if inherit_attributes:
+            attribute_store = self.attributes
+            if seed_attributes:
+                for key, value in seed_attributes.items():
+                    attribute_store[key] = value
+        else:
+            attribute_store = dict(seed_attributes)
+
+        sub_runner = _ModuleRunner(
+            self.engine,
+            sub_definition,
+            self.patient,
+            start_time=self.current_time,
+            attributes_store=attribute_store,
+            condition_index=self.condition_index if share_conditions else None,
+            medication_index=self.medication_index if share_medications else None,
+            care_plan_index=self.care_plan_index if share_care_plans else None,
+            encounter_index=self.encounter_index if share_encounters else None,
+            last_encounter_id=self.last_encounter_id if inherit_last_encounter else None,
+            call_stack=self.call_stack,
+        )
+        sub_result = sub_runner.run()
+        sub_result.replacements.update(
+            self.engine.replace_categories.get(sub_definition.name, set())
+        )
+        self.output.merge(sub_result)
+
+        if not inherit_attributes:
+            if return_attributes:
+                for key in return_attributes:
+                    if key in sub_runner.attributes:
+                        self.attributes[key] = sub_runner.attributes[key]
+            else:
+                self.attributes.update(sub_runner.attributes)
+
+        assign_attr = state.data.get("assign_to_attribute")
+        if assign_attr:
+            if return_attributes:
+                payload = {
+                    key: sub_runner.attributes[key]
+                    for key in return_attributes
+                    if key in sub_runner.attributes
+                }
+            else:
+                payload = dict(sub_runner.attributes)
+            self.attributes[assign_attr] = payload
+
+        if propagate_time:
+            self.current_time = sub_runner.current_time
+        if propagate_last_encounter:
+            self.last_encounter_id = sub_runner.last_encounter_id
 
     def _handle_set_attribute(self, state: ModuleState) -> None:
         attribute = state.data.get("attribute")

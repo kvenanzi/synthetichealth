@@ -188,6 +188,27 @@ def terminology_issues(definition: ModuleDefinition) -> List[str]:
                     issues.append(
                         f"state '{state.name}' care plan #{idx + 1} missing name"
                     )
+        elif state.type == "call_submodule":
+            if not data.get("module"):
+                issues.append(
+                    f"state '{state.name}' call_submodule missing required 'module'"
+                )
+    return issues
+
+
+def submodule_issues(root: Path, definition: ModuleDefinition) -> List[str]:
+    issues: List[str] = []
+    for state in definition.states.values():
+        if state.type != "call_submodule":
+            continue
+        module_name = state.data.get("module")
+        if not module_name:
+            continue
+        path = root / f"{module_name}.yaml"
+        if not path.exists():
+            issues.append(
+                f"state '{state.name}' references missing submodule '{module_name}'"
+            )
     return issues
 
 
@@ -203,6 +224,7 @@ def lint_module(root: Path, module_name: str) -> List[str]:
     issues.extend(provenance_issues(definition, parameter_usage))
     issues.extend(validate_module_definition(definition))
     issues.extend(terminology_issues(definition))
+    issues.extend(submodule_issues(root, definition))
     return issues
 
 

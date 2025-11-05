@@ -3,6 +3,7 @@ from __future__ import annotations
 import random
 import sys
 from pathlib import Path
+import textwrap
 
 import pytest
 
@@ -156,6 +157,160 @@ states:
     with pytest.raises(ModuleValidationError):
         ModuleEngine(["invalid_module"], modules_root=tmp_path)
 
+
+def test_call_submodule_merges_outputs_and_attributes(tmp_path):
+    modules_root = tmp_path
+    submodule_content = textwrap.dedent(
+        """
+        name: test_submodule
+        description: Submodule that adds a condition
+        categories:
+          conditions: replace
+        states:
+          start:
+            type: start
+            transitions:
+              - to: sub_encounter
+          sub_encounter:
+            type: encounter
+            encounter_type: "Submodule Visit"
+            transitions:
+              - to: onset
+          onset:
+            type: condition_onset
+            assign_to_attribute: sub_condition_id
+            conditions:
+              - name: "Test Condition"
+                icd10: "A00"
+            transitions:
+              - to: end
+          end:
+            type: terminal
+        """
+    )
+    (modules_root / "test_submodule.yaml").write_text(submodule_content)
+
+    parent_content = textwrap.dedent(
+        """
+        name: base_module
+        description: Calls a submodule and resolves the resulting condition
+        categories: {}
+        states:
+          start:
+            type: start
+            transitions:
+              - to: invoke_submodule
+          invoke_submodule:
+            type: call_submodule
+            module: test_submodule
+            transitions:
+              - to: resolve_condition
+          resolve_condition:
+            type: condition_end
+            referenced_by_attribute: sub_condition_id
+            status: resolved
+            transitions:
+              - to: followup_encounter
+          followup_encounter:
+            type: encounter
+            encounter_type: "Follow Up"
+            transitions:
+              - to: end
+          end:
+            type: terminal
+        """
+    )
+    (modules_root / "base_module.yaml").write_text(parent_content)
+
+    patient = {
+        "patient_id": "sub-1",
+        "birthdate": "1990-01-01",
+        "age": 34,
+        "gender": "female",
+        "race": "White",
+    }
+
+    engine = ModuleEngine(["base_module"], modules_root=modules_root)
+    result = engine.execute(patient)
+
+    encounter_types = {enc["type"] for enc in result.encounters}
+    assert "Submodule Visit" in encounter_types
+    assert "Follow Up" in encounter_types
+
+    assert result.conditions, "submodule should create a condition"
+    condition = result.conditions[0]
+    assert condition["icd10_code"] == "A00"
+    assert condition["status"] == "resolved"
+    assert condition["end_date"] is not None
+
+    assert "conditions" in result.replacements
+
+
+def test_call_submodule_requires_module_reference(tmp_path):
+    invalid_content = textwrap.dedent(
+        """
+        name: invalid_submodule_call
+        description: Missing module reference
+        categories: {}
+        states:
+          start:
+            type: start
+            transitions:
+              - to: missing_reference
+          missing_reference:
+            type: call_submodule
+            transitions:
+              - to: end
+          end:
+            type: terminal
+        """
+    )
+    (tmp_path / "invalid_submodule_call.yaml").write_text(invalid_content)
+
+    with pytest.raises(ModuleValidationError):
+        ModuleEngine(["invalid_submodule_call"], modules_root=tmp_path)
+
+
+def test_call_submodule_prevents_recursive_execution(tmp_path):
+    recursive_content = textwrap.dedent(
+        """
+        name: recursive_module
+        description: Calls itself recursively
+        categories: {}
+        states:
+          start:
+            type: start
+            transitions:
+              - to: recurse
+          recurse:
+            type: call_submodule
+            module: recursive_module
+            transitions:
+              - to: final_encounter
+          final_encounter:
+            type: encounter
+            encounter_type: "Final Visit"
+            transitions:
+              - to: end
+          end:
+            type: terminal
+        """
+    )
+    (tmp_path / "recursive_module.yaml").write_text(recursive_content)
+
+    patient = {
+        "patient_id": "cycle-1",
+        "birthdate": "1985-02-01",
+        "age": 39,
+        "gender": "male",
+        "race": "Asian",
+    }
+
+    engine = ModuleEngine(["recursive_module"], modules_root=tmp_path)
+    result = engine.execute(patient)
+
+    encounter_types = [enc["type"] for enc in result.encounters]
+    assert encounter_types == ["Final Visit"]
 
 def test_oncology_survivorship_module_generates_surveillance_plan():
     patient = {
