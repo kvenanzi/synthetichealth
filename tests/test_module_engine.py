@@ -168,6 +168,22 @@ def test_hyperlipidemia_module_generates_followups():
     assert any(obs["loinc_code"] == "2089-1" for obs in result.observations)
 
 
+def test_heart_failure_module_generates_gdmt():
+    patient = {
+        "patient_id": "hf-1",
+        "birthdate": "1968-04-22",
+        "age": 56,
+        "gender": "male",
+        "race": "Black",
+    }
+    result = run_module("heart_failure_management", patient, seed=5)
+
+    assert any(cond["icd10_code"] == "I50.2" for cond in result.conditions)
+    assert any(enc["type"] == "HF Follow-up" for enc in result.encounters)
+    assert any(med["name"] in {"Lisinopril", "Sacubitril/Valsartan", "Carvedilol"} for med in result.medications)
+    assert any(obs["loinc_code"] == "33914-3" for obs in result.observations)
+
+
 def test_module_validation_rejects_invalid_decisions(tmp_path):
     invalid_module = tmp_path / "invalid_module.yaml"
     invalid_module.write_text(

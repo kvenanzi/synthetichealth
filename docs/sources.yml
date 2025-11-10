@@ -71,6 +71,18 @@ sources:
     url: https://www.cdc.gov/heartdisease/facts.htm
     date_accessed: 2025-10-10
 
+  - id: acc_aha_heart_failure_2022
+    title: 2022 AHA/ACC/HFSA Guideline for the Management of Heart Failure
+    org: American Heart Association / American College of Cardiology / HFSA
+    url: https://www.ahajournals.org/doi/10.1161/CIR.0000000000001063
+    date_accessed: 2025-10-10
+
+  - id: cdc_hf_hospitalization_stats
+    title: Heart Failure Statistics
+    org: CDC
+    url: https://www.cdc.gov/heartfailure/facts/index.htm
+    date_accessed: 2025-10-10
+
   - id: cdc_copd_smoking
     title: COPD and Smoking - National Health Interview Survey
     org: CDC

@@ -91,6 +91,15 @@ MONTE_CARLO_JOBS = [
     },
     {
         "scenario": None,
+        "modules": ["heart_failure_management"],
+        "num_records": "8",
+        "iterations": "2",
+        "required_loinc": ["33914-3"],
+        "required_icd10": ["I50.2"],
+        "max_med_std": "0.7",
+    },
+    {
+        "scenario": None,
         "modules": ["mental_health_integrated_care", "geriatric_polypharmacy"],
         "num_records": "8",
         "iterations": "2",

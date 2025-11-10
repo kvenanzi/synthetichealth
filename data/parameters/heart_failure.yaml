@@ -1,0 +1,29 @@
+parameters:
+  prevalence:
+    general_population:
+      value: 0.02
+      source_id: cdc_hf_hospitalization_stats
+  management:
+    lifestyle_followup_days:
+      value: 60
+      source_id: acc_aha_heart_failure_2022
+    medication_titration_followup_days:
+      value: 45
+      source_id: acc_aha_heart_failure_2022
+  therapy_branch:
+    ace_arb_probability:
+      value: 0.5
+      source_id: acc_aha_heart_failure_2022
+    arb_neprilysin_probability:
+      value: 0.3
+      source_id: acc_aha_heart_failure_2022
+    beta_blocker_only_probability:
+      value: 0.2
+      source_id: acc_aha_heart_failure_2022
+  monitoring:
+    target_bnp_pg_ml:
+      value: 100
+      source_id: acc_aha_heart_failure_2022
+    weight_monitoring_days:
+      value: 7
+      source_id: acc_aha_heart_failure_2022

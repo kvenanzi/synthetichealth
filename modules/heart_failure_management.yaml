@@ -1,15 +1,238 @@
 name: heart_failure_management
-description: Placeholder scaffold for heart failure management module (v2 DSL pending).
+description: Evidence-based heart failure management with guideline-directed medical therapy, monitoring, and titration.
+version: 0.1.0
+gmf_version: 2
 categories:
   encounters: augment
   conditions: augment
   medications: augment
   observations: augment
+  care_plans: augment
+sources:
+  - acc_aha_heart_failure_2022
+  - cdc_hf_hospitalization_stats
 states:
   start:
     type: start
     transitions:
+      - to: intake_visit
+
+  intake_visit:
+    type: encounter
+    sources: [cdc_hf_hospitalization_stats]
+    encounter_type: "Cardiology Intake"
+    reason: "Heart failure symptoms evaluation"
+    provider_role: "Cardiologist"
+    location: "Heart Failure Clinic"
+    transitions:
+      - to: baseline_labs
+
+  baseline_labs:
+    type: observation
+    attach_to_last_encounter: true
+    sources: [acc_aha_heart_failure_2022]
+    observations:
+      - loinc: "2093-3"
+        name: "Total Cholesterol"
+        units: "mg/dL"
+        value_range:
+          min: 180
+          max: 240
+      - loinc: "33914-3"
+        name: "NT-proBNP"
+        units: "pg/mL"
+        value_range:
+          min: 300
+          max: 2000
+      - loinc: "2951-2"
+        name: "Sodium"
+        units: "mmol/L"
+        value_range:
+          min: 134
+          max: 140
+    transitions:
+      - to: diagnosis
+
+  diagnosis:
+    type: condition_onset
+    attach_to_last_encounter: true
+    sources: [acc_aha_heart_failure_2022]
+    conditions:
+      - name: "Heart Failure with Reduced Ejection Fraction"
+        icd10: "I50.2"
+        snomed: "48447003"
+        category: "cardiovascular"
+    transitions:
+      - to: lifestyle_plan
+
+  lifestyle_plan:
+    type: care_plan
+    sources: [acc_aha_heart_failure_2022]
+    care_plans:
+      - name: "Heart Failure Self-Management"
+        category: "cardiology"
+        goal: "Prevent exacerbations and optimize therapy"
+        activities:
+          - name: "Daily weight monitoring"
+            status: "active"
+          - name: "Low-sodium diet counseling"
+            status: "planned"
+          - name: "Fluid restriction education"
+            status: "planned"
+    transitions:
+      - to: therapy_branch
+
+  therapy_branch:
+    type: decision
+    sources: [acc_aha_heart_failure_2022]
+    distributed_transition:
+      - transition: ace_arb_therapy
+        probability:
+          use: heart_failure.therapy_branch.ace_arb_probability
+      - transition: arb_neprilysin_therapy
+        probability:
+          use: heart_failure.therapy_branch.arb_neprilysin_probability
+      - transition: beta_blocker_only
+        probability:
+          use: heart_failure.therapy_branch.beta_blocker_only_probability
+
+  ace_arb_therapy:
+    type: medication_start
+    attach_to_last_encounter: true
+    sources: [acc_aha_heart_failure_2022]
+    medications:
+      - name: "Lisinopril"
+        rxnorm: "617314"
+        therapy_category: "ace_inhibitor"
+        dose: "10 mg"
+        status: "active"
+      - name: "Metoprolol Succinate"
+        rxnorm: "6918"
+        therapy_category: "beta_blocker"
+        dose: "50 mg"
+        status: "active"
+    transitions:
+      - to: lifestyle_followup_delay
+
+  arb_neprilysin_therapy:
+    type: medication_start
+    attach_to_last_encounter: true
+    sources: [acc_aha_heart_failure_2022]
+    medications:
+      - name: "Sacubitril/Valsartan"
+        rxnorm: "1656353"
+        therapy_category: "arb_neprilysin_inhibitor"
+        dose: "49/51 mg"
+        status: "active"
+      - name: "Metoprolol Succinate"
+        rxnorm: "6918"
+        therapy_category: "beta_blocker"
+        dose: "50 mg"
+        status: "active"
+    transitions:
+      - to: lifestyle_followup_delay
+
+  beta_blocker_only:
+    type: medication_start
+    attach_to_last_encounter: true
+    sources: [acc_aha_heart_failure_2022]
+    medications:
+      - name: "Carvedilol"
+        rxnorm: "197361"
+        therapy_category: "beta_blocker"
+        dose: "12.5 mg"
+        status: "active"
+    transitions:
+      - to: lifestyle_followup_delay
+
+  lifestyle_followup_delay:
+    type: delay
+    sources: [acc_aha_heart_failure_2022]
+    exact:
+      quantity:
+        use: heart_failure.management.lifestyle_followup_days
+      unit: days
+    transitions:
+      - to: followup_visit
+
+  followup_visit:
+    type: encounter
+    sources: [acc_aha_heart_failure_2022]
+    encounter_type: "HF Follow-up"
+    reason: "Evaluate therapy response"
+    provider_role: "Cardiologist"
+    location: "Heart Failure Clinic"
+    transitions:
+      - to: followup_observations
+
+  followup_observations:
+    type: observation
+    attach_to_last_encounter: true
+    sources: [acc_aha_heart_failure_2022]
+    observations:
+      - loinc: "33914-3"
+        name: "NT-proBNP"
+        units: "pg/mL"
+        value_range:
+          min: 150
+          max: 600
+      - loinc: "29463-7"
+        name: "Body weight"
+        units: "kg"
+        value_range:
+          min: 70
+          max: 120
+    transitions:
+      - to: response_check
+
+  response_check:
+    type: decision
+    sources: [acc_aha_heart_failure_2022]
+    distributed_transition:
+      - transition: titrate_medications
+        probability: 0.45
+      - transition: maintenance_plan
+        probability: 0.55
+
+  titrate_medications:
+    type: medication_start
+    attach_to_last_encounter: true
+    sources: [acc_aha_heart_failure_2022]
+    medications:
+      - name: "Spironolactone"
+        rxnorm: "9993"
+        therapy_category: "aldosterone_antagonist"
+        dose: "25 mg"
+        status: "active"
+    transitions:
+      - to: titration_followup_delay
+
+  titration_followup_delay:
+    type: delay
+    sources: [acc_aha_heart_failure_2022]
+    exact:
+      quantity:
+        use: heart_failure.management.medication_titration_followup_days
+      unit: days
+    transitions:
+      - to: followup_visit
+
+  maintenance_plan:
+    type: care_plan
+    sources: [acc_aha_heart_failure_2022]
+    care_plans:
+      - name: "Heart Failure Maintenance"
+        category: "cardiology"
+        goal: "Maintain euvolemia and symptom control"
+        activities:
+          - name: "Continue GDMT regimen"
+            status: "active"
+          - name: "Weekly weight logs"
+            status: "planned"
+          - name: "Quarterly cardiology visits"
+            status: "planned"
+    transitions:
       - to: end
+
   end:
     type: terminal
-

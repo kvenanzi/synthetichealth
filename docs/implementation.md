@@ -46,6 +46,7 @@ This document captures the current state and near-term priorities for the simula
   - ✅ HIV + PrEP management (`modules/hiv_prep_management.yaml`).
   - ✅ Type 2 diabetes management with reusable titration submodule (`modules/type2_diabetes_management.yaml`, `modules/diabetes_glucose_titration.yaml`).
   - ✅ Hyperlipidemia management (ACC/AHA-aligned lifestyle + statin titration).
+  - ✅ Heart failure management (GDMT branches + titration loop).
 - 🔄 Rebuild validation to cover schema, terminology, and temporal consistency; ensure new tests run in CI.
   - ✅ Structural validator (`validate_module_definition`) now blocks invalid transitions.
   - ✅ CLI linter (`tools/module_linter.py`) enforces code bindings across modules.
