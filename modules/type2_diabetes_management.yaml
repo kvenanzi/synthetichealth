@@ -1,15 +1,212 @@
 name: type2_diabetes_management
-description: Placeholder scaffold for type 2 diabetes management module (v2 DSL pending).
+description: Guideline-driven type 2 diabetes workflow with lifestyle planning, pharmacotherapy, and titration.
+version: 0.2.0
+gmf_version: 2
 categories:
   encounters: augment
   conditions: augment
   medications: augment
   observations: augment
+  care_plans: augment
+sources:
+  - cdc_diabetes_statistics
+  - ada_standards_care
+  - generic_author_estimate
+remarks:
+  - Incorporates ADA Standards of Care 2024 dose escalation with quarterly monitoring.
 states:
   start:
     type: start
     transitions:
+      - to: intake_visit
+
+  intake_visit:
+    type: encounter
+    encounter_type: "Primary Care Visit"
+    reason: "Elevated fasting glucose evaluation"
+    provider_role: "Primary Care Physician"
+    location: "Internal Medicine Clinic"
+    transitions:
+      - to: baseline_labs
+
+  baseline_labs:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "4548-4"
+        name: "Hemoglobin A1c"
+        units: "%"
+        value_range:
+          min: 7.2
+          max: 9.8
+      - loinc: "2085-9"
+        name: "HDL Cholesterol"
+        units: "mg/dL"
+        value_range:
+          min: 28
+          max: 55
+      - loinc: "2160-0"
+        name: "Serum Creatinine"
+        units: "mg/dL"
+        value_range:
+          min: 0.7
+          max: 1.3
+    transitions:
+      - to: diagnosis
+
+  diagnosis:
+    type: condition_onset
+    attach_to_last_encounter: true
+    conditions:
+      - name: "Type 2 Diabetes Mellitus"
+        icd10: "E11.9"
+        snomed: "44054006"
+        category: "endocrine"
+    transitions:
+      - to: lifestyle_plan
+
+  lifestyle_plan:
+    type: care_plan
+    care_plans:
+      - name: "Type 2 Diabetes Lifestyle Plan"
+        category: "endocrinology"
+        goal: "Reduce A1c below 7.0%"
+        activities:
+          - name: "Nutrition counseling with carbohydrate targets"
+            status: "planned"
+          - name: "150 minutes/week aerobic exercise"
+            status: "planned"
+          - name: "Home glucose monitoring twice daily"
+            status: "active"
+    transitions:
+      - to: therapy_branch
+
+  therapy_branch:
+    type: decision
+    sources: [ada_standards_care]
+    distributed_transition:
+      - transition: metformin_monotherapy
+        probability: 0.65
+      - transition: combination_therapy
+        probability: 0.35
+
+  metformin_monotherapy:
+    type: medication_start
+    attach_to_last_encounter: true
+    medications:
+      - name: "Metformin"
+        rxnorm: "860975"
+        therapy_category: "biguanide"
+        dose: "500 mg"
+        status: "active"
+    transitions:
+      - to: therapy_monitoring
+
+  combination_therapy:
+    type: medication_start
+    attach_to_last_encounter: true
+    medications:
+      - name: "Metformin"
+        rxnorm: "860975"
+        therapy_category: "biguanide"
+        dose: "1000 mg"
+        status: "active"
+      - name: "Dulaglutide"
+        rxnorm: "1544389"
+        therapy_category: "glp1_agonist"
+        dose: "0.75 mg"
+        status: "active"
+    transitions:
+      - to: therapy_monitoring
+
+  therapy_monitoring:
+    type: call_submodule
+    module: diabetes_glucose_titration
+    transitions:
+      - to: monitoring_delay
+
+  monitoring_delay:
+    type: delay
+    sources: [ada_standards_care]
+    exact:
+      quantity: 90
+      unit: days
+    transitions:
+      - to: quarterly_review
+
+  quarterly_review:
+    type: encounter
+    encounter_type: "Diabetes Follow-up"
+    reason: "Quarterly metabolic control visit"
+    provider_role: "Primary Care Physician"
+    location: "Endocrinology Clinic"
+    transitions:
+      - to: quarterly_labs
+
+  quarterly_labs:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "4548-4"
+        name: "Hemoglobin A1c"
+        units: "%"
+        value_range:
+          min: 6.6
+          max: 8.4
+      - loinc: "26515-7"
+        name: "Urine Microalbumin/Creatinine Ratio"
+        units: "mg/g"
+        value_range:
+          min: 20
+          max: 100
+    transitions:
+      - to: control_check
+
+  control_check:
+    type: decision
+    sources: [cdc_diabetes_statistics]
+    distributed_transition:
+      - transition: maintenance_plan
+        probability: 0.55
+      - transition: therapy_monitoring
+        probability: 0.30
+      - transition: complication_screening
+        probability: 0.15
+
+  maintenance_plan:
+    type: care_plan
+    care_plans:
+      - name: "Diabetes Maintenance"
+        category: "endocrinology"
+        goal: "Maintain A1c <7% with quarterly labs"
+        activities:
+          - name: "Continue pharmacotherapy"
+            status: "active"
+          - name: "Quarterly telehealth check-in"
+            status: "planned"
+          - name: "Annual dilated eye exam"
+            status: "scheduled"
+    transitions:
       - to: end
+
+  complication_screening:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "33254-4"
+        name: "Diabetic Foot Exam"
+        units: ""
+        value_range:
+          min: 0
+          max: 1
+      - loinc: "33762-6"
+        name: "Retinal Imaging"
+        units: ""
+        value_range:
+          min: 0
+          max: 1
+    transitions:
+      - to: therapy_monitoring
+
   end:
     type: terminal
-

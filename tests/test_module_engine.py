@@ -132,6 +132,26 @@ def test_prenatal_module_handles_risk_branching():
         assert "Insulin NPH" not in medication_names
 
 
+def test_type2_diabetes_module_invokes_titration_submodule():
+    patient = {
+        "patient_id": "dm-1",
+        "birthdate": "1975-02-20",
+        "age": 49,
+        "gender": "female",
+        "race": "Asian",
+    }
+    result = run_module("type2_diabetes_management", patient, seed=4)
+
+    medication_names = {med["name"] for med in result.medications}
+    assert {"Empagliflozin", "Semaglutide"}.intersection(medication_names)
+
+    encounter_types = {enc["type"] for enc in result.encounters}
+    assert "Endocrinology Follow-up" in encounter_types
+
+    loincs = {obs.get("loinc_code") for obs in result.observations}
+    assert "4548-4" in loincs
+
+
 def test_module_validation_rejects_invalid_decisions(tmp_path):
     invalid_module = tmp_path / "invalid_module.yaml"
     invalid_module.write_text(

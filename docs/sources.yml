@@ -47,6 +47,18 @@ sources:
     url: https://example.org/
     date_accessed: 2025-10-10
 
+  - id: cdc_diabetes_statistics
+    title: National Diabetes Statistics Report 2024
+    org: CDC
+    url: https://www.cdc.gov/diabetes/data/statistics-report/index.html
+    date_accessed: 2025-10-10
+
+  - id: ada_standards_care
+    title: Standards of Care in Diabetes - 2024
+    org: American Diabetes Association
+    url: https://diabetesjournals.org/care/article/47/Supplement_1/S1/153416/Standards-of-Care-in-Diabetes-2024
+    date_accessed: 2025-10-10
+
   - id: cdc_copd_smoking
     title: COPD and Smoking - National Health Interview Survey
     org: CDC

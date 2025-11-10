@@ -1,0 +1,72 @@
+name: diabetes_glucose_titration
+description: Reusable intensification flow that adds cardio-protective agents and captures follow-up labs.
+version: 0.1.0
+gmf_version: 2
+categories:
+  encounters: augment
+  medications: augment
+  observations: augment
+sources:
+  - ada_standards_care
+states:
+  start:
+    type: start
+    transitions:
+      - to: titration_visit
+
+  titration_visit:
+    type: encounter
+    encounter_type: "Endocrinology Follow-up"
+    reason: "Assess glucose control after therapy escalation"
+    provider_role: "Endocrinologist"
+    location: "Endocrinology Clinic"
+    transitions:
+      - to: add_second_line
+
+  add_second_line:
+    type: medication_start
+    attach_to_last_encounter: true
+    medications:
+      - name: "Empagliflozin"
+        rxnorm: "1739723"
+        therapy_category: "sglt2_inhibitor"
+        dose: "10 mg"
+        status: "active"
+      - name: "Semaglutide"
+        rxnorm: "1991731"
+        therapy_category: "glp1_agonist"
+        dose: "0.25 mg"
+        status: "active"
+    transitions:
+      - to: titration_observations
+
+  titration_observations:
+    type: observation
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "4548-4"
+        name: "Hemoglobin A1c"
+        units: "%"
+        value_range:
+          min: 7.8
+          max: 9.2
+      - loinc: "2093-3"
+        name: "Total Cholesterol"
+        units: "mg/dL"
+        value_range:
+          min: 180
+          max: 230
+    transitions:
+      - to: titration_delay
+
+  titration_delay:
+    type: delay
+    sources: [ada_standards_care]
+    exact:
+      quantity: 45
+      unit: days
+    transitions:
+      - to: end
+
+  end:
+    type: terminal

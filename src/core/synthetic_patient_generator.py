@@ -1752,7 +1752,12 @@ class VistaReferenceRegistry:
             self.stop_code_lookup[normalized] = description
         return normalized
 
-    def get_drug_ien(self, name: Optional[str], rxnorm: Optional[str] = None) -> str:
+    def get_drug_ien(
+        self,
+        name: Optional[str],
+        rxnorm: Optional[str] = None,
+        dose_text: Optional[str] = None,
+    ) -> str:
         if not name and not rxnorm:
             return ""
         display_name = name or (f"Drug {rxnorm}" if rxnorm else "Unknown Drug")
@@ -1764,13 +1769,23 @@ class VistaReferenceRegistry:
                 "ien": ien,
                 "name": display_name,
                 "rxnorm": rxnorm or "",
+                "dose_text": dose_text or "",
             }
             return ien
         if name and not entry.get("name"):
             entry["name"] = name
+        if rxnorm and not entry.get("rxnorm"):
+            entry["rxnorm"] = rxnorm
+        if dose_text and not entry.get("dose_text"):
+            entry["dose_text"] = dose_text
         return entry["ien"]
 
-    def get_lab_test_ien(self, name: Optional[str], loinc: Optional[str] = None) -> str:
+    def get_lab_test_ien(
+        self,
+        name: Optional[str],
+        loinc: Optional[str] = None,
+        units: Optional[str] = None,
+    ) -> str:
         if not name and not loinc:
             return ""
         display_name = name or (f"LOINC {loinc}" if loinc else "Unknown Test")
@@ -1782,10 +1797,15 @@ class VistaReferenceRegistry:
                 "ien": ien,
                 "name": display_name,
                 "loinc": loinc or "",
+                "units": units or "",
             }
             return ien
         if name and not entry.get("name"):
             entry["name"] = name
+        if loinc and not entry.get("loinc"):
+            entry["loinc"] = loinc
+        if units and not entry.get("units"):
+            entry["units"] = units
         return entry["ien"]
 
     def get_allergen_ien(
@@ -1953,13 +1973,15 @@ class VistaReferenceRegistry:
         for entry in self.drug_lookup.values():
             ien = entry["ien"]
             name = sanitize(entry.get("name", "")) or f"DRUG {ien}"
-            node_value = f"{name}^{entry.get('rxnorm', '')}"
+            dose_text = sanitize(entry.get("dose_text", "")) if entry.get("dose_text") else ""
+            node_value = "^".join([name, entry.get("rxnorm", ""), dose_text])
             globals_dict[f"^PSDRUG({ien},0)"] = node_value
             globals_dict[f'^PSDRUG("B","{name}",{ien})'] = ""
         for entry in self.lab_lookup.values():
             ien = entry["ien"]
             name = sanitize(entry.get("name", "")) or f"LAB {ien}"
-            node_value = f"{name}^{entry.get('loinc', '')}"
+            units = sanitize(entry.get("units", "")) if entry.get("units") else ""
+            node_value = "^".join([name, entry.get("loinc", ""), units])
             globals_dict[f"^LAB(60,{ien},0)"] = node_value
             globals_dict[f'^LAB(60,"B","{name}",{ien})'] = ""
         for entry in self.allergen_lookup.values():
@@ -2101,6 +2123,36 @@ class VistaFormatter:
             return None
         key = raw.strip().lower()
         return cls.VITAL_ALIAS_MAP.get(key)
+
+    @staticmethod
+    def medication_dose_text(record: Dict[str, Any]) -> str:
+        dose = record.get("dose")
+        dose_unit = record.get("dose_unit")
+        frequency = record.get("frequency")
+        parts: List[str] = []
+        if dose not in (None, ""):
+            parts.append(str(dose))
+        if dose_unit:
+            if parts:
+                parts[-1] = f"{parts[-1]} {dose_unit}"
+            else:
+                parts.append(str(dose_unit))
+        dose_text = " ".join(part.strip() for part in parts if part).strip()
+        if frequency:
+            dose_text = f"{dose_text} {frequency}".strip()
+        return dose_text
+
+    @staticmethod
+    def normalize_care_plan_activity(activity: Any) -> Dict[str, Any]:
+        if isinstance(activity, dict):
+            return activity
+        label = str(activity).strip()
+        return {
+            "name": label or "Activity",
+            "type": "activity",
+            "status": "planned",
+            "planned": "",
+        }
 
     @classmethod
     def _vital_definition(cls, normalized: str) -> Optional[Dict[str, str]]:
@@ -2813,7 +2865,12 @@ class VistaFormatter:
                     or f"{medication.get('name', '')}-{medication.get('start_date', '')}"
                 )
                 med_ien = medication_vista_map.setdefault(med_key, _ensure_unique_ien(medication_iens))
-                drug_ien = registry.get_drug_ien(medication.get('name'), medication.get('rxnorm_code'))
+                dose_text = VistaFormatter.medication_dose_text(medication)
+                drug_ien = registry.get_drug_ien(
+                    medication.get('name'),
+                    medication.get('rxnorm_code'),
+                    dose_text=dose_text or None,
+                )
                 visit_ien = ""
                 encounter_ref = medication.get('encounter_id')
                 if encounter_ref:
@@ -2856,7 +2913,11 @@ class VistaFormatter:
                     or observation.get('observation_name')
                 )
                 loinc_code = observation.get('loinc_code') or observation.get('loinc')
-                test_ien = registry.get_lab_test_ien(test_name, loinc_code)
+                test_ien = registry.get_lab_test_ien(
+                    test_name,
+                    loinc_code,
+                    observation.get('units'),
+                )
                 visit_ien = ""
                 encounter_ref = observation.get('encounter_id')
                 if encounter_ref:
@@ -3136,13 +3197,10 @@ class VistaFormatter:
                 notes = plan.get('notes')
                 if notes:
                     text_lines.append(f"Notes: {notes}")
-                raw_activities = plan.get('activities', []) or []
-                normalized_activities = []
-                for activity in raw_activities:
-                    if isinstance(activity, dict):
-                        normalized_activities.append(activity)
-                    elif activity:
-                        normalized_activities.append({'display': str(activity), 'status': ''})
+                normalized_activities = [
+                    VistaFormatter.normalize_care_plan_activity(activity)
+                    for activity in (plan.get('activities') or [])
+                ]
                 outstanding = [
                     activity
                     for activity in normalized_activities
@@ -4389,6 +4447,10 @@ def main():
             return pl.DataFrame([])
 
         def _normalize_value(value: Any) -> Any:
+            if isinstance(value, datetime):
+                return value.isoformat()
+            if isinstance(value, date):
+                return value.isoformat()
             if isinstance(value, pl.Series):
                 value = value.to_list()
             if isinstance(value, tuple):

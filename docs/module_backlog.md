@@ -8,6 +8,8 @@ Legend
 - Planned: proposed; not yet scaffolded
 
 ## Implemented
+- type2_diabetes_management — modules/type2_diabetes_management.yaml
+- diabetes_glucose_titration — modules/diabetes_glucose_titration.yaml
 - adult_primary_care_wellness — modules/adult_primary_care_wellness.yaml
 - cardiometabolic_intensive — modules/cardiometabolic_intensive.yaml
 - hypertension_management — modules/hypertension_management.yaml
@@ -25,7 +27,6 @@ Legend
 - sepsis_survivorship — modules/sepsis_survivorship.yaml
 
 ## Scaffolded (ready to expand)
-- type2_diabetes_management — modules/type2_diabetes_management.yaml
 - hyperlipidemia_management — modules/hyperlipidemia_management.yaml
 - heart_failure_management — modules/heart_failure_management.yaml
 - atrial_fibrillation_management — modules/atrial_fibrillation_management.yaml

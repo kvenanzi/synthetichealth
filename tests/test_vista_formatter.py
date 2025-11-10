@@ -61,6 +61,9 @@ def test_fileman_internal_generates_numeric_pointers(tmp_path):
         "indication": "Hypertension",
         "start_date": "2023-11-29",
         "rxnorm_code": "617314",
+        "dose": 10,
+        "dose_unit": "mg",
+        "frequency": "daily",
     }
     observation = {
         "patient_id": patient.patient_id,
@@ -156,6 +159,8 @@ def test_fileman_internal_generates_numeric_pointers(tmp_path):
 
     lab_zero = next(line for line in content if re.match(r'S \^AUPNVLAB\(\d+,0\)=', line))
     assert re.search(r'"1001\^\d+\^', lab_zero)
+    lab_dict_line = next(line for line in content if re.match(r'S \^LAB\(60,\d+,0\)=', line))
+    assert "^4548-4^%" in lab_dict_line
 
     allergy_zero = next(line for line in content if re.match(r'S \^GMR\(120\.8,\d+,0\)=', line))
     assert re.search(r'"1001\^\d+\^\^o\^', allergy_zero)
@@ -171,6 +176,8 @@ def test_fileman_internal_generates_numeric_pointers(tmp_path):
 
     drug_pointer = next(line for line in content if re.match(r'S \^PSDRUG\(\d+,0\)=', line))
     assert 'LISINOPRIL' in drug_pointer.upper() or '617314' in drug_pointer
+    assert "10 mg" in drug_pointer.lower()
+    assert "daily" in drug_pointer.lower()
 
     narrative_line = next(line for line in content if re.match(r"S \^AUPNPROB\(\d+,\.05\)=", line))
     assert re.match(r"S \^AUPNPROB\(\d+,\.05\)=\d+$", narrative_line)

@@ -1,7 +1,7 @@
 """Domain models for the lifecycle-focused synthetic patient generator.
 
 These dataclasses provide a structured representation of the clinical artifacts
-produced by the generator so the legacy migration-oriented dictionaries can be
+produced by the generator so the legacy dictionary layouts can be
 progressively retired.
 """
 from __future__ import annotations

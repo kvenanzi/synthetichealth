@@ -1,0 +1,40 @@
+name: Python Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: synthetichealth
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          path: synthetichealth
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m venv .venv
+          . .venv/bin/activate
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r data/requirements.txt
+
+      - name: Run pytest
+        run: |
+          . .venv/bin/activate
+          python -m pytest

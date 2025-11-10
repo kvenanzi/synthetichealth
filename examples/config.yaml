@@ -5,7 +5,7 @@ num_records: 250
 output_dir: output/example
 
 # Choose a built-in scenario (discover with --list-scenarios)
-scenario: chronic_conditions
+scenario: cardiometabolic
 
 # Optionally attach one or more clinical modules (discover with --list-modules)
 modules:
@@ -20,10 +20,10 @@ vista_mode: fileman_internal
 
 # Optional demographic distribution overrides (weights auto-normalize)
 age_dist:
-  "18-34": 0.2
-  "35-49": 0.3
-  "50-64": 0.3
-  "65-79": 0.2
+  "0-18": 0.05
+  "19-40": 0.25
+  "41-65": 0.45
+  "66-95": 0.25
 
 # Example SDOH distributions (uncomment to customize)
 # smoking_dist: { never: 0.6, former: 0.25, current: 0.15 }
