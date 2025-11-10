@@ -27,6 +27,7 @@ care_plans*.csv
 *.hl7
 *.fhir
 *.mumps
+*_attributes*
 fhir_bundle.json
 lifecycle_patients.json
 terminology_reference.csv
