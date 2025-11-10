@@ -21,7 +21,7 @@ This plan removes all migration-focused code paths while protecting the syntheti
 - ✅ **Scenario loaders**: Hardened `src/core/lifecycle/loader.py` to raise clear errors when overrides include deprecated migration flags and added regression coverage in `tests/test_scenario_loader.py`.
 - ✅ **CLI and smoke coverage**: Added `tests/test_cli_arguments.py` to lock the `--list-scenarios`/`--list-modules` pathways and validated CLI smoke generation locally. The GitHub Actions workflow now exercises both pytest and a CLI run.
 - ✅ **Dependency + build hygiene**: Removed unused dashboard dependencies (`matplotlib`, `seaborn`, `websockets`, `rich`) from `requirements.txt` and re-ran `pip install -r requirements.txt` for validation.
-- ✅ **Automation updates**: Added `.github/workflows/python-tests.yml` to run `pytest` (with dependency install) on pushes/PRs; no legacy migration workflows remain.
+- ✅ **Automation updates**: Added `.github/workflows/python-tests.yml` to run `pytest` plus CLI smoke generation (default + example configs) on pushes/PRs; no legacy migration workflows remain.
 
 ## Phase 1. Inventory and Analysis
 - [x] Catalog migration modules and call sites:
@@ -104,10 +104,11 @@ This plan removes all migration-focused code paths while protecting the syntheti
 - [x] Remove migration-specific tests (`tests/test_enhanced_migration.py`, `tests/test_migration_simulator.py`, `tests/test_migration_analytics.py`) only after equivalent patient coverage exists.
 - [x] Trim fixtures, factories, and helpers that only serve migration paths.
 - [x] Update CI workflows to drop migration jobs; ensure patient suite remains green.
-  - Created `.github/workflows/python-tests.yml` to run `pytest`; no historic migration workflows remain.
+  - Created `.github/workflows/python-tests.yml` to run `pytest` and CLI smokes; no historic migration workflows remain.
 - Validation gate:
   - [x] Full test run: `pytest` (entire suite, 102 tests).
   - [x] Verify CI configuration updates locally (new workflow runs only patient suites; no migration branches referenced).
+  - [x] CLI smoketests executed locally/CI (`--config config/config.yaml` and `--config examples/config.yaml`).
 
 ## Phase 7. Dependency and Build Hygiene
 - [x] Remove third-party packages used solely by migration features (e.g., dashboard visualization libs).

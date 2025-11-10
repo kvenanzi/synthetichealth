@@ -22,6 +22,7 @@ states:
 
   intake_visit:
     type: encounter
+    sources: [cdc_diabetes_statistics]
     encounter_type: "Primary Care Visit"
     reason: "Elevated fasting glucose evaluation"
     provider_role: "Primary Care Physician"
@@ -31,6 +32,7 @@ states:
 
   baseline_labs:
     type: observation
+    sources: [cdc_diabetes_statistics]
     attach_to_last_encounter: true
     observations:
       - loinc: "4548-4"
@@ -56,6 +58,7 @@ states:
 
   diagnosis:
     type: condition_onset
+    sources: [cdc_diabetes_statistics]
     attach_to_last_encounter: true
     conditions:
       - name: "Type 2 Diabetes Mellitus"
@@ -67,6 +70,7 @@ states:
 
   lifestyle_plan:
     type: care_plan
+    sources: [ada_standards_care]
     care_plans:
       - name: "Type 2 Diabetes Lifestyle Plan"
         category: "endocrinology"
@@ -86,12 +90,15 @@ states:
     sources: [ada_standards_care]
     distributed_transition:
       - transition: metformin_monotherapy
-        probability: 0.65
+        probability:
+          use: diabetes.therapy_branch.metformin_probability
       - transition: combination_therapy
-        probability: 0.35
+        probability:
+          use: diabetes.therapy_branch.combination_probability
 
   metformin_monotherapy:
     type: medication_start
+    sources: [ada_standards_care]
     attach_to_last_encounter: true
     medications:
       - name: "Metformin"
@@ -104,6 +111,7 @@ states:
 
   combination_therapy:
     type: medication_start
+    sources: [ada_standards_care]
     attach_to_last_encounter: true
     medications:
       - name: "Metformin"
@@ -121,6 +129,7 @@ states:
 
   therapy_monitoring:
     type: call_submodule
+    sources: [ada_standards_care]
     module: diabetes_glucose_titration
     transitions:
       - to: monitoring_delay
@@ -129,13 +138,15 @@ states:
     type: delay
     sources: [ada_standards_care]
     exact:
-      quantity: 90
+      quantity:
+        use: diabetes.monitoring.quarterly_followup_days
       unit: days
     transitions:
       - to: quarterly_review
 
   quarterly_review:
     type: encounter
+    sources: [ada_standards_care]
     encounter_type: "Diabetes Follow-up"
     reason: "Quarterly metabolic control visit"
     provider_role: "Primary Care Physician"
@@ -145,6 +156,7 @@ states:
 
   quarterly_labs:
     type: observation
+    sources: [ada_standards_care]
     attach_to_last_encounter: true
     observations:
       - loinc: "4548-4"
@@ -167,14 +179,18 @@ states:
     sources: [cdc_diabetes_statistics]
     distributed_transition:
       - transition: maintenance_plan
-        probability: 0.55
+        probability:
+          use: diabetes.control_check.maintenance_probability
       - transition: therapy_monitoring
-        probability: 0.30
+        probability:
+          use: diabetes.control_check.revisit_probability
       - transition: complication_screening
-        probability: 0.15
+        probability:
+          use: diabetes.control_check.complication_probability
 
   maintenance_plan:
     type: care_plan
+    sources: [ada_standards_care]
     care_plans:
       - name: "Diabetes Maintenance"
         category: "endocrinology"
@@ -191,6 +207,7 @@ states:
 
   complication_screening:
     type: observation
+    sources: [cdc_diabetes_statistics]
     attach_to_last_encounter: true
     observations:
       - loinc: "33254-4"

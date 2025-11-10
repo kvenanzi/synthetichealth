@@ -1,0 +1,25 @@
+parameters:
+  therapy_branch:
+    metformin_probability:
+      value: 0.65
+      source_id: ada_standards_care
+    combination_probability:
+      value: 0.35
+      source_id: ada_standards_care
+  monitoring:
+    titration_followup_days:
+      value: 45
+      source_id: ada_standards_care
+    quarterly_followup_days:
+      value: 90
+      source_id: ada_standards_care
+  control_check:
+    maintenance_probability:
+      value: 0.55
+      source_id: cdc_diabetes_statistics
+    revisit_probability:
+      value: 0.30
+      source_id: cdc_diabetes_statistics
+    complication_probability:
+      value: 0.15
+      source_id: cdc_diabetes_statistics

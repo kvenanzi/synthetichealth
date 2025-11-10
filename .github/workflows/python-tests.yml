@@ -38,3 +38,10 @@ jobs:
         run: |
           . .venv/bin/activate
           python -m pytest
+
+      - name: CLI smoke tests
+        run: |
+          . .venv/bin/activate
+          python -m src.core.synthetic_patient_generator --config config/config.yaml --num-records 2 --output-dir output/ci_smoke_default --force
+          python -m src.core.synthetic_patient_generator --config examples/config.yaml --num-records 2 --output-dir output/ci_smoke_examples --force
+          rm -rf output/ci_smoke_default output/ci_smoke_examples

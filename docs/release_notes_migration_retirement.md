@@ -5,7 +5,7 @@ These notes capture the final removal of migration-only simulators, dashboards, 
 ## Highlights
 - Deleted remaining migration artifacts from the repository (snapshot directories, audit logs, and dashboard state) so only patient-generation assets remain.
 - Documented and reviewed all end-user guides and examples to ensure they reference the clinical simulator exclusively; legacy realism whitepapers were annotated as historical context only.
-- Published a streamlined GitHub Actions workflow that runs the Python test suite on pushes/pull requests to enforce the new baseline.
+- Published a streamlined GitHub Actions workflow that runs the Python test suite and CLI smokes on pushes/pull requests to enforce the new baseline.
 - Refreshed dependency manifests—dropped migration-only dashboard libraries (`websockets`, `matplotlib`, `seaborn`) and re-validated installation via the project virtual environment.
 
 ## Validation

@@ -63,7 +63,7 @@ This document captures the current state and near-term priorities for the simula
 - Plan beta milestones or internal releases once each phase reaches testing parity.
 
 ## Phase 3B – Synthea‑Level Realism (Plan)
-See `docs/phase_3b_synthea_parity_plan.md` for the full end‑to‑end plan to extend the DSL, engine, provenance, and validation to match Synthea’s module detail (attributes, conditional transitions, submodules, symptom modeling, and evidence‑backed parameters).
+See `docs/phase_3b_synthea_parity_plan.md` for the full end‑to‑end plan to extend the DSL, engine, provenance, and validation to match Synthea’s module detail (attributes, conditional transitions, submodules, symptom modeling, and evidence‑backed parameters). Initial progress: the module engine now infers attribute/demographic conditions automatically and the module linter enforces provenance via state-level sources or `use:` parameter references.
 
 ## Allergy & Hypersensitivity Realism (Plan)
 Objective: expand allergens and reactions beyond the current seeds and drive clinically appropriate tests, procedures, and medications with authoritative codes (SNOMED CT, RxNorm, LOINC, CPT) so outputs reflect realistic clinical workflows.

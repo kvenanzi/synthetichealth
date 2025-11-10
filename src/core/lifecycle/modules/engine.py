@@ -890,18 +890,48 @@ class _ModuleRunner:
             return False
         condition_type = condition.get("condition_type") or condition.get("type")
         if not condition_type:
+            if "attribute" in condition:
+                condition_type = "attribute"
+            elif "field" in condition or "demographic_field" in condition:
+                condition_type = "demographic"
+            elif "quantity" in condition or "unit" in condition:
+                condition_type = "age"
+            elif "probability" in condition or "p" in condition:
+                condition_type = "random"
+            elif "conditions" in condition:
+                # allow shorthand for logical groups
+                condition_type = "and"
+        if not condition_type:
             return False
         condition_type = condition_type.lower()
 
         if condition_type == "attribute":
             attribute = condition.get("attribute")
-            operator = (condition.get("operator") or "exists").lower()
+            operator = (
+                condition.get("operator")
+                or condition.get("op")
+                or ("exists" if "value" not in condition else "==")
+            ).lower()
             value = condition.get("value")
             current = self.attributes.get(attribute)
             if operator in {"==", "equals"}:
                 return current == value
             if operator in {"!=", "ne"}:
                 return current != value
+            if operator in {">", ">=", "<", "<="} and value is not None:
+                try:
+                    current_val = float(current)
+                    target_val = float(value)
+                except (TypeError, ValueError):
+                    return False
+                if operator == ">":
+                    return current_val > target_val
+                if operator == ">=":
+                    return current_val >= target_val
+                if operator == "<":
+                    return current_val < target_val
+                if operator == "<=":
+                    return current_val <= target_val
             if operator in {"is not nil", "exists", "not null"}:
                 return current is not None
             if operator in {"is nil", "is null", "not exists"}:

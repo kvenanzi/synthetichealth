@@ -73,6 +73,15 @@ MONTE_CARLO_JOBS = [
     },
     {
         "scenario": None,
+        "modules": ["type2_diabetes_management"],
+        "num_records": "8",
+        "iterations": "2",
+        "required_loinc": ["4548-4", "26515-7"],
+        "required_icd10": ["E11.9"],
+        "max_med_std": "0.7",
+    },
+    {
+        "scenario": None,
         "modules": ["mental_health_integrated_care", "geriatric_polypharmacy"],
         "num_records": "8",
         "iterations": "2",
