@@ -59,6 +59,18 @@ sources:
     url: https://diabetesjournals.org/care/article/47/Supplement_1/S1/153416/Standards-of-Care-in-Diabetes-2024
     date_accessed: 2025-10-10
 
+  - id: acc_aha_cholesterol_2022
+    title: 2022 ACC/AHA Guideline for the Management of Blood Cholesterol
+    org: American College of Cardiology / American Heart Association
+    url: https://www.jacc.org/doi/10.1016/j.jacc.2022.11.005
+    date_accessed: 2025-10-10
+
+  - id: cdc_heart_disease_stats
+    title: Heart Disease Facts
+    org: CDC
+    url: https://www.cdc.gov/heartdisease/facts.htm
+    date_accessed: 2025-10-10
+
   - id: cdc_copd_smoking
     title: COPD and Smoking - National Health Interview Survey
     org: CDC

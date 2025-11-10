@@ -82,6 +82,15 @@ MONTE_CARLO_JOBS = [
     },
     {
         "scenario": None,
+        "modules": ["hyperlipidemia_management"],
+        "num_records": "8",
+        "iterations": "2",
+        "required_loinc": ["2089-1", "2085-9"],
+        "required_icd10": ["E78.2"],
+        "max_med_std": "0.7",
+    },
+    {
+        "scenario": None,
         "modules": ["mental_health_integrated_care", "geriatric_polypharmacy"],
         "num_records": "8",
         "iterations": "2",

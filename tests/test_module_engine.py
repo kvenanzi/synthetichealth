@@ -152,6 +152,22 @@ def test_type2_diabetes_module_invokes_titration_submodule():
     assert "4548-4" in loincs
 
 
+def test_hyperlipidemia_module_generates_followups():
+    patient = {
+        "patient_id": "lipid-1",
+        "birthdate": "1972-09-12",
+        "age": 52,
+        "gender": "male",
+        "race": "White",
+    }
+    result = run_module("hyperlipidemia_management", patient, seed=3)
+
+    assert any(cond["icd10_code"] == "E78.2" for cond in result.conditions)
+    assert any(enc["type"] == "Lipid Follow-up" for enc in result.encounters)
+    assert any(med["name"] in {"Atorvastatin", "Rosuvastatin"} for med in result.medications)
+    assert any(obs["loinc_code"] == "2089-1" for obs in result.observations)
+
+
 def test_module_validation_rejects_invalid_decisions(tmp_path):
     invalid_module = tmp_path / "invalid_module.yaml"
     invalid_module.write_text(

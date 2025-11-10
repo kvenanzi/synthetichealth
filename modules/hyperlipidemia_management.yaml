@@ -1,15 +1,212 @@
 name: hyperlipidemia_management
-description: Placeholder scaffold for hyperlipidemia management module (v2 DSL pending).
+description: Guideline-based hyperlipidemia management with lifestyle coaching, statin therapy, and lipid monitoring.
+version: 0.1.0
+gmf_version: 2
 categories:
   encounters: augment
   conditions: augment
   medications: augment
   observations: augment
+  care_plans: augment
+sources:
+  - acc_aha_cholesterol_2022
+  - cdc_heart_disease_stats
 states:
   start:
     type: start
     transitions:
+      - to: intake_visit
+
+  intake_visit:
+    type: encounter
+    sources: [cdc_heart_disease_stats]
+    encounter_type: "Primary Care Visit"
+    reason: "Abnormal lipid evaluation"
+    provider_role: "Primary Care Physician"
+    location: "Internal Medicine Clinic"
+    transitions:
+      - to: baseline_labs
+
+  baseline_labs:
+    type: observation
+    sources: [acc_aha_cholesterol_2022]
+    attach_to_last_encounter: true
+    observations:
+      - loinc: "13457-7"
+        name: "Lipid panel"
+        units: "mg/dL"
+        value_range:
+          min: 210
+          max: 280
+      - loinc: "2085-9"
+        name: "HDL Cholesterol"
+        units: "mg/dL"
+        value_range:
+          min: 30
+          max: 55
+      - loinc: "2089-1"
+        name: "LDL Cholesterol"
+        units: "mg/dL"
+        value_range:
+          min: 140
+          max: 200
+    transitions:
+      - to: diagnosis
+
+  diagnosis:
+    type: condition_onset
+    sources: [acc_aha_cholesterol_2022]
+    attach_to_last_encounter: true
+    conditions:
+      - name: "Hyperlipidemia"
+        icd10: "E78.2"
+        snomed: "55822004"
+        category: "cardiovascular"
+    transitions:
+      - to: lifestyle_plan
+
+  lifestyle_plan:
+    type: care_plan
+    sources: [acc_aha_cholesterol_2022]
+    care_plans:
+      - name: "Hyperlipidemia Lifestyle Intervention"
+        category: "cardiology"
+        goal: "Reduce LDL cholesterol below 100 mg/dL"
+        activities:
+          - name: "Mediterranean diet coaching"
+            status: "planned"
+          - name: "150 minutes/week aerobic exercise"
+            status: "planned"
+          - name: "Weight management counseling"
+            status: "active"
+    transitions:
+      - to: statin_branch
+
+  statin_branch:
+    type: decision
+    sources: [acc_aha_cholesterol_2022]
+    distributed_transition:
+      - transition: moderate_intensity_statin
+        probability:
+          use: hyperlipidemia.therapy_branch.moderate_intensity_probability
+      - transition: high_intensity_statin
+        probability:
+          use: hyperlipidemia.therapy_branch.high_intensity_probability
+
+  moderate_intensity_statin:
+    type: medication_start
+    sources: [acc_aha_cholesterol_2022]
+    attach_to_last_encounter: true
+    medications:
+      - name: "Atorvastatin"
+        rxnorm: "83367"
+        therapy_category: "statin"
+        dose: "20 mg"
+        status: "active"
+    transitions:
+      - to: lifestyle_followup_delay
+
+  high_intensity_statin:
+    type: medication_start
+    sources: [acc_aha_cholesterol_2022]
+    attach_to_last_encounter: true
+    medications:
+      - name: "Rosuvastatin"
+        rxnorm: "301542"
+        therapy_category: "statin"
+        dose: "40 mg"
+        status: "active"
+    transitions:
+      - to: lifestyle_followup_delay
+
+  lifestyle_followup_delay:
+    type: delay
+    sources: [acc_aha_cholesterol_2022]
+    exact:
+      quantity:
+        use: hyperlipidemia.management.lifestyle_followup_days
+      unit: days
+    transitions:
+      - to: followup_visit
+
+  followup_visit:
+    type: encounter
+    sources: [acc_aha_cholesterol_2022]
+    encounter_type: "Lipid Follow-up"
+    reason: "Assess response to therapy"
+    provider_role: "Primary Care Physician"
+    location: "Internal Medicine Clinic"
+    transitions:
+      - to: followup_labs
+
+  followup_labs:
+    type: observation
+    attach_to_last_encounter: true
+    sources: [acc_aha_cholesterol_2022]
+    observations:
+      - loinc: "2089-1"
+        name: "LDL Cholesterol"
+        units: "mg/dL"
+        value_range:
+          min: 90
+          max: 140
+      - loinc: "2085-9"
+        name: "HDL Cholesterol"
+        units: "mg/dL"
+        value_range:
+          min: 40
+          max: 65
+    transitions:
+      - to: target_check
+
+  target_check:
+    type: decision
+    sources: [acc_aha_cholesterol_2022]
+    distributed_transition:
+      - transition: titrate_statin
+        probability: 0.4
+      - transition: maintenance_plan
+        probability: 0.6
+
+  titrate_statin:
+    type: medication_start
+    sources: [acc_aha_cholesterol_2022]
+    attach_to_last_encounter: true
+    medications:
+      - name: "Ezetimibe"
+        rxnorm: "630782"
+        therapy_category: "cholesterol_absorption_inhibitor"
+        dose: "10 mg"
+        status: "active"
+    transitions:
+      - to: titration_followup_delay
+
+  titration_followup_delay:
+    type: delay
+    sources: [acc_aha_cholesterol_2022]
+    exact:
+      quantity:
+        use: hyperlipidemia.management.statin_titration_followup_days
+      unit: days
+    transitions:
+      - to: followup_visit
+
+  maintenance_plan:
+    type: care_plan
+    sources: [acc_aha_cholesterol_2022]
+    care_plans:
+      - name: "Hyperlipidemia Maintenance"
+        category: "cardiology"
+        goal: "Maintain LDL below target"
+        activities:
+          - name: "Continue statin therapy"
+            status: "active"
+          - name: "Quarterly lipid panel"
+            status: "planned"
+          - name: "Adherence check-ins"
+            status: "planned"
+    transitions:
       - to: end
+
   end:
     type: terminal
-

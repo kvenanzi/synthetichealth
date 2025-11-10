@@ -1,0 +1,26 @@
+parameters:
+  prevalence:
+    general_population:
+      value: 0.11
+      source_id: cdc_heart_disease_stats
+  management:
+    lifestyle_followup_days:
+      value: 90
+      source_id: acc_aha_cholesterol_2022
+    statin_titration_followup_days:
+      value: 60
+      source_id: acc_aha_cholesterol_2022
+  therapy_branch:
+    moderate_intensity_probability:
+      value: 0.6
+      source_id: acc_aha_cholesterol_2022
+    high_intensity_probability:
+      value: 0.4
+      source_id: acc_aha_cholesterol_2022
+  monitoring:
+    ldl_target_mg_dl:
+      value: 100
+      source_id: acc_aha_cholesterol_2022
+    hdl_target_mg_dl:
+      value: 50
+      source_id: acc_aha_cholesterol_2022
